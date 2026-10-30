@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<l10n>
+    <texts>
+        <text name="input_GUIDANCE_TOGGLE_HUD" text="CourseCorrect : panneau"/>
+        <text name="input_GUIDANCE_START_STOP" text="CourseCorrect : démarrer / arrêter"/>
+        <text name="guidance_oldModLoaded" text="FS25_Guidance.zip (ancien nom de CourseCorrect) est aussi chargé : CourseCorrect est désactivé. Retirez FS25_Guidance.zip des mods."/>
+        <text name="guidance_implChanged" text="Créé pour : %s. Autre outil maintenant"/>
+        <text name="guidance_implAgain" text="Refaire"/>
+        <text name="guidance_job_field" text="Travail au champ"/>
+        <text name="guidance_helper_unload" text="Déchargeur"/>
+        <text name="guidance_helper_bales" text="Balles"/>
+        <text name="guidance_helper_silo" text="Silo"/>
+        <text name="guidance_helper_noTrailer" text="Attelez une remorque ou une vis de chargement pour décharger les moissonneuses-batteuses"/>
+        <text name="guidance_helper_noBaleTool" text="Attelez un chargeur de balles ou une enrubanneuse pour ramasser les balles"/>
+        <text name="guidance_helper_noSilo" text="Allez à un silo couloir pour le tasser"/>
+        <text name="guidance_helperAbout_unload" text="Attend au bord du champ, rejoint une moissonneuse-batteuse de ce champ qui appelle (autour de la culture), récupère son grain sous le tube à sa vitesse. Plein : va à la station par les routes du jeu et revient, ou s'arrête pour vous."/>
+        <text name="guidance_helperAbout_bales" text="Ramasse (ou enrubanne) toutes les balles de ce champ, les plus proches d'abord. Un chargeur plein décharge la pile là où il a démarré ; à la fin, il y apporte aussi le reste."/>
+        <text name="guidance_helperAbout_silo" text="Roule sur le silo couloir voie par voie, en avançant puis en reculant. Attend quand le silo est tassé, reprend quand on en verse davantage ; s'arrête quand il est fermé."/>
+        <text name="guidance_helperReady_unload" text="Démarrez-le au bord du champ"/>
+        <text name="guidance_helperReady_bales" text="Démarrez-le là où la pile doit être"/>
+        <text name="guidance_helperReady_silo" text="Démarrez-le au silo"/>
+        <text name="guidance_set_unloadAt" text="Décharger à"/>
+        <text name="guidance_unload_stop" text="Arrêt quand plein"/>
+        <text name="guidance_set_unloadFull" text="Partir quand plein à"/>
+        <text name="guidance_set_refill" text="Remplir à"/>
+        <text name="guidance_refill_off" text="Non : arrêt quand vide"/>
+        <text name="guidance_refill_none" text="Aucune station"/>
+        <text name="guidance_refill_bought" text="L'ouvrier l'achète"/>
+        <text name="guidance_status_pausedHelper" text="En pause"/>
+        <text name="guidance_phase_unloadWait" text="Attend une moissonneuse-batteuse"/>
+        <text name="guidance_phase_unloadDrive" text="Va vers la moissonneuse-batteuse"/>
+        <text name="guidance_phase_unloadFollow" text="Décharge la moissonneuse-batteuse"/>
+        <text name="guidance_phase_unloadLeave" text="Plein, quitte le champ"/>
+        <text name="guidance_phase_unloadTrip" text="En route pour décharger"/>
+        <text name="guidance_phase_balesFind" text="Cherche des balles"/>
+        <text name="guidance_phase_balesPick" text="Ramasse une balle"/>
+        <text name="guidance_phase_balesHome" text="Plein, va à la pile"/>
+        <text name="guidance_phase_balesUnload" text="Décharge la pile"/>
+        <text name="guidance_phase_siloDrive" text="Tasse le silo"/>
+        <text name="guidance_phase_siloWait" text="Silo tassé, attend"/>
+        <text name="guidance_jobTitle" text="CourseCorrect"/>
+        <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
+        <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>
+        <text name="guidance_msg_isFull" text="est plein"/>
+        <text name="guidance_msg_noCourse" text="n'a pas de parcours CourseCorrect"/>
+        <text name="guidance_err_noField" text="Impossible de lire le contour de ce champ"/>
+        <text name="guidance_err_notOnField" text="Allez d'abord sur un champ"/>
+        <text name="guidance_err_generic" text="Impossible de créer un parcours ici"/>
+        <text name="guidance_info_NEEDS_UNLOADING" text="Plein, à décharger"/>
+        <text name="guidance_info_NEEDS_FILLING" text="Vide, à remplir"/>
+        <text name="guidance_info_FUEL_IS_LOW" text="Carburant bas"/>
+        <text name="guidance_info_FUEL_IS_EMPTY" text="Plus de carburant"/>
+        <text name="guidance_info_IS_STUCK" text="Bloqué, arrêté"/>
+        <text name="guidance_status_working" text="Travail · %.0f%%"/>
+        <text name="guidance_status_otherHelper" text="Autre ouvrier actif"/>
+        <text name="guidance_status_ready" text="Prêt"/>
+        <text name="guidance_status_noCourse" text="Aucun parcours"/>
+        <text name="guidance_summary" text="%.1f ha · %d fourrières · %d rangs · environ %s"/>
+        <text name="guidance_hint_noCourse" text="Allez sur un champ et appuyez sur %s"/>
+        <text name="guidance_set_width" text="Largeur de travail"/>
+        <text name="guidance_set_headlands" text="Fourrières"/>
+        <text name="guidance_set_rowAngle" text="Sens des rangs"/>
+        <text name="guidance_set_radius" text="Rayon de braquage"/>
+        <text name="guidance_set_direction" text="Sens des fourrières"/>
+        <text name="guidance_set_headlandOrder" text="Ordre des fourrières"/>
+        <text name="guidance_set_pattern" text="Rangs"/>
+        <text name="guidance_auto" text="auto"/>
+        <text name="guidance_clockwise" text="Sens horaire"/>
+        <text name="guidance_counterClockwise" text="Sens antihoraire"/>
+        <text name="guidance_first" text="D'abord"/>
+        <text name="guidance_last" text="À la fin"/>
+        <text name="guidance_pattern_adjacent" text="Chaque rang"/>
+        <text name="guidance_pattern_racetrack" text="Circuit"/>
+        <text name="guidance_pattern_auto" text="Auto"/>
+        <text name="guidance_headlandWidth" text="%d m (%d)"/>
+        <text name="guidance_set_corners" text="Coins des fourrières"/>
+        <text name="guidance_corners_square" text="Carrés"/>
+        <text name="guidance_corners_round" text="Arrondis"/>
+        <text name="guidance_corners_needsReverse" text="Arrondis (attelé)"/>
+        <text name="guidance_warn_offField" text="%d demi-tours sortiraient du champ : ajoutez une fourrière"/>
+        <text name="guidance_warn_islandsIgnored" text="%d obstacle(s) près du bord : les passages de fourrière passent dessus"/>
+        <text name="guidance_warn_offField1" text="1 demi-tour sortirait du champ : ajoutez une fourrière"/>
+        <text name="guidance_summary_islands" text="%d îlots"/>
+        <text name="guidance_set_turns" text="Aux demi-tours"/>
+        <text name="guidance_turns_lift" text="Relever"/>
+        <text name="guidance_turns_keep" text="Garder baissé"/>
+        <text name="guidance_moreSettings" text="Plus de réglages"/>
+        <text name="guidance_lessSettings" text="Moins de réglages"/>
+        <text name="guidance_btn_makeCourse" text="Créer parcours"/>
+        <text name="guidance_btn_newCourse" text="Nouveau parcours"/>
+        <text name="guidance_btn_start" text="Démarrer"/>
+        <text name="guidance_btn_stop" text="Arrêter"/>
+        <text name="guidance_status_paused" text="En pause · %.0f%%"/>
+        <text name="guidance_btn_pause" text="Pause"/>
+        <text name="guidance_btn_resume" text="Reprendre"/>
+        <text name="guidance_set_startAt" text="Départ"/>
+        <text name="guidance_start_continue" text="Continuer"/>
+        <text name="guidance_start_nearest" text="Le plus proche"/>
+        <text name="guidance_start_first" text="Le premier"/>
+        <text name="guidance_info_FINISHED" text="Parcours terminé"/>
+        <text name="guidance_fleet_title" text="Flotte"/>
+        <text name="guidance_fleet_count" text="%d véhicules · %d avec un parcours"/>
+        <text name="guidance_fleet_back" text="Retour"/>
+        <text name="guidance_fleet_button" text="Flotte"/>
+        <text name="guidance_fleet_empty" text="Aucun véhicule de votre ferme n'a encore de parcours CourseCorrect"/>
+        <text name="guidance_set_roundedCorners" text="Coins arrondis"/>
+        <text name="guidance_corners_count" text="Intérieurs %d sur %d"/>
+        <text name="guidance_corners_allRound" text="Tous les passages"/>
+        <text name="guidance_corners_allSharp" text="Aucun, tous droits"/>
+        <text name="guidance_tab_course" text="Parcours"/>
+        <text name="guidance_tab_saved" text="Enregistrés"/>
+        <text name="guidance_tab_fleet" text="Flotte"/>
+        <text name="guidance_detail_area" text="Surface"/>
+        <text name="guidance_detail_length" text="Longueur"/>
+        <text name="guidance_detail_working" text="Travail"/>
+        <text name="guidance_detail_time" text="Durée"/>
+        <text name="guidance_detail_left" text="Temps restant"/>
+        <text name="guidance_detail_headlands" text="Fourrières"/>
+        <text name="guidance_detail_rows" text="Rangs"/>
+        <text name="guidance_detail_turns" text="Demi-tours"/>
+        <text name="guidance_detail_reverse" text="Marche arrière"/>
+        <text name="guidance_detail_islands" text="Îlots"/>
+        <text name="guidance_offer_saved" text="Charger un parcours enregistré (%d)"/>
+        <text name="guidance_saved_subtitle" text="%d parcours enregistrés"/>
+        <text name="guidance_saved_save" text="Enregistrer ce parcours"/>
+        <text name="guidance_saved_nothing" text="Créez un parcours pour l'enregistrer"/>
+        <text name="guidance_saved_empty" text="Aucun parcours enregistré"/>
+        <text name="guidance_saved_name" text="%s · %.1f m"/>
+        <text name="guidance_saved_done" text="Enregistré : %s"/>
+        <text name="guidance_saved_loaded" text="Chargé : %s"/>
+        <text name="guidance_saved_load" text="Charger"/>
+        <text name="guidance_saved_rename" text="Renommer"/>
+        <text name="guidance_saved_delete" text="Supprimer"/>
+        <text name="guidance_saved_sure" text="Sûr ?"/>
+        <text name="guidance_saved_renamePrompt" text="Nom du parcours"/>
+        <text name="guidance_saved_line" text="Champ %d · %.1f ha · %s"/>
+        <text name="guidance_folder_title" text="Champ %d"/>
+        <text name="guidance_folder_back" text="&lt; Tous les champs"/>
+        <text name="guidance_folder_count" text="%d parcours"/>
+        <text name="guidance_folder_one" text="1 parcours"/>
+        <text name="guidance_folder_here" text="vous êtes ici"/>
+        <text name="guidance_folder_open" text="Ouvrir"/>
+        <text name="guidance_saved_info" text="%.1f ha · %s · %.1f m"/>
+        <text name="guidance_record_start" text="Tracer un champ"/>
+        <text name="guidance_record_status" text="Tracé du contour : %.0f m. Faites le tour du champ."/>
+        <text name="guidance_record_cancel" text="Annuler"/>
+        <text name="guidance_record_finish" text="Terminer le champ"/>
+        <text name="guidance_record_tooSmall" text="Trop petit pour un champ : faites-en tout le tour"/>
+        <text name="guidance_record_name" text="Mon champ %d"/>
+        <text name="guidance_record_done" text="%s enregistré (%.2f ha). Créez-y un parcours maintenant."/>
+        <text name="guidance_scan_name" text="Champ %d (état réel)"/>
+        <text name="guidance_scan_nameNew" text="Champ peint %d"/>
+        <text name="guidance_scan_reading" text="Lecture de %s sur le terrain..."/>
+        <text name="guidance_scan_done" text="Parcours sur %s (%.2f ha), le champ tel qu'il est sur le terrain"/>
+        <text name="guidance_record_delete" text="Supprimer le champ"/>
+        <text name="guidance_record_folder" text="tracé"/>
+        <text name="guidance_plan_seed" text="Semences"/>
+        <text name="guidance_plan_spray" text="Produit"/>
+        <text name="guidance_plan_fuel" text="Carburant"/>
+        <text name="guidance_plan_fertilizer" text="Engrais"/>
+        <text name="guidance_plan_pf" text="%s (Precision Farming)"/>
+        <text name="guidance_plan_runsOutToo" text="%s à %d%%"/>
+        <text name="guidance_plan_bought" text="acheté par l'ouvrier"/>
+        <text name="guidance_plan_runsOut" text="%s manque vers %d%% du parcours"/>
+        <text name="guidance_queue_next" text="Suivant : %s"/>
+        <text name="guidance_queue_more" text="(+%d de plus)"/>
+        <text name="guidance_queue_clear" text="Vider"/>
+        <text name="guidance_saved_queue" text="File"/>
+        <text name="guidance_queue_added" text="%s en file (%d dans la file)"/>
+        <text name="guidance_info_NEXT_FIELD_WAITING" text="Champ suivant en attente : conduisez-y"/>
+        <text name="guidance_progress_left" text="%s restant"/>
+        <text name="guidance_tab_settings" text="Réglages"/>
+        <text name="guidance_scope_tractor" text="Ce tracteur"/>
+        <text name="guidance_scope_field" text="Ce champ"/>
+        <text name="guidance_scope_user" text="Mes défauts"/>
+        <text name="guidance_scope_tractorNote" text="%s : enregistré avec le tracteur"/>
+        <text name="guidance_scope_fieldNote" text="%s : utilisé par quiconque crée un parcours ici"/>
+        <text name="guidance_scope_fieldUnset" text="%s : rien d'enregistré, affiche ceux du tracteur"/>
+        <text name="guidance_scope_noField" text="Allez sur un champ pour régler ses paramètres"/>
+        <text name="guidance_scope_userNote" text="Les vôtres, sur ce PC : pour les tracteurs pas encore réglés"/>
+        <text name="guidance_scope_saveDefaults" text="En faire mes défauts"/>
+        <text name="guidance_scope_savedDefaults" text="Enregistré comme vos défauts"/>
+        <text name="guidance_scope_useTractor" text="Prendre ceux du tracteur"/>
+        <text name="guidance_scope_forget" text="Oublier"/>
+        <text name="guidance_scope_fieldSaved" text="Réglages enregistrés pour %s"/>
+        <text name="guidance_scope_fieldForgotten" text="%s oublie ses réglages"/>
+        <text name="guidance_scope_applyTractor" text="Utiliser pour ce tracteur"/>
+        <text name="guidance_scope_applied" text="Vos défauts sont appliqués à ce tracteur"/>
+        <text name="guidance_set_minHeadland" text="Fourrière min."/>
+        <text name="guidance_set_rememberFields" text="Mémoriser par champ"/>
+        <text name="guidance_set_notifications" text="Notifications"/>
+        <text name="guidance_on" text="Oui"/>
+        <text name="guidance_off" text="Non"/>
+        <text name="guidance_status_workingShort" text="Travail"/>
+        <text name="guidance_status_pausedShort" text="En pause"/>
+        <text name="guidance_btn_stopHelper" text="Arrêter l'ouvrier"/>
+        <text name="guidance_set_lowerLate" text="Abaisser l'outil"/>
+        <text name="guidance_set_raiseLate" text="Relever l'outil"/>
+        <text name="guidance_timing_onTime" text="Pile"/>
+        <text name="guidance_timing_early" text="%.1f m en avance"/>
+        <text name="guidance_timing_late" text="%.1f m en retard"/>
+        <text name="guidance_set_teamMode" text="Équipe sur ce champ"/>
+        <text name="guidance_team_alone" text="Seul"/>
+        <text name="guidance_team_strips" text="Bandes"/>
+        <text name="guidance_set_teamSize" text="Tracteurs dans l'équipe"/>
+        <text name="guidance_team_size" text="%d tracteurs"/>
+        <text name="guidance_set_teamIndex" text="Ce tracteur"/>
+        <text name="guidance_team_index" text="%d sur %d"/>
+        <text name="guidance_info_GIVING_WAY" text="Cède le passage à un autre ouvrier"/>
+        <text name="guidance_detail_team" text="Équipe"/>
+        <text name="guidance_detail_teamValue" text="bande %d sur %d"/>
+        <text name="guidance_status_givingWay" text="Cède le passage"/>
+        <text name="guidance_set_callUnloaderAt" text="Appeler le déchargeur à"/>
+        <text name="guidance_set_toolOffset" text="Décalage de l'outil"/>
+        <text name="guidance_offset_centre" text="Centré"/>
+        <text name="guidance_offset_right" text="%.1f m à droite"/>
+        <text name="guidance_offset_left" text="%.1f m à gauche"/>
+        <text name="guidance_btn_goTo" text="Aller à"/>
+        <text name="guidance_tab_team" text="Équipe"/>
+        <text name="guidance_team_convoy" text="Convoi"/>
+        <text name="guidance_team_nextRow" text="Prochain rang libre"/>
+        <text name="guidance_team_field" text="%s"/>
+        <text name="guidance_team_noField" text="Allez sur un champ pour le travailler en équipe"/>
+        <text name="guidance_teamAbout_strips" text="Chaque tracteur travaille sa propre bande de rangs ; les passages de fourrière sont répartis."/>
+        <text name="guidance_teamAbout_convoy" text="Côte à côte sur un large parcours, l'un après l'autre dans les demi-tours."/>
+        <text name="guidance_team_lands" text="Planches"/>
+        <text name="guidance_teamAbout_lands" text="Chacun travaille sa part en planches, du milieu vers l'extérieur : terrain travaillé côté tube, remorques jamais sur la culture."/>
+        <text name="guidance_set_landsSide" text="Côté travaillé"/>
+        <text name="guidance_side_left" text="Gauche"/>
+        <text name="guidance_side_right" text="Droite"/>
+        <text name="guidance_side_any" text="au choix"/>
+        <text name="guidance_side_auto" text="Auto (%s)"/>
+        <text name="guidance_teamAbout_nextRow" text="Chacun prend le prochain rang libre en finissant le sien : tous finissent ensemble."/>
+        <text name="guidance_team_pick" text="Tracteurs dans l'équipe : %d (cochez-les ; le premier mène)"/>
+        <text name="guidance_team_lead" text="meneur"/>
+        <text name="guidance_team_full" text="%d tracteurs maximum par équipe"/>
+        <text name="guidance_team_widths" text="%s : autre largeur de travail que celle du meneur (%.1f m) ; l'équipe travaille avec celle-ci"/>
+        <text name="guidance_team_make" text="Créer parcours"/>
+        <text name="guidance_team_startAll" text="Tout démarrer (%d)"/>
+        <text name="guidance_team_stopAll" text="Tout arrêter"/>
+        <text name="guidance_team_made" text="Parcours créés pour %d tracteurs sur %s"/>
+        <text name="guidance_teamRole_strips" text="Bande %d sur %d"/>
+        <text name="guidance_teamRole_convoy" text="Voie %d sur %d"/>
+        <text name="guidance_teamRole_nextRow" text="Partage les rangs (%d sur %d)"/>
+        <text name="guidance_teamRole_alone" text="Seul"/>
+        <text name="guidance_teamRole_lands" text="Planches, part %d sur %d"/>
+        <text name="input_GUIDANCE_UI_NEXT" text="CourseCorrect : panneau, bouton suivant"/>
+        <text name="input_GUIDANCE_UI_PREV" text="CourseCorrect : panneau, bouton précédent"/>
+        <text name="input_GUIDANCE_UI_PRESS" text="CourseCorrect : panneau, appuyer sur le bouton"/>
+        <text name="guidance_set_autoResume" text="Après chargement"/>
+        <text name="guidance_resume_carryOn" text="Continuer"/>
+        <text name="guidance_resume_wait" text="Attendre"/>
+        <text name="guidance_set_panelScale" text="Taille du panneau"/>
+        <text name="guidance_set_workPart" text="Travail"/>
+        <text name="guidance_workPart_whole" text="Champ entier"/>
+        <text name="guidance_workPart_headlands" text="Fourrières seulement"/>
+        <text name="guidance_workPart_rows" text="Rangs seulement"/>
+        <text name="guidance_set_rowFrom" text="Premier rang"/>
+        <text name="guidance_set_rowTo" text="Dernier rang"/>
+        <text name="guidance_rows_first" text="Le premier"/>
+        <text name="guidance_rows_last" text="Le dernier"/>
+        <text name="guidance_set_workSpeed" text="Vitesse de travail"/>
+        <text name="guidance_speed_implement" text="Celle de l'outil"/>
+        <text name="guidance_set_turnSpeed" text="Vitesse en demi-tour"/>
+        <text name="guidance_set_reverseSpeed" text="Vitesse en marche arrière"/>
+        <text name="guidance_set_lights" text="Éclairage"/>
+        <text name="guidance_lights_auto" text="Auto"/>
+        <text name="guidance_lights_off" text="Ne pas toucher"/>
+        <text name="guidance_set_soundAlerts" text="Alertes sonores"/>
+        <text name="guidance_saved_export" text="Exporter"/>
+        <text name="guidance_saved_exported" text="Exporté vers %s"/>
+        <text name="guidance_saved_import" text="Importer un fichier de parcours"/>
+        <text name="guidance_import_title" text="%d fichiers de parcours"/>
+        <text name="guidance_import_refresh" text="Actualiser"/>
+        <text name="guidance_import_hint" text="Fichiers de parcours de votre dossier modSettings/FS25_CourseCorrect/courses (Exporter les y place ; copiez-y ceux d'un ami)."/>
+        <text name="guidance_import_none" text="Aucun fichier de parcours pour l'instant"/>
+        <text name="guidance_import_one" text="Importer"/>
+        <text name="guidance_import_done" text="%s importé dans les parcours enregistrés"/>
+        <text name="guidance_import_bad" text="%s n'est pas un fichier de parcours"/>
+        <text name="guidance_fleet_vehicles" text="Véhicules"/>
+        <text name="guidance_fleet_log" text="Journal de travail"/>
+        <text name="guidance_log_count" text="%d tâches"/>
+        <text name="guidance_log_total" text="Total"/>
+        <text name="guidance_log_empty" text="Rien de fait par un ouvrier pour l'instant"/>
+        <text name="guidance_log_when" text="jour %d, %02d:%02d"/>
+        <text name="guidance_section_course" text="Parcours"/>
+        <text name="guidance_section_driving" text="Conduite"/>
+        <text name="guidance_section_team" text="Équipe"/>
+        <text name="guidance_alert_need" text="%d ont besoin de vous"/>
+        <text name="guidance_alert_working" text="%d au travail"/>
+        <text name="guidance_alert_now" text="à l'instant"/>
+        <text name="guidance_alert_more" text="et %d autres"/>
+        <text name="guidance_set_alertsOnScreen" text="Alertes à l'écran"/>
+        <text name="guidance_pattern_lands" text="Planches"/>
+        <text name="guidance_pattern_spiral" text="Spirale"/>
+        <text name="guidance_set_rowsPerLand" text="Rangs par planche"/>
+        <text name="guidance_set_rowShape" text="Forme des rangs"/>
+        <text name="guidance_rowShape_straight" text="Droits"/>
+        <text name="guidance_rowShape_edge" text="Le long du bord"/>
+        <text name="guidance_set_tramlines" text="Passages de roues"/>
+        <text name="guidance_tramlines_off" text="Non"/>
+        <text name="guidance_tramlines_on" text="Oui %s"/>
+        <text name="guidance_tramlines_none" text="Aucun parcours de semis"/>
+        <text name="guidance_edit" text="Modifier"/>
+        <text name="guidance_edit_done" text="Terminé"/>
+        <text name="guidance_edit_clear" text="Tout reprendre"/>
+        <text name="guidance_tool_direction" text="Sens"/>
+        <text name="guidance_tool_start" text="Départ"/>
+        <text name="guidance_tool_skipRow" text="Sauter des rangs"/>
+        <text name="guidance_tool_zone" text="Zone à éviter"/>
+        <text name="guidance_toolHint_direction" text="Faites glisser pour tourner les rangs"/>
+        <text name="guidance_toolHint_start" text="Cliquez où démarrer"/>
+        <text name="guidance_toolHint_skipRow" text="Cliquez un rang : exclure / reprendre"/>
+        <text name="guidance_toolHint_zone" text="Tracez un cadre à contourner"/>
+    </texts>
+</l10n>

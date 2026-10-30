@@ -184,9 +184,13 @@ def main():
 
     # 6. a spot inside that is not field: an island of the field read from the ground
     G.GuidanceLibrary.fields = lua.table_from([])
-    spot = [cx - 15, cz - 15, cx + 15, cz + 15]
+    # (in the middle of the rows: an island in the headland band isn't worked round, see the README)
+    rows_x = [course.waypoints[i].x for i in range(1, len(course.waypoints) + 1) if course.waypoints[i].t == "R"]
+    rows_z = [course.waypoints[i].z for i in range(1, len(course.waypoints) + 1) if course.waypoints[i].t == "R"]
+    mx, mz = (min(rows_x) + max(rows_x)) / 2, (min(rows_z) + max(rows_z)) / 2
+    spot = [mx - 15, mz - 15, mx + 15, mz + 15]
     G.setGround(F, True, T([ext]), T([spot]))
-    r = G.fieldFor(cx + 40, cz)
+    r = G.fieldFor(mx + 40, mz)
     fid5 = r[0] if isinstance(r, tuple) else r
     found = len(list(G.GuidanceCourse.findIslands(fid5, G.GuidanceCourse.getFieldOutline(fid5)).values())) if fid5 else 0
     course5 = G.courseOn(fid5) if fid5 else None
@@ -196,6 +200,7 @@ def main():
             w = course5.waypoints[i]
             if spot[0] + 3 < w.x < spot[2] - 3 and spot[1] + 3 < w.z < spot[3] - 3:
                 in_spot += 1
+                print(f"  on the spot: waypoint {i} {w.t} ({w.x - spot[0]:.1f}, {w.z - spot[1]:.1f}) in the 30 m spot")
     check("island", course5 is not None and found >= 1 and in_spot == 0,
           f"field {fid5}, {found} island(s) found, {in_spot} waypoints on it")
 

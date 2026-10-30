@@ -45,12 +45,15 @@ end
 --- A helper at x, z (facing hx, hz along the row it just finished, at 'lastAcross' across the field; nil: none yet)
 --- takes its next row: the free one nearest to it, preferring one far enough over to turn into without backing up
 --- (minGap m across). Returns the row and whether to drive it from b to a, or nil when none are left.
-function Team.takeRow(fieldId, rows, vehicle, x, z, lastAcross, minGap)
+function Team.takeRow(fieldId, rows, vehicle, x, z, lastAcross, minGap, mayRestart)
     local f = Team.getField(fieldId, rows)
     if #rows == 0 then return nil end
-    -- everything done (a finished field started again): start over
+    -- everything done: a helper started on the finished field (mayRestart) starts it over; one that worked this
+    -- round with the others just finishes (on a small field the others may be done with every row while it is
+    -- still on its headland passes)
     local done = Team.count(fieldId, rows)
     if done == #rows and next(f.taken) == nil then
+        if not mayRestart then return nil end
         f.done = {}
     end
     local first = rows[1]

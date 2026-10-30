@@ -1,28 +1,38 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="105">
     <author>Chris Fennell</author>
-    <version>0.5.0.0</version>
+    <version>0.6.0.0</version>
     <title>
         <en>CourseCorrect</en>
         <de>CourseCorrect</de>
+        <fr>CourseCorrect</fr>
+        <pl>CourseCorrect</pl>
+        <nl>CourseCorrect</nl>
+        <es>CourseCorrect</es>
+        <it>CourseCorrect</it>
+        <cz>CourseCorrect</cz>
     </title>
     <description>
-        <en><![CDATA[CourseCorrect (formerly Guidance): a helper that works your fields along a planned course.
+        <en><![CDATA[CourseCorrect (formerly Guidance): hired helpers that work your fields along a planned course, and helpers for the jobs around it.
 
-- Pick the field you stand on, see the course right away, press Start.
-- Headlands, straight rows across the inside, smooth turns sized for your vehicle.
-- Row direction chosen automatically for the fewest turns, or set by you.
-- Works with AutoDrive: AutoDrive drives to the field and starts CourseCorrect, takes over when the trailer is full or the hopper empty and brings the vehicle back.
-- Multiplayer and dedicated servers.
+- Stand on a field, see the course right away, press Start. Headlands (at least 40 m), rows, smooth turns sized for your vehicle; every row, racetrack, lands, spiral or curved rows; work round islands.
+- Course editor on the map: turn the rows, pick the start, leave rows or areas out.
+- Fields painted with the landscaping tools are read from the ground.
+- Several tractors on one field: strips, lands, convoy or next free row.
+- Unloader: catches a combine's grain under its pipe and takes it to a station on the game's roads. Bale collector, silo compacter, refill trips for seeders and sprayers.
+- Seed, fertiliser and fuel planner (with Precision Farming), alerts on the screen, fleet, work log, saved courses.
+- Works with AutoDrive. Multiplayer and dedicated servers.
 
 Open the panel: Ctrl+J. Start/stop the helper: Alt+J.]]></en>
-        <de><![CDATA[CourseCorrect (früher Guidance): ein Helfer, der deine Felder entlang eines geplanten Kurses bearbeitet.
+        <de><![CDATA[CourseCorrect (früher Guidance): Helfer, die deine Felder entlang eines geplanten Kurses bearbeiten, und Helfer für die Arbeit drumherum.
 
-- Feld wählen, Kurs sofort sehen, Start drücken.
-- Vorgewende, gerade Bahnen im Inneren, weiche Wenden passend zum Fahrzeug.
-- Bahnrichtung automatisch mit den wenigsten Wenden, oder selbst eingestellt.
-- Arbeitet mit AutoDrive: AutoDrive fährt zum Feld und startet CourseCorrect, übernimmt wenn der Anhänger voll oder der Tank leer ist und bringt das Fahrzeug zurück.
-- Mehrspieler und dedizierte Server.
+- Auf ein Feld stellen, Kurs sofort sehen, Start drücken. Vorgewende (mindestens 40 m), Bahnen, weiche Wenden passend zum Fahrzeug; jede Bahn, Rennbahn, Beete, Spirale oder gebogene Bahnen; Inseln werden umfahren.
+- Kurseditor auf der Karte: Bahnen drehen, Start wählen, Bahnen oder Flächen auslassen.
+- Mit den Landschaftswerkzeugen gemalte Felder werden vom Boden gelesen.
+- Mehrere Traktoren auf einem Feld: Streifen, Beete, Kolonne oder nächste freie Bahn.
+- Überlader: nimmt das Korn eines Dreschers unter dem Rohr auf und bringt es auf den Straßen des Spiels zur Station. Ballensammler, Siloverdichter, Nachfüllfahrten für Sämaschinen und Spritzen.
+- Planer für Saatgut, Dünger und Kraftstoff (mit Precision Farming), Hinweise auf dem Bildschirm, Fuhrpark, Arbeitsbuch, gespeicherte Kurse.
+- Arbeitet mit AutoDrive. Mehrspieler und dedizierte Server.
 
 Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
     </description>
@@ -46,6 +56,9 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
         <sourceFile filename="scripts/ai/Team.lua"/>
         <sourceFile filename="scripts/ai/FieldworkDriver.lua"/>
         <sourceFile filename="scripts/ai/GuidanceJob.lua"/>
+        <sourceFile filename="scripts/ai/Trips.lua"/>
+        <sourceFile filename="scripts/ai/Helpers.lua"/>
+        <sourceFile filename="scripts/ai/HelperJobs.lua"/>
         <sourceFile filename="scripts/events/GuidanceCourseEvent.lua"/>
         <sourceFile filename="scripts/events/GuidancePauseEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceLibraryEvent.lua"/>

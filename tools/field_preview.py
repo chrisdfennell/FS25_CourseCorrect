@@ -14,7 +14,9 @@ from lupa import lua51
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
-LUA_FILES = ["scripts/geometry/Geo.lua", "scripts/geometry/Dubins.lua", "scripts/course/CourseGenerator.lua"]
+# (the pathfinder too: the course maker uses it for ways between parts of a split field, as in the game)
+LUA_FILES = ["scripts/geometry/Geo.lua", "scripts/geometry/Dubins.lua", "scripts/course/CourseGenerator.lua",
+             "scripts/ai/PathFollower.lua", "scripts/ai/Pathfinder.lua"]
 
 
 def floats(text, n=3):
@@ -23,7 +25,12 @@ def floats(text, n=3):
 
 
 def read_fields(i3d_path):
-    """{field name: [(x, z), ...]} from the map's gameplay/fields/<field>/polygonPoints"""
+    """{field name: [(x, z), ...]} from the map's gameplay/fields/<field>/polygonPoints, or from a .json file of
+    outlines (tools/fixtures/test_fields.json: the made-up fields the automatic tests use)"""
+    if str(i3d_path).lower().endswith(".json"):
+        import json
+        data = json.loads(Path(i3d_path).read_text(encoding="utf-8"))
+        return {name: [tuple(p) for p in pts] for name, pts in data.items()}
     root = ET.parse(i3d_path).getroot()
     fields = {}
     for fields_node in root.iter("TransformGroup"):
@@ -48,6 +55,7 @@ def read_fields(i3d_path):
 
 def load_lua():
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
+    lua.execute("Guidance = Guidance or {debug = function() end, info = function() end}")
     for rel in LUA_FILES:
         lua.execute((ROOT / rel).read_text(encoding="utf-8"))
     return lua

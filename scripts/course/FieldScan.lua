@@ -3,8 +3,9 @@
 -- then follows its edge, each edge point placed exactly on the change from field to no field.
 
 GuidanceFieldScan = {
-    STEP = 2, -- m between samples
-    MAX_CELLS = 500000, -- 200 ha: bigger is given up
+    STEP = 2, -- m between samples on a field of usual size
+    STEPS = {2, 3, 4, 6, 8}, -- bigger fields: coarser (the edge points are placed exactly all the same)
+    CELL_BUDGET = 150000, -- cells a scan may look at before it starts again coarser (a short hitch at most)
     SEARCH = 24, -- m: a start point off the field ground looks this far round for it
     REFINE = 5, -- halvings placing an edge point (2 m / 32)
     SIMPLIFY = 0.35, -- m
@@ -67,7 +68,16 @@ function Scan.scan(x, z, ownFieldId)
     local function ok(px, pz)
         return isField(px, pz) and not other(px, pz)
     end
+    -- the step: the finest that keeps the map field's area within the budget
     local step = Scan.STEP
+    local mapOutline = ownFieldId and GuidanceCourse and GuidanceCourse.getFieldOutline(ownFieldId)
+    if mapOutline and #mapOutline >= 3 then
+        local area = Scan.areaOf(mapOutline)
+        for _, st in ipairs(Scan.STEPS) do
+            step = st
+            if area / (st * st) <= Scan.CELL_BUDGET * 0.8 then break end
+        end
+    end
     -- the start: here, or the nearest field ground round about
     local x0, z0
     if ok(x, z) then
@@ -89,32 +99,49 @@ function Scan.scan(x, z, ownFieldId)
     if x0 == nil then
         return nil, "none"
     end
-    -- every cell of field ground joined to the start (side by side, not only corner to corner)
-    local inside = {}
-    local queue, head, tail = {{0, 0}}, 1, 1
-    inside[key(0, 0)] = true
-    local count = 1
-    while head <= tail do
-        local c = queue[head]
-        queue[head] = nil
-        head = head + 1
-        for _, d in ipairs({{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) do
-            local i, j = c[1] + d[1], c[2] + d[2]
-            local k = key(i, j)
-            if inside[k] == nil then
-                local isIn = ok(x0 + i * step, z0 + j * step)
-                inside[k] = isIn
-                if isIn then
-                    count = count + 1
-                    if count > Scan.MAX_CELLS then
-                        return nil, "big"
+    -- every cell of field ground joined to the start (side by side, not only corner to corner); more than the
+    -- budget: again, coarser
+    local function fill()
+        local cells = {}
+        local queue, head, tail = {{0, 0}}, 1, 1
+        cells[key(0, 0)] = true
+        local count = 1
+        while head <= tail do
+            local c = queue[head]
+            queue[head] = nil
+            head = head + 1
+            for _, d in ipairs({{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) do
+                local i, j = c[1] + d[1], c[2] + d[2]
+                local k = key(i, j)
+                if cells[k] == nil then
+                    local isIn = ok(x0 + i * step, z0 + j * step)
+                    cells[k] = isIn
+                    if isIn then
+                        count = count + 1
+                        if count > Scan.CELL_BUDGET then
+                            return nil
+                        end
+                        tail = tail + 1
+                        queue[tail] = {i, j}
                     end
-                    tail = tail + 1
-                    queue[tail] = {i, j}
                 end
             end
         end
+        return cells
     end
+    local inside = fill()
+    while inside == nil do
+        local coarser
+        for _, st in ipairs(Scan.STEPS) do
+            if st > step then coarser = st break end
+        end
+        if coarser == nil then
+            return nil, "big"
+        end
+        step = coarser
+        inside = fill()
+    end
+    Scan.lastStep = step
     -- the edges between a cell of ours and one that is not, each with ours on its left: from corner to corner
     -- (corner a, b is the bottom left corner of cell a, b)
     local out = {}

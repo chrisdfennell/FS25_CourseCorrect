@@ -82,6 +82,12 @@ function GuidancePlan.new()
     -- the course is made)
     self.landsSide = 0
     self.landsPipe = 0
+    -- refill trips: the loading station (its place; 0, 0: none) a seeder / sprayer drives to when empty
+    self.refillX, self.refillZ = 0, 0
+    -- the unloader: the unloading station it takes a full trailer to (0, 0: stops when full), how full it goes (%)
+    self.unloadX, self.unloadZ, self.unloadFull = 0, 0, 97
+    -- the implements attached when the course was made (names; "" unknown): a different one gets a warning
+    self.toolSig = ""
     -- from the vehicle: how far back a towed implement works (0: nothing towed), for tight corners
     self.towLength = 0
     return self
@@ -178,6 +184,12 @@ function GuidancePlan:writeStream(streamId)
     streamWriteString(streamId, self.skipZones or "")
     streamWriteUInt8(streamId, self.landsSide or 0)
     streamWriteUInt8(streamId, self.landsPipe or 0)
+    streamWriteString(streamId, self.toolSig or "")
+    streamWriteFloat32(streamId, self.refillX or 0)
+    streamWriteFloat32(streamId, self.refillZ or 0)
+    streamWriteFloat32(streamId, self.unloadX or 0)
+    streamWriteFloat32(streamId, self.unloadZ or 0)
+    streamWriteUInt8(streamId, self.unloadFull or 97)
 end
 
 function GuidancePlan.readStream(streamId)
@@ -227,6 +239,12 @@ function GuidancePlan.readStream(streamId)
     self.skipZones = streamReadString(streamId)
     self.landsSide = streamReadUInt8(streamId)
     self.landsPipe = streamReadUInt8(streamId)
+    self.toolSig = streamReadString(streamId)
+    self.refillX = streamReadFloat32(streamId)
+    self.refillZ = streamReadFloat32(streamId)
+    self.unloadX = streamReadFloat32(streamId)
+    self.unloadZ = streamReadFloat32(streamId)
+    self.unloadFull = streamReadUInt8(streamId)
     return self
 end
 
@@ -319,7 +337,8 @@ GuidancePlan.XML_FIELDS = {
     {"workPart", "INT"}, {"rowFrom", "INT"}, {"rowTo", "INT"}, {"workSpeedMax", "FLOAT"}, {"turnSpeed", "FLOAT"},
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"rowsPerLand", "INT"}, {"rowShape", "INT"}, {"tramlines", "BOOL"},
     {"rowPhase", "FLOAT"}, {"rowSpacing", "FLOAT"}, {"skipRows", "STRING"}, {"skipZones", "STRING"},
-    {"landsSide", "INT"}, {"landsPipe", "INT"},
+    {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"},
+    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"},
 }
 
 function GuidancePlan.registerXMLPaths(schema, basePath)

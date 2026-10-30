@@ -76,7 +76,13 @@ function GuidanceFieldworkTask:start()
             startIx = 1
         end
         vehicle.spec_guidance.paused = false
+        -- back from a refill trip: on where it stopped
+        if self.job.resumeAfterTrip then
+            startIx, startPoint = course:getResumeIx(vehicle.spec_guidance.progressIx), nil
+            self.job.resumeAfterTrip = false
+        end
         self.driver = GuidanceFieldworkDriver.new(vehicle, course, startIx, startPoint)
+        self.driver.task = self
         spec.driveStrategies = {self.driver}
         -- AutoDrive's unloaders ask the vehicle about it
         vehicle.spec_guidance.driver = self.driver
@@ -141,6 +147,8 @@ function GuidanceJob.new(isServer, customMt)
     local self = AIJob.new(isServer, customMt or GuidanceJob_mt)
     self.name = GuidanceJob.name
     self.startIx = 1
+    -- refill trips: the loading station's place (0, 0: none)
+    self.refillX, self.refillZ = 0, 0
     -- false: nobody said where (the game started it): "start at" decides when it starts
     self.startIxSet = false
     self.vehicleParameter = AIParameterVehicle.new()
@@ -150,7 +158,71 @@ function GuidanceJob.new(isServer, customMt)
     table.insert(self.groupedParameters, group)
     self.task = GuidanceFieldworkTask.new(isServer, self)
     self:addTask(self.task)
+    -- a refill trip on the game's roads: there, filling, back (only when the course's plan names a station)
+    if AITaskDriveTo ~= nil then
+        self.driveToRefillTask = AITaskDriveTo.new(isServer, self)
+        self.fillTask = GuidanceFillTask.new(isServer, self)
+        self.driveBackTask = AITaskDriveTo.new(isServer, self)
+        self:addTask(self.driveToRefillTask)
+        self:addTask(self.fillTask)
+        self:addTask(self.driveBackTask)
+    end
     return self
+end
+
+--- The field work, then (when it went for a refill) the trip, then the field work again
+function GuidanceJob:getIsLooping()
+    return true
+end
+
+function GuidanceJob:getNextTaskIndex(isSkipTask)
+    if self.currentTaskIndex == 0 then
+        return self.task.taskIndex or 1
+    end
+    if self.currentTaskIndex == (self.task.taskIndex or 1) and not self.refillStation then
+        -- the field work ended without a trip: done
+        return #self.tasks + 1
+    end
+    if self.driveBackTask and self.currentTaskIndex == self.driveBackTask.taskIndex then
+        self.refillStation = nil
+        self.resumeAfterTrip = true
+        return self.task.taskIndex or 1
+    end
+    return self.currentTaskIndex + 1
+end
+
+--- The field work ran empty: to the plan's refill station, if there is one with what it needs. Called by the
+--- driver; true when the trip starts (the field work task ends).
+function GuidanceJob:startRefillTrip(driver, fillTypes)
+    local vehicle = self:getVehicle()
+    if self.driveToRefillTask == nil or vehicle == nil or (self.refillX or 0) == 0 then
+        return false
+    end
+    local station
+    for _, ft in ipairs(fillTypes) do
+        station = GuidanceTrips.find(GuidanceTrips.loadingStations(vehicle:getOwnerFarmId(), ft), self.refillX, self.refillZ)
+        if station then break end
+    end
+    if station == nil then
+        return false
+    end
+    local tx, tz, dx, dz = GuidanceTrips.targetOf(station)
+    self.refillStation, self.refillFillTypes = station, fillTypes
+    self.driveToRefillTask:setVehicle(vehicle)
+    self.driveToRefillTask:setTargetPosition(tx, tz)
+    self.driveToRefillTask:setTargetDirection(dx, dz)
+    self.fillTask:setVehicle(vehicle)
+    -- back to where it stopped, facing the same way
+    local node = vehicle:getAIDirectionNode()
+    local x, _, z = getWorldTranslation(node)
+    local hx, _, hz = localDirectionToWorld(node, 0, 0, 1)
+    self.driveBackTask:setVehicle(vehicle)
+    self.driveBackTask:setTargetPosition(x, z)
+    self.driveBackTask:setTargetDirection(hx, hz)
+    Guidance.info("%s: empty, refilling at %s", Guidance.vehicleName(vehicle), GuidanceTrips.nameOf(station))
+    vehicle:guidanceSetInfoText("NEEDS_FILLING", true)
+    self.task:skip()
+    return true
 end
 
 function GuidanceJob:getVehicle()
@@ -233,6 +305,16 @@ function GuidanceJob:start(farmId)
         self.currentTaskIndex = 0
         local vehicle = self.vehicleParameter:getVehicle()
         vehicle:guidanceClearInfoTexts()
+        -- what the job was given is kept with the tractor (and its savegame) on the server too
+        local spec = vehicle.spec_guidance
+        if spec and spec.settings and self.refillX ~= nil then
+            spec.settings.refillX, spec.settings.refillZ = self.refillX, self.refillZ
+            if spec.plan then spec.plan.refillX, spec.plan.refillZ = self.refillX, self.refillZ end
+        end
+        if spec and spec.settings and self.unloadX ~= nil then
+            spec.settings.unloadX, spec.settings.unloadZ = self.unloadX, self.unloadZ
+            spec.settings.unloadFull = math.floor((self.fullLevel or 0.97) * 100 + 0.5)
+        end
         vehicle:createAgent(self.helperIndex)
         vehicle:aiJobStarted(self, self.helperIndex, farmId)
     end
@@ -277,6 +359,8 @@ function GuidanceJob:writeStream(streamId, connection)
     end
     streamWriteUInt8(streamId, self.currentTaskIndex)
     streamWriteInt32(streamId, self.startIx or 1)
+    streamWriteFloat32(streamId, self.refillX or 0)
+    streamWriteFloat32(streamId, self.refillZ or 0)
     streamWriteBool(streamId, self.startIxSet == true)
     if streamWriteBool(streamId, self.startPoint ~= nil) then
         streamWriteFloat32(streamId, self.startPoint.x)
@@ -294,6 +378,8 @@ function GuidanceJob:readStream(streamId, connection)
     end
     self.currentTaskIndex = streamReadUInt8(streamId)
     self.startIx = streamReadInt32(streamId)
+    self.refillX = streamReadFloat32(streamId)
+    self.refillZ = streamReadFloat32(streamId)
     self.startIxSet = streamReadBool(streamId)
     self.startPoint = nil
     if streamReadBool(streamId) then

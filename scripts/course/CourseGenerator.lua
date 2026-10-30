@@ -127,10 +127,14 @@ local function sweepLine(polys, y)
     return segs
 end
 
---- Rows of polygons already rotated so rows run along x (polys[1] the outline, the rest holes).
---- Returns lines of segments: lines[k] = {y, segs}
+--- Rows of polygons already rotated so rows run along x (polys[1] the outline, then other parts of the inside and
+--- holes: a line's crossings pair up inside / outside). Returns lines of segments: lines[k] = {y, segs}
 local function sweep(polys, spacing, minLength, phase)
-    local _, minY, _, maxY = Geo.bounds(polys[1])
+    local minY, maxY = math.huge, -math.huge
+    for _, poly in ipairs(polys) do
+        local _, y0, _, y1 = Geo.bounds(poly)
+        minY, maxY = math.min(minY, y0), math.max(maxY, y1)
+    end
     local height = maxY - minY
     local n = math.max(1, math.ceil(height / spacing - 1e-6))
     local lines = {}
@@ -170,6 +174,16 @@ end
 
 --- Groups the row segments into blocks: runs of rows that can be worked back and forth without crossing an
 --- unworked part of the field.
+--- How thick a polygon is: twice its area over its perimeter (a strip w wide: about w)
+function CG.thickness(poly)
+    local per = 0
+    for i = 1, #poly do
+        local a, b = poly[i], poly[i % #poly + 1]
+        per = per + math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2)
+    end
+    return per > 0 and 2 * math.abs(Geo.signedArea(poly)) / per or 0
+end
+
 local function splitBlocks(lines, minBlockLength)
     local blocks, open = {}, {}
     for _, line in ipairs(lines) do
@@ -628,8 +642,9 @@ end
 local Builder = {}
 Builder.__index = Builder
 
---- area: {field = outline, inner = inside of the headlands (or nil), innerRing = innermost headland pass,
---- islands = list of {hull, pad, zone, rings}}
+--- area: {field = outline, inner = inside of the headlands (or nil), innerRing = innermost headland pass (of the
+--- main part), outerRing = the outermost pass (round the whole field: every part), islands = list of {hull, pad,
+--- zone, rings}}
 local function newBuilder(s, area)
     local b = setmetatable({s = s, wps = {}}, Builder)
     -- outline indexes for fast checks, kept in the area for later use (planApproach)
@@ -815,6 +830,21 @@ function Builder:route(to, t, allowOutside)
     end
     if problem then
         try(self:ringPath(self.innerRing, from, to))
+    end
+    -- from one part of the field to another (the inside split at a notch): round by the outermost pass, which goes
+    -- round all of them
+    if problem and self.outerRing and self.outerRing ~= self.innerRing and (best == nil or bestCount > 0) then
+        try(self:ringPath(self.outerRing, from, to))
+    end
+    -- still off the field (between parts of a field split at a notch): a way on the field found on a grid
+    if bestOutside > 0 and not allowOutside and GuidancePathfinder and self.field then
+        local ok, pts = pcall(GuidancePathfinder.find, {field = self.field, fieldIndex = self.fieldIndex},
+            {workWidth = self.s.workWidth, turnRadius = self.s.turnRadius}, from, to, nil)
+        if ok and pts and #pts > 0 then
+            local list = {}
+            for _, p in ipairs(pts) do list[#list + 1] = {x = p.x, y = p.y} end
+            try(list)
+        end
     end
     if bestOutside > 0 and not allowOutside then
         -- remembered: automatic headlands get another pass then
@@ -1182,7 +1212,10 @@ local function prepareIslands(islandPolys, inner, nPasses, s)
         for i, p in ipairs(poly) do pts[i] = {x = p.x, y = p.y or p.z} end
         local hull = Geo.convexHull(pts)
         if #hull >= 1 then
-            local zone = Geo.ringAroundConvex(hull, nPasses * spacing, s.turnRadius)
+            -- as many passes round it as turning needs (fewer would leave no room to turn at the rows' ends: the
+            -- turns would go over it)
+            local passes = nPasses
+            local zone = Geo.ringAroundConvex(hull, passes * spacing, s.turnRadius)
             local fits = inner ~= nil
             for _, p in ipairs(zone) do
                 if not fits then break end
@@ -1192,7 +1225,7 @@ local function prepareIslands(islandPolys, inner, nPasses, s)
                 local pad = Geo.ringAroundConvex(hull, 1, 0.5)
                 local island = {hull = hull, zone = zone, pad = pad, rings = {},
                                 zoneIndex = Geo.outlineIndex(zone, 10), padIndex = Geo.outlineIndex(pad, 10)}
-                for i = nPasses, 1, -1 do
+                for i = passes, 1, -1 do
                     local ring = Geo.ringAroundConvex(hull, (i - 0.5) * spacing, s.turnRadius)
                     -- around an island the other way round than around the field: the side of the vehicle
                     -- facing the island is the one facing the field edge on the outer passes
@@ -1243,6 +1276,9 @@ local function generateCourse(boundary, s)
     local spiral = pattern == CG.PATTERN_SPIRAL
     if spiral then nHeadlands = 500 end
     local rings, workRings = {}, {}
+    -- headland levels made (a level may have several rings: where the field's inside splits into parts, e.g. at a
+    -- deep notch, each part big enough to turn in gets its passes), and the innermost ring of the main part
+    local levels, mainInnerRing, otherRings = 0, nil, {}
     for i = 1, nHeadlands do
         -- small steps in the outline come out of a big offset as folds: iron them out, more the further in the
         -- pass is (the pass still keeps its distance from the real outline, see keepAway)
@@ -1251,8 +1287,16 @@ local function generateCourse(boundary, s)
         if #pieces == 0 then break end
         -- spiral: until there is no room left to turn in
         if spiral and math.abs(Geo.signedArea(pieces[1])) < (2 * s.turnRadius + spacing) ^ 2 then break end
+        -- the main part first, then the other parts thick enough to turn in (narrow tails stay with the outer passes)
+        local parts = {pieces[1]}
+        if not spiral then
+            for k = 2, #pieces do
+                if CG.thickness(pieces[k]) >= math.max(2 * s.turnRadius, 2 * spacing) then parts[#parts + 1] = pieces[k] end
+            end
+        end
+        for partIx, part in ipairs(parts) do
         -- no going into tails of the field too narrow to turn in
-        local sharp = Geo.mergeShortEdges(Geo.openPolygon(Geo.removeSpikes(pieces[1]), s.turnRadius), s.turnRadius)
+        local sharp = Geo.mergeShortEdges(Geo.openPolygon(Geo.removeSpikes(part), s.turnRadius), s.turnRadius)
         -- the implement reaches half a work width to the side: the outermost pass works up to the edge, not over.
         -- Around sharp inward points of the outline it can't turn that close, it keeps a turning radius away there.
         local dist = (i - 0.5) * spacing
@@ -1289,15 +1333,35 @@ local function generateCourse(boundary, s)
         if not s.clockwise then
             ring, workRing = Geo.reverse(ring), Geo.reverse(workRing)
         end
-        table.insert(rings, ring)
-        table.insert(workRings, workRing)
+        if #ring < 3 or #workRing < 3 then
+            -- (a sliver: nothing to drive)
+        elseif partIx == 1 then
+            table.insert(rings, ring)
+            table.insert(workRings, workRing)
+            mainInnerRing = ring
+            levels = i
+        else
+            -- the other parts' passes come after the main part's, each part outside in
+            table.insert(otherRings, {ring = ring, workRing = workRing})
+        end
+        end
+    end
+    for _, r in ipairs(otherRings) do
+        table.insert(rings, r.ring)
+        table.insert(workRings, r.workRing)
     end
 
     -- inside of the headlands
     local inner = poly
-    if #rings > 0 then
-        local pieces = Geo.offsetInward(poly, #rings * spacing)
+    local innerParts = {}
+    if levels > 0 then
+        local pieces = Geo.offsetInward(poly, levels * spacing)
         inner = pieces[1]
+        for k = 2, #pieces do
+            if CG.thickness(pieces[k]) >= 2 * spacing then
+                innerParts[#innerParts + 1] = Geo.ensureCCW(Geo.simplify(pieces[k], math.min(spacing / 3, 1.5)))
+            end
+        end
     end
 
     local islands, islandsIgnored = {}, 0
@@ -1311,14 +1375,16 @@ local function generateCourse(boundary, s)
         -- around islands only as many passes as turning needs (the 30 m minimum is for the field edge)
         local turnOnly = withDefaults(s)
         turnOnly.minHeadlandWidth = 0
-        local islandPasses = math.max(1, math.min(math.max(1, #rings), CG.autoHeadlands(turnOnly, pattern)))
+        local islandPasses = math.max(1, math.min(math.max(1, levels), CG.autoHeadlands(turnOnly, pattern)))
         islands, islandsIgnored = prepareIslands(s.islands, inner, islandPasses, s)
         local polys = {inner}
+        -- the other parts of the inside get rows too
+        for _, part in ipairs(innerParts) do table.insert(polys, part) end
         for _, island in ipairs(islands) do table.insert(polys, island.zone) end
         angle = s.rowAngle and math.rad(s.rowAngle) or CG.findBestAngle(polys, spacing, math.pi * s.turnRadius + 2 * s.runOut)
         if s.rowShape == "edge" and s.teamShare ~= "nextRow" then
             -- rows along the field's longest gently bent edge
-            blocks = CG.curvedBlocks(poly, inner, islands, s, spacing, #rings * spacing)
+            blocks = CG.curvedBlocks(poly, inner, islands, s, spacing, levels * spacing)
             skippedLength = 0
         else
             -- slivers shorter than two work widths are left to the headland
@@ -1373,7 +1439,8 @@ local function generateCourse(boundary, s)
         islandsIgnored = #(s.islands or {})
     end
 
-    local b = newBuilder(s, {field = poly, inner = #rings > 0 and inner or nil, innerRing = rings[#rings],
+    local b = newBuilder(s, {field = poly, inner = levels > 0 and inner or nil, innerRing = mainInnerRing,
+                             outerRing = rings[1],
                              islands = islands})
     local cosA, sinA = math.cos(angle), math.sin(angle)
     local function toWorld(x, y)
@@ -1670,7 +1737,7 @@ local function generateCourse(boundary, s)
         waypoints = b.wps,
         settings = s,
         stats = {
-            headlands = #rings,
+            headlands = levels,
             rows = rowNumber,
             blocks = #blocks,
             rowAngle = math.deg(angle) % 180,
@@ -1702,7 +1769,8 @@ local function generateCourse(boundary, s)
             return out
         end)(),
         -- for planning the way to the course later (see CG.planApproach)
-        area = {field = poly, inner = #rings > 0 and inner or nil, innerRing = rings[#rings], islands = islands},
+        area = {field = poly, inner = levels > 0 and inner or nil, innerRing = mainInnerRing, outerRing = rings[1],
+                islands = islands},
     }
 end
 
@@ -1723,8 +1791,10 @@ function CG.generateWithHeadlands(boundary, s)
             firstErr = firstErr or err
             break
         end
-        -- more passes only count if they keep more turns on the field
-        if course == nil or c.stats.offField < course.stats.offField then
+        -- more passes only count if they keep more turns on the field, and never if an obstacle (an island, an
+        -- area the player marked) is then too close to them to be worked round: driving over it is worse
+        local ignored, best = c.stats.islandsIgnored or 0, course and (course.stats.islandsIgnored or 0)
+        if course == nil or ignored < best or (ignored == best and c.stats.offField < course.stats.offField) then
             course = c
         end
         if c.stats.offField == 0 or s2.headlands >= CG.MAX_HEADLANDS then break end

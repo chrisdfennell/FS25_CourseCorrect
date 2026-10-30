@@ -74,12 +74,15 @@ function checkParts(flat)
     local c2 = GuidanceCourseGenerator.generate(pts, plan:getGeneratorSettings())
     local rows2, passes2 = countWork(c2)
     r.rowsOnly = rows2 == wholeRows and passes2 == 0
-    plan.workPart, plan.rowFrom, plan.rowTo = GuidancePlan.WORK_WHOLE, 5, 10
+    -- rows 5 to 10 (on a field with fewer rows: 2 to one before the last)
+    local from, to = 5, 10
+    if wholeRows < 12 then from, to = 2, wholeRows - 1 end
+    plan.workPart, plan.rowFrom, plan.rowTo = GuidancePlan.WORK_WHOLE, from, to
     local c3 = GuidanceCourseGenerator.generate(pts, plan:getGeneratorSettings())
     local rows3, passes3 = countWork(c3)
-    r.rowRange = rows3 == 6 and passes3 == wholePasses and c3.stats.allRows == wholeRows
-    PARTS = string.format("whole %d rows %d passes; headlands only %d/%d; rows only %d/%d; rows 5-10: %d rows of %s",
-        wholeRows, wholePasses, rows1, passes1, rows2, passes2, rows3, tostring(c3.stats.allRows))
+    r.rowRange = rows3 == to - from + 1 and passes3 == wholePasses and c3.stats.allRows == wholeRows
+    PARTS = string.format("whole %d rows %d passes; headlands only %d/%d; rows only %d/%d; rows %d-%d: %d rows of %s",
+        wholeRows, wholePasses, rows1, passes1, rows2, passes2, from, to, rows3, tostring(c3.stats.allRows))
     return r
 end
 

@@ -49,6 +49,12 @@ end
 function GuidanceVehicle.registerFunctions(vehicleType)
     local f = function(name, fn) SpecializationUtil.registerFunction(vehicleType, name, fn) end
     f("getGuidanceCourse", GuidanceVehicle.getGuidanceCourse)
+    f("getGuidanceToolChange", GuidanceVehicle.getGuidanceToolChange)
+    f("getGuidanceHelperKind", GuidanceVehicle.getGuidanceHelperKind)
+    f("getGuidanceHelperKinds", GuidanceVehicle.getGuidanceHelperKinds)
+    f("guidanceStartHelper", GuidanceVehicle.guidanceStartHelper)
+    f("guidanceSetHelperPhase", GuidanceVehicle.guidanceSetHelperPhase)
+    f("getGuidanceHelperPhase", GuidanceVehicle.getGuidanceHelperPhase)
     f("getGuidancePlan", GuidanceVehicle.getGuidancePlan)
     f("getGuidanceSettings", GuidanceVehicle.getGuidanceSettings)
     f("getGuidanceError", GuidanceVehicle.getGuidanceError)
@@ -94,7 +100,7 @@ end
 
 function GuidanceVehicle.registerEventListeners(vehicleType)
     for _, name in ipairs({"onLoad", "onPostLoad", "onDelete", "onReadStream", "onWriteStream", "onReadUpdateStream",
-                           "onWriteUpdateStream", "onRegisterActionEvents", "onUpdateTick", "onDraw"}) do
+                           "onWriteUpdateStream", "onRegisterActionEvents", "onUpdate", "onUpdateTick", "onDraw"}) do
         SpecializationUtil.registerEventListener(vehicleType, name, GuidanceVehicle)
     end
 end
@@ -253,6 +259,7 @@ function GuidanceVehicle:guidanceGenerate(team)
         -- its own pipe (lands: the worked ground on that side)
         plan.landsSide = spec.settings.landsSide or 0
         plan.landsPipe = GuidanceVehicle.pipeSide(self)
+        plan.toolSig = GuidanceVehicle.toolSignature(self)
         plan.fieldId = team.fieldId
         plan.startX, plan.startZ = team.startX or x, team.startZ or z
         spec.settings.teamMode, spec.settings.teamSize, spec.settings.teamIndex = team.mode, team.size, team.index
@@ -303,6 +310,7 @@ function GuidanceVehicle:guidanceGenerate(team)
     plan.fieldId = fieldId
     plan.startX, plan.startZ = x, z
     plan.landsPipe = GuidanceVehicle.pipeSide(self)
+    plan.toolSig = GuidanceVehicle.toolSignature(self)
     GuidanceVehicle.applyTramlines(self, plan)
     self:guidanceSetPlan(plan)
     if spec.course == nil then
@@ -313,6 +321,31 @@ function GuidanceVehicle:guidanceGenerate(team)
             GuidanceFieldScan.areaOf(scanned.outline) / 10000)
     end
     return true
+end
+
+--- The implements attached now: their names, sorted ("" none)
+function GuidanceVehicle.toolSignature(self)
+    local names = {}
+    for _, v in ipairs(self.getChildVehicles and self:getChildVehicles() or {}) do
+        if v ~= self then names[#names + 1] = Guidance.vehicleName(v) end
+    end
+    table.sort(names)
+    return table.concat(names, " + ")
+end
+
+--- The course was made with other implements than are attached now: what it was made with and what is there now,
+--- else nil
+function GuidanceVehicle:getGuidanceToolChange()
+    local spec = getSpec(self)
+    local plan = spec.plan
+    if plan == nil or (plan.toolSig or "") == "" or spec.course == nil then
+        return nil
+    end
+    local now = GuidanceVehicle.toolSignature(self)
+    if now ~= plan.toolSig then
+        return plan.toolSig, now
+    end
+    return nil
 end
 
 --- The side of a harvester's pipe (GuidancePlan.SIDE_LEFT / SIDE_RIGHT; left when it can't be told), 0 for other
@@ -378,7 +411,8 @@ function GuidanceVehicle:guidanceApplySettings(values)
 end
 
 -- settings only for starting the helper: changing them doesn't make the course again
-GuidanceVehicle.START_SETTINGS = {startMode = true}
+GuidanceVehicle.START_SETTINGS = {startMode = true, refillX = true, refillZ = true, unloadX = true, unloadZ = true,
+                                  unloadFull = true}
 
 --- Changes a setting (from the HUD) and makes the course again if there is one
 function GuidanceVehicle:guidanceChangeSetting(name, value)
@@ -415,7 +449,79 @@ function GuidanceVehicle:getIsGuidanceActive()
         return false
     end
     local job = self.getJob and self:getJob()
-    return job ~= nil and job.name == GuidanceJob.name
+    return job ~= nil and (job.name == GuidanceJob.name or GuidanceVehicle.HELPER_JOBS[job.name] ~= nil)
+end
+
+-- our jobs without a course, by the game's job name: their kind
+GuidanceVehicle.HELPER_JOBS = {GUIDANCE_UNLOAD = "unload", GUIDANCE_BALES = "bales", GUIDANCE_SILO = "silo"}
+
+-- what a helper without a course is doing, for the panel (sent as a number: only add at the end)
+GuidanceVehicle.HELPER_PHASES = {"unloadWait", "unloadDrive", "unloadFollow", "unloadLeave", "unloadTrip",
+                                 "balesFind", "balesPick", "balesHome", "balesUnload", "siloDrive", "siloWait"}
+
+--- (server) a helper without a course says what it is doing (nil: nothing)
+function GuidanceVehicle:guidanceSetHelperPhase(name)
+    local spec = getSpec(self)
+    local ix = 0
+    for i, n in ipairs(GuidanceVehicle.HELPER_PHASES) do
+        if n == name then ix = i end
+    end
+    if (spec.helperPhase or 0) ~= ix then
+        spec.helperPhase = ix
+        self:raiseDirtyFlags(spec.dirtyFlag)
+    end
+end
+
+--- What a helper without a course is doing: its name, or nil
+function GuidanceVehicle:getGuidanceHelperPhase()
+    local ix = getSpec(self).helperPhase or 0
+    return GuidanceVehicle.HELPER_PHASES[ix]
+end
+
+--- The kind of helper without a course working the vehicle now ("unload", "bales", "silo"), or nil
+function GuidanceVehicle:getGuidanceHelperKind()
+    if not self:getIsAIActive() then return nil end
+    local job = self.getJob and self:getJob()
+    return job and GuidanceVehicle.HELPER_JOBS[job.name]
+end
+
+--- What helpers without a course the vehicle could be: list of kinds
+function GuidanceVehicle:getGuidanceHelperKinds()
+    local list = {}
+    for _, kind in ipairs({"unload", "bales", "silo"}) do
+        if GuidanceHelperJob.canDo(self, kind) == true then list[#list + 1] = kind end
+    end
+    return list
+end
+
+--- Hires a helper without a course (kind "unload", "bales", "silo"); values: unloadX, unloadZ, fullLevel.
+--- Works on clients (asks the server).
+function GuidanceVehicle:guidanceStartHelper(kind, values)
+    if self:getIsHelperDriving() then
+        return false
+    end
+    local mission = g_currentMission
+    local job = mission.aiJobTypeManager:createJob(AIJobType[GuidanceHelperJob.KINDS[kind].name])
+    if job == nil then
+        return false
+    end
+    local farmId = self:getOwnerFarmId()
+    job:applyCurrentState(self, mission, farmId, true)
+    for k, v in pairs(values or {}) do job[k] = v end
+    job:setValues()
+    local ok, err = job:validate(farmId)
+    if not ok then
+        if err and g_client ~= nil and g_dedicatedServer == nil then
+            mission:showBlinkingWarning(Guidance.TITLE .. ": " .. err, 4000)
+        end
+        return false, err
+    end
+    if g_server ~= nil then
+        mission.aiSystem:startJob(job, farmId)
+    else
+        g_client:getServerConnection():sendEvent(AIJobStartRequestEvent.new(job, farmId))
+    end
+    return true
 end
 
 --- A helper (ours or another) really drives the vehicle. The game's own flag alone isn't enough: a savegame saved
@@ -530,11 +636,12 @@ function GuidanceVehicle:guidanceStart(startIx, startPoint)
     local farmId = self:getOwnerFarmId()
     job:applyCurrentState(self, mission, farmId, true)
     job:setStartIx(startIx or 1, startPoint)
+    job.refillX, job.refillZ = spec.settings.refillX or 0, spec.settings.refillZ or 0
     job:setValues()
     local ok, err = job:validate(farmId)
     if not ok then
         if err and g_client ~= nil and g_dedicatedServer == nil then
-            mission:showBlinkingWarning("Guidance: " .. err, 4000)
+            mission:showBlinkingWarning(Guidance.TITLE .. ": " .. err, 4000)
         end
         return false
     end
@@ -901,6 +1008,8 @@ local function writeInfoBits(spec, streamId)
     end
     streamWriteUInt8(streamId, bits)
     streamWriteBool(streamId, spec.paused == true)
+    -- what a helper without a course is doing (GuidanceVehicle.HELPER_PHASES, 0 nothing)
+    streamWriteUInt8(streamId, spec.helperPhase or 0)
 end
 
 --- notify: tell the player about statuses that just came on (not when joining a game)
@@ -917,6 +1026,7 @@ local function readInfoBits(vehicle, spec, streamId, notify)
         end
     end
     spec.paused = streamReadBool(streamId)
+    spec.helperPhase = streamReadUInt8(streamId)
 end
 
 function GuidanceVehicle:onWriteStream(streamId, connection)
@@ -1042,6 +1152,37 @@ function GuidanceVehicle.updateActionEvents(self)
         g_inputBinding:setActionEventActive(spec.startStopEventId,
             spec.course ~= nil and (self:getIsGuidanceActive() or not self:getIsHelperDriving()))
     end
+end
+
+--- (server) a helper without a course drives here, every frame: its strategy gives the point to steer to, the
+--- game's drive function goes there (no field work implements needed, unlike the game's field work helper)
+function GuidanceVehicle:onUpdate(dt)
+    local spec = getSpec(self)
+    local driver = spec.helperDriver
+    if driver == nil or not self.isServer then
+        return
+    end
+    driver:update(dt)
+    SpecializationUtil.raiseEvent(self, "onAIFieldWorkerActive")
+    local ok, tx, tz, forwards, maxSpeed = pcall(driver.getDriveData, driver, dt)
+    if not ok then
+        Guidance.info("%s: helper stopped: %s", Guidance.vehicleName(self), tostring(tx))
+        spec.helperDriver = nil
+        self:stopCurrentAIJob(AIMessageErrorBlockedByObject.new())
+        return
+    end
+    if spec.helperDriver == nil or tx == nil then
+        return
+    end
+    maxSpeed = math.min(maxSpeed or 0, self:getCruiseControlMaxSpeed() or math.huge)
+    local ty = getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, tx, 0, tz)
+    local node = self:getAISteeringNode()
+    if not forwards and self.getAIReverserNode and self:getAIReverserNode() ~= nil then
+        node = self:getAIReverserNode()
+    end
+    local lx, _, lz = worldToLocal(node, tx, ty, tz)
+    AIVehicleUtil.driveToPoint(self, dt, 1, maxSpeed > 0, forwards ~= false, lx, lz, maxSpeed)
+    self:raiseActive()
 end
 
 function GuidanceVehicle:onUpdateTick(dt, isActiveForInput, isActiveForInputIgnoreSelection, isSelected)

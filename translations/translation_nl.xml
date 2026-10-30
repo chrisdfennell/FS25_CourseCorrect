@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<l10n>
+    <texts>
+        <text name="input_GUIDANCE_TOGGLE_HUD" text="CourseCorrect: paneel"/>
+        <text name="input_GUIDANCE_START_STOP" text="CourseCorrect: start / stop"/>
+        <text name="guidance_oldModLoaded" text="FS25_Guidance.zip (de oude naam van CourseCorrect) is ook geladen: CourseCorrect is uit. Verwijder FS25_Guidance.zip uit de mods."/>
+        <text name="guidance_implChanged" text="Gemaakt voor: %s. Nu een ander werktuig"/>
+        <text name="guidance_implAgain" text="Opnieuw maken"/>
+        <text name="guidance_job_field" text="Veldwerk"/>
+        <text name="guidance_helper_unload" text="Overlader"/>
+        <text name="guidance_helper_bales" text="Balen"/>
+        <text name="guidance_helper_silo" text="Silo"/>
+        <text name="guidance_helper_noTrailer" text="Koppel een aanhanger of overlaadwagen om maaidorsers te lossen"/>
+        <text name="guidance_helper_noBaleTool" text="Koppel een balenlader of balenwikkelaar om balen te verzamelen"/>
+        <text name="guidance_helper_noSilo" text="Rijd naar een sleufsilo om hem aan te rijden"/>
+        <text name="guidance_helperAbout_unload" text="Wacht aan de veldrand, rijdt naar een maaidorser van dit veld die roept (om het gewas heen) en vangt het graan onder de pijp op met diens snelheid. Vol: over de wegen van het spel naar het station en terug, of hij stopt voor jou."/>
+        <text name="guidance_helperAbout_bales" text="Pakt elke baal op dit veld op (of wikkelt hem), de dichtstbijzijnde eerst. Een volle lader legt de stapel neer waar hij begon; aan het eind brengt hij de rest er ook heen."/>
+        <text name="guidance_helperAbout_silo" text="Rijdt baan voor baan op en neer over de sleufsilo, voorwaarts erin en achteruit eruit. Wacht als de silo aangereden is, gaat door als er meer gestort wordt; stopt als hij gesloten is."/>
+        <text name="guidance_helperReady_unload" text="Start hem aan de veldrand"/>
+        <text name="guidance_helperReady_bales" text="Start hem waar de stapel moet komen"/>
+        <text name="guidance_helperReady_silo" text="Start hem bij de silo"/>
+        <text name="guidance_set_unloadAt" text="Lossen bij"/>
+        <text name="guidance_unload_stop" text="Stop als vol"/>
+        <text name="guidance_set_unloadFull" text="Vertrek als vol bij"/>
+        <text name="guidance_set_refill" text="Bijvullen bij"/>
+        <text name="guidance_refill_off" text="Uit: stopt als leeg"/>
+        <text name="guidance_refill_none" text="Geen station hiervoor"/>
+        <text name="guidance_refill_bought" text="Hulpje koopt het"/>
+        <text name="guidance_status_pausedHelper" text="Gepauzeerd"/>
+        <text name="guidance_phase_unloadWait" text="Wacht op een maaidorser"/>
+        <text name="guidance_phase_unloadDrive" text="Rijdt naar de maaidorser"/>
+        <text name="guidance_phase_unloadFollow" text="Lost de maaidorser"/>
+        <text name="guidance_phase_unloadLeave" text="Vol, verlaat het veld"/>
+        <text name="guidance_phase_unloadTrip" text="Onderweg om te lossen"/>
+        <text name="guidance_phase_balesFind" text="Zoekt balen"/>
+        <text name="guidance_phase_balesPick" text="Pakt een baal op"/>
+        <text name="guidance_phase_balesHome" text="Vol, naar de stapel"/>
+        <text name="guidance_phase_balesUnload" text="Lost de stapel"/>
+        <text name="guidance_phase_siloDrive" text="Rijdt de silo aan"/>
+        <text name="guidance_phase_siloWait" text="Silo aangereden, wacht"/>
+        <text name="guidance_jobTitle" text="CourseCorrect"/>
+        <text name="guidance_action_start" text="CourseCorrect: start"/>
+        <text name="guidance_action_stop" text="CourseCorrect: stop"/>
+        <text name="guidance_msg_isFull" text="is vol"/>
+        <text name="guidance_msg_noCourse" text="heeft geen CourseCorrect-route"/>
+        <text name="guidance_err_noField" text="Kon de omtrek van dit veld niet lezen"/>
+        <text name="guidance_err_notOnField" text="Rijd eerst een veld op"/>
+        <text name="guidance_err_generic" text="Kon hier geen route maken"/>
+        <text name="guidance_info_NEEDS_UNLOADING" text="Vol, moet gelost worden"/>
+        <text name="guidance_info_NEEDS_FILLING" text="Leeg, moet gevuld worden"/>
+        <text name="guidance_info_FUEL_IS_LOW" text="Brandstof bijna op"/>
+        <text name="guidance_info_FUEL_IS_EMPTY" text="Brandstof op"/>
+        <text name="guidance_info_IS_STUCK" text="Vast, gestopt"/>
+        <text name="guidance_status_working" text="Aan het werk · %.0f%%"/>
+        <text name="guidance_status_otherHelper" text="Ander hulpje actief"/>
+        <text name="guidance_status_ready" text="Klaar"/>
+        <text name="guidance_status_noCourse" text="Geen route"/>
+        <text name="guidance_summary" text="%.1f ha · %d kopakkers · %d rijen · ca. %s"/>
+        <text name="guidance_hint_noCourse" text="Rijd een veld op en druk op %s"/>
+        <text name="guidance_set_width" text="Werkbreedte"/>
+        <text name="guidance_set_headlands" text="Kopakkers"/>
+        <text name="guidance_set_rowAngle" text="Rijrichting"/>
+        <text name="guidance_set_radius" text="Draaicirkel"/>
+        <text name="guidance_set_direction" text="Richting kopakker"/>
+        <text name="guidance_set_headlandOrder" text="Volgorde kopakker"/>
+        <text name="guidance_set_pattern" text="Rijen"/>
+        <text name="guidance_auto" text="auto"/>
+        <text name="guidance_clockwise" text="Rechtsom"/>
+        <text name="guidance_counterClockwise" text="Linksom"/>
+        <text name="guidance_first" text="Eerst"/>
+        <text name="guidance_last" text="Laatst"/>
+        <text name="guidance_pattern_adjacent" text="Elke rij"/>
+        <text name="guidance_pattern_racetrack" text="Racebaan"/>
+        <text name="guidance_pattern_auto" text="Auto"/>
+        <text name="guidance_headlandWidth" text="%d m (%d)"/>
+        <text name="guidance_set_corners" text="Hoeken kopakker"/>
+        <text name="guidance_corners_square" text="Vierkant"/>
+        <text name="guidance_corners_round" text="Rond"/>
+        <text name="guidance_corners_needsReverse" text="Rond (getrokken)"/>
+        <text name="guidance_warn_offField" text="%d bochten zouden het veld verlaten: voeg een kopakker toe"/>
+        <text name="guidance_warn_islandsIgnored" text="%d obstakel(s) bij de rand: de kopakkerbanen rijden eroverheen"/>
+        <text name="guidance_warn_offField1" text="1 bocht zou het veld verlaten: voeg een kopakker toe"/>
+        <text name="guidance_summary_islands" text="%d eilanden"/>
+        <text name="guidance_set_turns" text="In bochten"/>
+        <text name="guidance_turns_lift" text="Optillen"/>
+        <text name="guidance_turns_keep" text="Laten zakken"/>
+        <text name="guidance_moreSettings" text="Meer instellingen"/>
+        <text name="guidance_lessSettings" text="Minder instellingen"/>
+        <text name="guidance_btn_makeCourse" text="Route maken"/>
+        <text name="guidance_btn_newCourse" text="Nieuwe route"/>
+        <text name="guidance_btn_start" text="Start"/>
+        <text name="guidance_btn_stop" text="Stop"/>
+        <text name="guidance_status_paused" text="Gepauzeerd · %.0f%%"/>
+        <text name="guidance_btn_pause" text="Pauze"/>
+        <text name="guidance_btn_resume" text="Hervatten"/>
+        <text name="guidance_set_startAt" text="Start bij"/>
+        <text name="guidance_start_continue" text="Doorgaan"/>
+        <text name="guidance_start_nearest" text="Dichtstbij"/>
+        <text name="guidance_start_first" text="Eerste"/>
+        <text name="guidance_info_FINISHED" text="Route voltooid"/>
+        <text name="guidance_fleet_title" text="Wagenpark"/>
+        <text name="guidance_fleet_count" text="%d voertuigen · %d met een route"/>
+        <text name="guidance_fleet_back" text="Terug"/>
+        <text name="guidance_fleet_button" text="Wagenpark"/>
+        <text name="guidance_fleet_empty" text="Nog geen voertuig van je bedrijf heeft een CourseCorrect-route"/>
+        <text name="guidance_set_roundedCorners" text="Afgeronde hoeken"/>
+        <text name="guidance_corners_count" text="Binnenste %d van %d"/>
+        <text name="guidance_corners_allRound" text="Alle rondes"/>
+        <text name="guidance_corners_allSharp" text="Geen, alles scherp"/>
+        <text name="guidance_tab_course" text="Route"/>
+        <text name="guidance_tab_saved" text="Opgeslagen"/>
+        <text name="guidance_tab_fleet" text="Wagenpark"/>
+        <text name="guidance_detail_area" text="Oppervlak"/>
+        <text name="guidance_detail_length" text="Lengte"/>
+        <text name="guidance_detail_working" text="Bewerkt"/>
+        <text name="guidance_detail_time" text="Tijd"/>
+        <text name="guidance_detail_left" text="Resterende tijd"/>
+        <text name="guidance_detail_headlands" text="Kopakkers"/>
+        <text name="guidance_detail_rows" text="Rijen"/>
+        <text name="guidance_detail_turns" text="Bochten"/>
+        <text name="guidance_detail_reverse" text="Achteruit"/>
+        <text name="guidance_detail_islands" text="Eilanden"/>
+        <text name="guidance_offer_saved" text="Laad een opgeslagen route (%d)"/>
+        <text name="guidance_saved_subtitle" text="%d opgeslagen routes"/>
+        <text name="guidance_saved_save" text="Deze route opslaan"/>
+        <text name="guidance_saved_nothing" text="Maak een route om hem op te slaan"/>
+        <text name="guidance_saved_empty" text="Nog geen opgeslagen routes"/>
+        <text name="guidance_saved_name" text="%s · %.1f m"/>
+        <text name="guidance_saved_done" text="Opgeslagen: %s"/>
+        <text name="guidance_saved_loaded" text="Geladen: %s"/>
+        <text name="guidance_saved_load" text="Laden"/>
+        <text name="guidance_saved_rename" text="Hernoemen"/>
+        <text name="guidance_saved_delete" text="Verwijderen"/>
+        <text name="guidance_saved_sure" text="Zeker?"/>
+        <text name="guidance_saved_renamePrompt" text="Naam van de route"/>
+        <text name="guidance_saved_line" text="Veld %d · %.1f ha · %s"/>
+        <text name="guidance_folder_title" text="Veld %d"/>
+        <text name="guidance_folder_back" text="&lt; Alle velden"/>
+        <text name="guidance_folder_count" text="%d routes"/>
+        <text name="guidance_folder_one" text="1 route"/>
+        <text name="guidance_folder_here" text="je bent hier"/>
+        <text name="guidance_folder_open" text="Openen"/>
+        <text name="guidance_saved_info" text="%.1f ha · %s · %.1f m"/>
+        <text name="guidance_record_start" text="Veld opnemen"/>
+        <text name="guidance_record_status" text="Omtrek opnemen: %.0f m. Rijd rond het veld."/>
+        <text name="guidance_record_cancel" text="Annuleren"/>
+        <text name="guidance_record_finish" text="Veld afronden"/>
+        <text name="guidance_record_tooSmall" text="Te klein voor een veld: rijd er helemaal omheen"/>
+        <text name="guidance_record_name" text="Mijn veld %d"/>
+        <text name="guidance_record_done" text="%s opgeslagen (%.2f ha). Maak er nu een route op."/>
+        <text name="guidance_scan_name" text="Veld %d (zoals op de grond)"/>
+        <text name="guidance_scan_nameNew" text="Geschilderd veld %d"/>
+        <text name="guidance_scan_reading" text="%s van de grond lezen..."/>
+        <text name="guidance_scan_done" text="Route op %s (%.2f ha), het veld zoals het op de grond ligt"/>
+        <text name="guidance_record_delete" text="Veld verwijderen"/>
+        <text name="guidance_record_folder" text="opgenomen"/>
+        <text name="guidance_plan_seed" text="Zaaigoed"/>
+        <text name="guidance_plan_spray" text="Spuitmiddel"/>
+        <text name="guidance_plan_fuel" text="Brandstof"/>
+        <text name="guidance_plan_fertilizer" text="Kunstmest"/>
+        <text name="guidance_plan_pf" text="%s (Precision Farming)"/>
+        <text name="guidance_plan_runsOutToo" text="%s bij %d%%"/>
+        <text name="guidance_plan_bought" text="gekocht door het hulpje"/>
+        <text name="guidance_plan_runsOut" text="%s raakt op bij ca. %d%% van de route"/>
+        <text name="guidance_queue_next" text="Volgende: %s"/>
+        <text name="guidance_queue_more" text="(+%d meer)"/>
+        <text name="guidance_queue_clear" text="Wissen"/>
+        <text name="guidance_saved_queue" text="Wachtrij"/>
+        <text name="guidance_queue_added" text="%s in de wachtrij (%d in de wachtrij)"/>
+        <text name="guidance_info_NEXT_FIELD_WAITING" text="Volgend veld wacht: rij er naartoe"/>
+        <text name="guidance_progress_left" text="%s over"/>
+        <text name="guidance_tab_settings" text="Instellingen"/>
+        <text name="guidance_scope_tractor" text="Deze trekker"/>
+        <text name="guidance_scope_field" text="Dit veld"/>
+        <text name="guidance_scope_user" text="Mijn standaard"/>
+        <text name="guidance_scope_tractorNote" text="%s: opgeslagen bij de trekker"/>
+        <text name="guidance_scope_fieldNote" text="%s: gebruikt door iedereen die hier een route maakt"/>
+        <text name="guidance_scope_fieldUnset" text="%s: nog niets opgeslagen, toont die van de trekker"/>
+        <text name="guidance_scope_noField" text="Rijd een veld op om de instellingen ervan te zetten"/>
+        <text name="guidance_scope_userNote" text="Van jou, op deze pc: voor trekkers die nog niet ingesteld zijn"/>
+        <text name="guidance_scope_saveDefaults" text="Maak dit mijn standaard"/>
+        <text name="guidance_scope_savedDefaults" text="Opgeslagen als je standaard"/>
+        <text name="guidance_scope_useTractor" text="Neem die van de trekker"/>
+        <text name="guidance_scope_forget" text="Vergeten"/>
+        <text name="guidance_scope_fieldSaved" text="Instellingen opgeslagen voor %s"/>
+        <text name="guidance_scope_fieldForgotten" text="%s vergeet zijn instellingen"/>
+        <text name="guidance_scope_applyTractor" text="Gebruik voor deze trekker"/>
+        <text name="guidance_scope_applied" text="Je standaard is op deze trekker ingesteld"/>
+        <text name="guidance_set_minHeadland" text="Min. kopakker"/>
+        <text name="guidance_set_rememberFields" text="Onthouden per veld"/>
+        <text name="guidance_set_notifications" text="Meldingen"/>
+        <text name="guidance_on" text="Aan"/>
+        <text name="guidance_off" text="Uit"/>
+        <text name="guidance_status_workingShort" text="Aan het werk"/>
+        <text name="guidance_status_pausedShort" text="Gepauzeerd"/>
+        <text name="guidance_btn_stopHelper" text="Hulpje stoppen"/>
+        <text name="guidance_set_lowerLate" text="Werktuig laten zakken"/>
+        <text name="guidance_set_raiseLate" text="Werktuig optillen"/>
+        <text name="guidance_timing_onTime" text="Op tijd"/>
+        <text name="guidance_timing_early" text="%.1f m te vroeg"/>
+        <text name="guidance_timing_late" text="%.1f m te laat"/>
+        <text name="guidance_set_teamMode" text="Team op dit veld"/>
+        <text name="guidance_team_alone" text="Alleen"/>
+        <text name="guidance_team_strips" text="Stroken"/>
+        <text name="guidance_set_teamSize" text="Trekkers in het team"/>
+        <text name="guidance_team_size" text="%d trekkers"/>
+        <text name="guidance_set_teamIndex" text="Deze trekker"/>
+        <text name="guidance_team_index" text="%d van %d"/>
+        <text name="guidance_info_GIVING_WAY" text="Geeft voorrang aan een ander hulpje"/>
+        <text name="guidance_detail_team" text="Team"/>
+        <text name="guidance_detail_teamValue" text="strook %d van %d"/>
+        <text name="guidance_status_givingWay" text="Geeft voorrang"/>
+        <text name="guidance_set_callUnloaderAt" text="Overlader roepen bij"/>
+        <text name="guidance_set_toolOffset" text="Werktuigverschuiving"/>
+        <text name="guidance_offset_centre" text="Gecentreerd"/>
+        <text name="guidance_offset_right" text="%.1f m rechts"/>
+        <text name="guidance_offset_left" text="%.1f m links"/>
+        <text name="guidance_btn_goTo" text="Ga naar"/>
+        <text name="guidance_tab_team" text="Team"/>
+        <text name="guidance_team_convoy" text="Konvooi"/>
+        <text name="guidance_team_nextRow" text="Volgende vrije rij"/>
+        <text name="guidance_team_field" text="%s"/>
+        <text name="guidance_team_noField" text="Rijd een veld op om het als team te bewerken"/>
+        <text name="guidance_teamAbout_strips" text="Elke trekker bewerkt zijn eigen strook rijen; de kopakkerronden worden verdeeld."/>
+        <text name="guidance_teamAbout_convoy" text="Naast elkaar op één brede route, achter elkaar door de bochten."/>
+        <text name="guidance_team_lands" text="Akkerdelen"/>
+        <text name="guidance_teamAbout_lands" text="Elk bewerkt zijn eigen deel in akkerdelen, van het midden naar buiten: bewerkte grond aan de pijpzijde, wagens nooit op het gewas."/>
+        <text name="guidance_set_landsSide" text="Bewerkte kant"/>
+        <text name="guidance_side_left" text="Links"/>
+        <text name="guidance_side_right" text="Rechts"/>
+        <text name="guidance_side_any" text="beide"/>
+        <text name="guidance_side_auto" text="Auto (%s)"/>
+        <text name="guidance_teamAbout_nextRow" text="Elk neemt de volgende vrije rij als hij er een klaar heeft: allemaal tegelijk klaar."/>
+        <text name="guidance_team_pick" text="Trekkers in het team: %d (vink ze aan; de eerste leidt)"/>
+        <text name="guidance_team_lead" text="leider"/>
+        <text name="guidance_team_full" text="Maximaal %d trekkers in een team"/>
+        <text name="guidance_team_widths" text="%s: andere werkbreedte dan die van de leider (%.1f m); het team werkt hiermee"/>
+        <text name="guidance_team_make" text="Routes maken"/>
+        <text name="guidance_team_startAll" text="Alles starten (%d)"/>
+        <text name="guidance_team_stopAll" text="Alles stoppen"/>
+        <text name="guidance_team_made" text="Routes gemaakt voor %d trekkers op %s"/>
+        <text name="guidance_teamRole_strips" text="Strook %d van %d"/>
+        <text name="guidance_teamRole_convoy" text="Baan %d van %d"/>
+        <text name="guidance_teamRole_nextRow" text="Deelt rijen (%d van %d)"/>
+        <text name="guidance_teamRole_alone" text="Alleen"/>
+        <text name="guidance_teamRole_lands" text="Akkerdelen, deel %d van %d"/>
+        <text name="input_GUIDANCE_UI_NEXT" text="CourseCorrect: paneel, volgende knop"/>
+        <text name="input_GUIDANCE_UI_PREV" text="CourseCorrect: paneel, vorige knop"/>
+        <text name="input_GUIDANCE_UI_PRESS" text="CourseCorrect: paneel, knop indrukken"/>
+        <text name="guidance_set_autoResume" text="Na het laden"/>
+        <text name="guidance_resume_carryOn" text="Doorgaan"/>
+        <text name="guidance_resume_wait" text="Wachten"/>
+        <text name="guidance_set_panelScale" text="Paneelgrootte"/>
+        <text name="guidance_set_workPart" text="Werk"/>
+        <text name="guidance_workPart_whole" text="Heel veld"/>
+        <text name="guidance_workPart_headlands" text="Alleen kopakkers"/>
+        <text name="guidance_workPart_rows" text="Alleen rijen"/>
+        <text name="guidance_set_rowFrom" text="Eerste rij"/>
+        <text name="guidance_set_rowTo" text="Laatste rij"/>
+        <text name="guidance_rows_first" text="De eerste"/>
+        <text name="guidance_rows_last" text="De laatste"/>
+        <text name="guidance_set_workSpeed" text="Werksnelheid"/>
+        <text name="guidance_speed_implement" text="Van werktuig"/>
+        <text name="guidance_set_turnSpeed" text="Draaisnelheid"/>
+        <text name="guidance_set_reverseSpeed" text="Achteruitsnelheid"/>
+        <text name="guidance_set_lights" text="Verlichting"/>
+        <text name="guidance_lights_auto" text="Auto"/>
+        <text name="guidance_lights_off" text="Laten staan"/>
+        <text name="guidance_set_soundAlerts" text="Geluidsmeldingen"/>
+        <text name="guidance_saved_export" text="Exporteren"/>
+        <text name="guidance_saved_exported" text="Geëxporteerd naar %s"/>
+        <text name="guidance_saved_import" text="Routebestand importeren"/>
+        <text name="guidance_import_title" text="%d routebestanden"/>
+        <text name="guidance_import_refresh" text="Opnieuw zoeken"/>
+        <text name="guidance_import_hint" text="Routebestanden uit je map modSettings/FS25_CourseCorrect/courses (Exporteren zet ze daar; kopieer die van een vriend erheen)."/>
+        <text name="guidance_import_none" text="Nog geen routebestanden daar"/>
+        <text name="guidance_import_one" text="Importeren"/>
+        <text name="guidance_import_done" text="%s geïmporteerd in de opgeslagen routes"/>
+        <text name="guidance_import_bad" text="%s is geen routebestand"/>
+        <text name="guidance_fleet_vehicles" text="Voertuigen"/>
+        <text name="guidance_fleet_log" text="Werklogboek"/>
+        <text name="guidance_log_count" text="%d klussen"/>
+        <text name="guidance_log_total" text="Totaal"/>
+        <text name="guidance_log_empty" text="Nog niets gedaan door een hulpje"/>
+        <text name="guidance_log_when" text="dag %d, %02d:%02d"/>
+        <text name="guidance_section_course" text="Route"/>
+        <text name="guidance_section_driving" text="Rijden"/>
+        <text name="guidance_section_team" text="Team"/>
+        <text name="guidance_alert_need" text="%d hebben je nodig"/>
+        <text name="guidance_alert_working" text="%d aan het werk"/>
+        <text name="guidance_alert_now" text="zojuist"/>
+        <text name="guidance_alert_more" text="en %d meer"/>
+        <text name="guidance_set_alertsOnScreen" text="Meldingen op scherm"/>
+        <text name="guidance_pattern_lands" text="Akkerdelen"/>
+        <text name="guidance_pattern_spiral" text="Spiraal"/>
+        <text name="guidance_set_rowsPerLand" text="Rijen per akkerdeel"/>
+        <text name="guidance_set_rowShape" text="Rijvorm"/>
+        <text name="guidance_rowShape_straight" text="Recht"/>
+        <text name="guidance_rowShape_edge" text="Langs de rand"/>
+        <text name="guidance_set_tramlines" text="Rijpaden"/>
+        <text name="guidance_tramlines_off" text="Uit"/>
+        <text name="guidance_tramlines_on" text="Aan %s"/>
+        <text name="guidance_tramlines_none" text="Geen zaairoute"/>
+        <text name="guidance_edit" text="Bewerken"/>
+        <text name="guidance_edit_done" text="Klaar"/>
+        <text name="guidance_edit_clear" text="Alles terugnemen"/>
+        <text name="guidance_tool_direction" text="Richting"/>
+        <text name="guidance_tool_start" text="Start"/>
+        <text name="guidance_tool_skipRow" text="Rijen overslaan"/>
+        <text name="guidance_tool_zone" text="Gebied overslaan"/>
+        <text name="guidance_toolHint_direction" text="Sleep om de rijen te draaien"/>
+        <text name="guidance_toolHint_start" text="Klik waar je wilt starten"/>
+        <text name="guidance_toolHint_skipRow" text="Klik op een rij: overslaan / terugnemen"/>
+        <text name="guidance_toolHint_zone" text="Sleep een vak om omheen te werken"/>
+    </texts>
+</l10n>

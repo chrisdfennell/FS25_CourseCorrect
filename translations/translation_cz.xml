@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<l10n>
+    <texts>
+        <text name="input_GUIDANCE_TOGGLE_HUD" text="CourseCorrect: panel"/>
+        <text name="input_GUIDANCE_START_STOP" text="CourseCorrect: start / stop"/>
+        <text name="guidance_oldModLoaded" text="FS25_Guidance.zip (starý název CourseCorrect) je načten také: CourseCorrect je vypnut. Odstraňte FS25_Guidance.zip z modů."/>
+        <text name="guidance_implChanged" text="Vytvořeno pro: %s. Nyní jiné nářadí"/>
+        <text name="guidance_implAgain" text="Vytvořit znovu"/>
+        <text name="guidance_job_field" text="Práce na poli"/>
+        <text name="guidance_helper_unload" text="Odvoz"/>
+        <text name="guidance_helper_bales" text="Balíky"/>
+        <text name="guidance_helper_silo" text="Silo"/>
+        <text name="guidance_helper_noTrailer" text="Připojte přívěs nebo šnekový vůz pro vykládku kombajnů"/>
+        <text name="guidance_helper_noBaleTool" text="Připojte nakladač balíků nebo balící stroj pro sběr balíků"/>
+        <text name="guidance_helper_noSilo" text="Najeďte k silážnímu žlabu, abyste ho udusali"/>
+        <text name="guidance_helperAbout_unload" text="Čeká na kraji pole, jede ke kombajnu z tohoto pole, který volá (kolem plodiny), a zachytí zrno pod vykládacím šnekem jeho rychlostí. Plný: jede ke stanici po silnicích hry a zpět, nebo se zastaví a čeká na vás."/>
+        <text name="guidance_helperAbout_bales" text="Sebere (nebo zabalí) každý balík na tomto poli, nejbližší první. Plný nakladač složí hromadu tam, kde začal; na konci tam doveze i zbytek."/>
+        <text name="guidance_helperAbout_silo" text="Jezdí po silážním žlabu pruh po pruhu, dopředu dovnitř a couváním ven. Čeká, když je silo udusané, pokračuje, když se přisype další; zastaví, když je zavřené."/>
+        <text name="guidance_helperReady_unload" text="Spusťte ho na kraji pole"/>
+        <text name="guidance_helperReady_bales" text="Spusťte ho tam, kde má být hromada"/>
+        <text name="guidance_helperReady_silo" text="Spusťte ho u sila"/>
+        <text name="guidance_set_unloadAt" text="Vyložit u"/>
+        <text name="guidance_unload_stop" text="Zastavit, když je plný"/>
+        <text name="guidance_set_unloadFull" text="Odjet při naplnění na"/>
+        <text name="guidance_set_refill" text="Doplnit u"/>
+        <text name="guidance_refill_off" text="Vyp.: zastaví, když je prázdný"/>
+        <text name="guidance_refill_none" text="Žádná stanice"/>
+        <text name="guidance_refill_bought" text="Pomocník nakoupí"/>
+        <text name="guidance_status_pausedHelper" text="Pozastaveno"/>
+        <text name="guidance_phase_unloadWait" text="Čeká na kombajn"/>
+        <text name="guidance_phase_unloadDrive" text="Jede ke kombajnu"/>
+        <text name="guidance_phase_unloadFollow" text="Vykládá kombajn"/>
+        <text name="guidance_phase_unloadLeave" text="Plný, opouští pole"/>
+        <text name="guidance_phase_unloadTrip" text="Na cestě k vykládce"/>
+        <text name="guidance_phase_balesFind" text="Hledá balíky"/>
+        <text name="guidance_phase_balesPick" text="Sbírá balík"/>
+        <text name="guidance_phase_balesHome" text="Plný, k hromadě"/>
+        <text name="guidance_phase_balesUnload" text="Skládá hromadu"/>
+        <text name="guidance_phase_siloDrive" text="Dusá silo"/>
+        <text name="guidance_phase_siloWait" text="Silo udusáno, čeká"/>
+        <text name="guidance_jobTitle" text="CourseCorrect"/>
+        <text name="guidance_action_start" text="CourseCorrect: start"/>
+        <text name="guidance_action_stop" text="CourseCorrect: stop"/>
+        <text name="guidance_msg_isFull" text="je plný"/>
+        <text name="guidance_msg_noCourse" text="nemá trasu CourseCorrect"/>
+        <text name="guidance_err_noField" text="Nelze načíst obrys tohoto pole"/>
+        <text name="guidance_err_notOnField" text="Nejprve najeďte na pole"/>
+        <text name="guidance_err_generic" text="Zde nelze vytvořit trasu"/>
+        <text name="guidance_info_NEEDS_UNLOADING" text="Plný, potřebuje vyložit"/>
+        <text name="guidance_info_NEEDS_FILLING" text="Prázdný, potřebuje doplnit"/>
+        <text name="guidance_info_FUEL_IS_LOW" text="Nízký stav paliva"/>
+        <text name="guidance_info_FUEL_IS_EMPTY" text="Došlo palivo"/>
+        <text name="guidance_info_IS_STUCK" text="Uvízl, zastaven"/>
+        <text name="guidance_status_working" text="Pracuje · %.0f%%"/>
+        <text name="guidance_status_otherHelper" text="Jiný pomocník aktivní"/>
+        <text name="guidance_status_ready" text="Připraveno"/>
+        <text name="guidance_status_noCourse" text="Žádná trasa"/>
+        <text name="guidance_summary" text="%.1f ha · %d souvratí · %d řad · asi %s"/>
+        <text name="guidance_hint_noCourse" text="Najeďte na pole a stiskněte %s"/>
+        <text name="guidance_set_width" text="Pracovní záběr"/>
+        <text name="guidance_set_headlands" text="Souvratě"/>
+        <text name="guidance_set_rowAngle" text="Směr řad"/>
+        <text name="guidance_set_radius" text="Poloměr otáčení"/>
+        <text name="guidance_set_direction" text="Směr souvrati"/>
+        <text name="guidance_set_headlandOrder" text="Pořadí souvratí"/>
+        <text name="guidance_set_pattern" text="Řady"/>
+        <text name="guidance_auto" text="auto"/>
+        <text name="guidance_clockwise" text="Po směru hodin"/>
+        <text name="guidance_counterClockwise" text="Proti směru hodin"/>
+        <text name="guidance_first" text="První"/>
+        <text name="guidance_last" text="Poslední"/>
+        <text name="guidance_pattern_adjacent" text="Každá řada"/>
+        <text name="guidance_pattern_racetrack" text="Ovál"/>
+        <text name="guidance_pattern_auto" text="Auto"/>
+        <text name="guidance_headlandWidth" text="%d m (%d)"/>
+        <text name="guidance_set_corners" text="Rohy souvrati"/>
+        <text name="guidance_corners_square" text="Hranaté"/>
+        <text name="guidance_corners_round" text="Zaoblené"/>
+        <text name="guidance_corners_needsReverse" text="Zaoblené (tažené)"/>
+        <text name="guidance_warn_offField" text="%d otáčky by opustily pole: přidejte souvrať"/>
+        <text name="guidance_warn_islandsIgnored" text="%d překážek u okraje: jízdy po souvrati přes ně přejedou"/>
+        <text name="guidance_warn_offField1" text="1 otáčka by opustila pole: přidejte souvrať"/>
+        <text name="guidance_summary_islands" text="%d ostrovů"/>
+        <text name="guidance_set_turns" text="V zatáčkách"/>
+        <text name="guidance_turns_lift" text="Zvednout"/>
+        <text name="guidance_turns_keep" text="Nechat dole"/>
+        <text name="guidance_moreSettings" text="Více nastavení"/>
+        <text name="guidance_lessSettings" text="Méně nastavení"/>
+        <text name="guidance_btn_makeCourse" text="Vytvořit trasu"/>
+        <text name="guidance_btn_newCourse" text="Nová trasa"/>
+        <text name="guidance_btn_start" text="Start"/>
+        <text name="guidance_btn_stop" text="Stop"/>
+        <text name="guidance_status_paused" text="Pozastaveno · %.0f%%"/>
+        <text name="guidance_btn_pause" text="Pauza"/>
+        <text name="guidance_btn_resume" text="Pokračovat"/>
+        <text name="guidance_set_startAt" text="Začít od"/>
+        <text name="guidance_start_continue" text="Pokračovat"/>
+        <text name="guidance_start_nearest" text="Nejbližší"/>
+        <text name="guidance_start_first" text="První"/>
+        <text name="guidance_info_FINISHED" text="Trasa dokončena"/>
+        <text name="guidance_fleet_title" text="Vozový park"/>
+        <text name="guidance_fleet_count" text="%d vozidel · %d s trasou"/>
+        <text name="guidance_fleet_back" text="Zpět"/>
+        <text name="guidance_fleet_button" text="Vozový park"/>
+        <text name="guidance_fleet_empty" text="Žádné vozidlo vaší farmy zatím nemá trasu CourseCorrect"/>
+        <text name="guidance_set_roundedCorners" text="Zaoblené rohy"/>
+        <text name="guidance_corners_count" text="Vnitřní %d z %d"/>
+        <text name="guidance_corners_allRound" text="Všechny průjezdy"/>
+        <text name="guidance_corners_allSharp" text="Žádné, všechny ostré"/>
+        <text name="guidance_tab_course" text="Trasa"/>
+        <text name="guidance_tab_saved" text="Uložené"/>
+        <text name="guidance_tab_fleet" text="Vozový park"/>
+        <text name="guidance_detail_area" text="Plocha"/>
+        <text name="guidance_detail_length" text="Délka"/>
+        <text name="guidance_detail_working" text="Pracovní"/>
+        <text name="guidance_detail_time" text="Čas"/>
+        <text name="guidance_detail_left" text="Zbývá"/>
+        <text name="guidance_detail_headlands" text="Souvratě"/>
+        <text name="guidance_detail_rows" text="Řady"/>
+        <text name="guidance_detail_turns" text="Otáčky"/>
+        <text name="guidance_detail_reverse" text="Couvání"/>
+        <text name="guidance_detail_islands" text="Ostrovy"/>
+        <text name="guidance_offer_saved" text="Načíst uloženou trasu (%d)"/>
+        <text name="guidance_saved_subtitle" text="%d uložených tras"/>
+        <text name="guidance_saved_save" text="Uložit tuto trasu"/>
+        <text name="guidance_saved_nothing" text="Vytvořte trasu, abyste ji mohli uložit"/>
+        <text name="guidance_saved_empty" text="Zatím žádné uložené trasy"/>
+        <text name="guidance_saved_name" text="%s · %.1f m"/>
+        <text name="guidance_saved_done" text="Uloženo: %s"/>
+        <text name="guidance_saved_loaded" text="Načteno: %s"/>
+        <text name="guidance_saved_load" text="Načíst"/>
+        <text name="guidance_saved_rename" text="Přejmenovat"/>
+        <text name="guidance_saved_delete" text="Smazat"/>
+        <text name="guidance_saved_sure" text="Jistě?"/>
+        <text name="guidance_saved_renamePrompt" text="Název trasy"/>
+        <text name="guidance_saved_line" text="Pole %d · %.1f ha · %s"/>
+        <text name="guidance_folder_title" text="Pole %d"/>
+        <text name="guidance_folder_back" text="&lt; Všechna pole"/>
+        <text name="guidance_folder_count" text="%d tras"/>
+        <text name="guidance_folder_one" text="1 trasa"/>
+        <text name="guidance_folder_here" text="jste zde"/>
+        <text name="guidance_folder_open" text="Otevřít"/>
+        <text name="guidance_saved_info" text="%.1f ha · %s · %.1f m"/>
+        <text name="guidance_record_start" text="Nahrát pole"/>
+        <text name="guidance_record_status" text="Nahrávání obrysu: %.0f m. Objeďte pole dokola."/>
+        <text name="guidance_record_cancel" text="Zrušit"/>
+        <text name="guidance_record_finish" text="Dokončit pole"/>
+        <text name="guidance_record_tooSmall" text="Příliš malé na pole: objeďte ho celé dokola"/>
+        <text name="guidance_record_name" text="Moje pole %d"/>
+        <text name="guidance_record_done" text="Uloženo %s (%.2f ha). Nyní na něm vytvořte trasu."/>
+        <text name="guidance_scan_name" text="Pole %d (podle terénu)"/>
+        <text name="guidance_scan_nameNew" text="Nakreslené pole %d"/>
+        <text name="guidance_scan_reading" text="Načítání %s z terénu..."/>
+        <text name="guidance_scan_done" text="Trasa na %s (%.2f ha), pole podle skutečného terénu"/>
+        <text name="guidance_record_delete" text="Smazat pole"/>
+        <text name="guidance_record_folder" text="nahrané"/>
+        <text name="guidance_plan_seed" text="Osivo"/>
+        <text name="guidance_plan_spray" text="Postřik"/>
+        <text name="guidance_plan_fuel" text="Palivo"/>
+        <text name="guidance_plan_fertilizer" text="Hnojivo"/>
+        <text name="guidance_plan_pf" text="%s (Precision Farming)"/>
+        <text name="guidance_plan_runsOutToo" text="%s na %d%%"/>
+        <text name="guidance_plan_bought" text="nakoupí pomocník"/>
+        <text name="guidance_plan_runsOut" text="%s dojde asi na %d%% trasy"/>
+        <text name="guidance_queue_next" text="Další: %s"/>
+        <text name="guidance_queue_more" text="(+%d dalších)"/>
+        <text name="guidance_queue_clear" text="Vymazat"/>
+        <text name="guidance_saved_queue" text="Fronta"/>
+        <text name="guidance_queue_added" text="%s zařazeno (%d ve frontě)"/>
+        <text name="guidance_info_NEXT_FIELD_WAITING" text="Další pole čeká: zajeďte tam"/>
+        <text name="guidance_progress_left" text="zbývá %s"/>
+        <text name="guidance_tab_settings" text="Nastavení"/>
+        <text name="guidance_scope_tractor" text="Tento traktor"/>
+        <text name="guidance_scope_field" text="Toto pole"/>
+        <text name="guidance_scope_user" text="Moje výchozí"/>
+        <text name="guidance_scope_tractorNote" text="%s: uloženo u traktoru"/>
+        <text name="guidance_scope_fieldNote" text="%s: použije každý, kdo zde vytváří trasu"/>
+        <text name="guidance_scope_fieldUnset" text="%s: zatím nic uloženo, zobrazuje nastavení traktoru"/>
+        <text name="guidance_scope_noField" text="Najeďte na pole, abyste nastavili jeho parametry"/>
+        <text name="guidance_scope_userNote" text="Vaše, na tomto PC: pro dosud nenastavené traktory"/>
+        <text name="guidance_scope_saveDefaults" text="Nastavit jako moje výchozí"/>
+        <text name="guidance_scope_savedDefaults" text="Uloženo jako vaše výchozí"/>
+        <text name="guidance_scope_useTractor" text="Převzít z traktoru"/>
+        <text name="guidance_scope_forget" text="Zapomenout"/>
+        <text name="guidance_scope_fieldSaved" text="Nastavení uloženo pro %s"/>
+        <text name="guidance_scope_fieldForgotten" text="%s zapomíná své nastavení"/>
+        <text name="guidance_scope_applyTractor" text="Použít pro tento traktor"/>
+        <text name="guidance_scope_applied" text="Vaše výchozí nastavení je použito na tomto traktoru"/>
+        <text name="guidance_set_minHeadland" text="Min. souvrať"/>
+        <text name="guidance_set_rememberFields" text="Pamatovat pro každé pole"/>
+        <text name="guidance_set_notifications" text="Oznámení"/>
+        <text name="guidance_on" text="Zap."/>
+        <text name="guidance_off" text="Vyp."/>
+        <text name="guidance_status_workingShort" text="Pracuje"/>
+        <text name="guidance_status_pausedShort" text="Pozastaveno"/>
+        <text name="guidance_btn_stopHelper" text="Zastavit pomocníka"/>
+        <text name="guidance_set_lowerLate" text="Spustit nářadí"/>
+        <text name="guidance_set_raiseLate" text="Zvednout nářadí"/>
+        <text name="guidance_timing_onTime" text="Včas"/>
+        <text name="guidance_timing_early" text="o %.1f m dříve"/>
+        <text name="guidance_timing_late" text="o %.1f m později"/>
+        <text name="guidance_set_teamMode" text="Tým na tomto poli"/>
+        <text name="guidance_team_alone" text="Sám"/>
+        <text name="guidance_team_strips" text="Pásy"/>
+        <text name="guidance_set_teamSize" text="Traktory v týmu"/>
+        <text name="guidance_team_size" text="%d traktorů"/>
+        <text name="guidance_set_teamIndex" text="Tento traktor"/>
+        <text name="guidance_team_index" text="%d z %d"/>
+        <text name="guidance_info_GIVING_WAY" text="Dává přednost jinému pomocníkovi"/>
+        <text name="guidance_detail_team" text="Tým"/>
+        <text name="guidance_detail_teamValue" text="pás %d z %d"/>
+        <text name="guidance_status_givingWay" text="Dává přednost"/>
+        <text name="guidance_set_callUnloaderAt" text="Zavolat odvoz při"/>
+        <text name="guidance_set_toolOffset" text="Posun nářadí"/>
+        <text name="guidance_offset_centre" text="Na střed"/>
+        <text name="guidance_offset_right" text="%.1f m vpravo"/>
+        <text name="guidance_offset_left" text="%.1f m vlevo"/>
+        <text name="guidance_btn_goTo" text="Jet na"/>
+        <text name="guidance_tab_team" text="Tým"/>
+        <text name="guidance_team_convoy" text="Kolona"/>
+        <text name="guidance_team_nextRow" text="Další volná řada"/>
+        <text name="guidance_team_field" text="%s"/>
+        <text name="guidance_team_noField" text="Najeďte na pole, abyste ho zpracovali týmově"/>
+        <text name="guidance_teamAbout_strips" text="Každý traktor zpracovává svůj pás řad; souvratě se rozdělí."/>
+        <text name="guidance_teamAbout_convoy" text="Vedle sebe na jedné široké trase, v otáčkách jeden za druhým."/>
+        <text name="guidance_team_lands" text="Záhony"/>
+        <text name="guidance_teamAbout_lands" text="Každý zpracovává svou část po záhonech, od středu ven: zpracovaná půda na straně vykládacího šneku, vozy nikdy po plodině."/>
+        <text name="guidance_set_landsSide" text="Zpracovaná strana"/>
+        <text name="guidance_side_left" text="Vlevo"/>
+        <text name="guidance_side_right" text="Vpravo"/>
+        <text name="guidance_side_any" text="libovolná"/>
+        <text name="guidance_side_auto" text="Auto (%s)"/>
+        <text name="guidance_teamAbout_nextRow" text="Každý po dokončení řady vezme další volnou: všichni skončí společně."/>
+        <text name="guidance_team_pick" text="Traktory v týmu: %d (zaškrtněte je; první vede)"/>
+        <text name="guidance_team_lead" text="vede"/>
+        <text name="guidance_team_full" text="Nejvýše %d traktorů v týmu"/>
+        <text name="guidance_team_widths" text="%s: jiný pracovní záběr než vedoucí (%.1f m); tým pracuje s ním"/>
+        <text name="guidance_team_make" text="Vytvořit trasy"/>
+        <text name="guidance_team_startAll" text="Spustit vše (%d)"/>
+        <text name="guidance_team_stopAll" text="Zastavit vše"/>
+        <text name="guidance_team_made" text="Trasy vytvořeny pro %d traktorů na %s"/>
+        <text name="guidance_teamRole_strips" text="Pás %d z %d"/>
+        <text name="guidance_teamRole_convoy" text="Pruh %d z %d"/>
+        <text name="guidance_teamRole_nextRow" text="Sdílí řady (%d z %d)"/>
+        <text name="guidance_teamRole_alone" text="Sám"/>
+        <text name="guidance_teamRole_lands" text="Záhony, část %d z %d"/>
+        <text name="input_GUIDANCE_UI_NEXT" text="CourseCorrect: panel, další tlačítko"/>
+        <text name="input_GUIDANCE_UI_PREV" text="CourseCorrect: panel, předchozí tlačítko"/>
+        <text name="input_GUIDANCE_UI_PRESS" text="CourseCorrect: panel, stisknout tlačítko"/>
+        <text name="guidance_set_autoResume" text="Po načtení"/>
+        <text name="guidance_resume_carryOn" text="Pokračovat"/>
+        <text name="guidance_resume_wait" text="Čekat"/>
+        <text name="guidance_set_panelScale" text="Velikost panelu"/>
+        <text name="guidance_set_workPart" text="Práce"/>
+        <text name="guidance_workPart_whole" text="Celé pole"/>
+        <text name="guidance_workPart_headlands" text="Pouze souvratě"/>
+        <text name="guidance_workPart_rows" text="Pouze řady"/>
+        <text name="guidance_set_rowFrom" text="První řada"/>
+        <text name="guidance_set_rowTo" text="Poslední řada"/>
+        <text name="guidance_rows_first" text="První"/>
+        <text name="guidance_rows_last" text="Poslední"/>
+        <text name="guidance_set_workSpeed" text="Pracovní rychlost"/>
+        <text name="guidance_speed_implement" text="Dle nářadí"/>
+        <text name="guidance_set_turnSpeed" text="Rychlost otáčení"/>
+        <text name="guidance_set_reverseSpeed" text="Rychlost couvání"/>
+        <text name="guidance_set_lights" text="Světla"/>
+        <text name="guidance_lights_auto" text="Auto"/>
+        <text name="guidance_lights_off" text="Neměnit"/>
+        <text name="guidance_set_soundAlerts" text="Zvuková upozornění"/>
+        <text name="guidance_saved_export" text="Exportovat"/>
+        <text name="guidance_saved_exported" text="Exportováno do %s"/>
+        <text name="guidance_saved_import" text="Importovat soubor trasy"/>
+        <text name="guidance_import_title" text="%d souborů tras"/>
+        <text name="guidance_import_refresh" text="Hledat znovu"/>
+        <text name="guidance_import_hint" text="Soubory tras ze složky modSettings/FS25_CourseCorrect/courses (Export je ukládá tam; kopírujte sem i soubory od přátel)."/>
+        <text name="guidance_import_none" text="Zatím tam nejsou žádné soubory tras"/>
+        <text name="guidance_import_one" text="Importovat"/>
+        <text name="guidance_import_done" text="%s importována do uložených tras"/>
+        <text name="guidance_import_bad" text="%s není soubor trasy"/>
+        <text name="guidance_fleet_vehicles" text="Vozidla"/>
+        <text name="guidance_fleet_log" text="Záznam prací"/>
+        <text name="guidance_log_count" text="%d prací"/>
+        <text name="guidance_log_total" text="Celkem"/>
+        <text name="guidance_log_empty" text="Pomocník zatím nic neudělal"/>
+        <text name="guidance_log_when" text="den %d, %02d:%02d"/>
+        <text name="guidance_section_course" text="Trasa"/>
+        <text name="guidance_section_driving" text="Jízda"/>
+        <text name="guidance_section_team" text="Tým"/>
+        <text name="guidance_alert_need" text="%d vás potřebuje"/>
+        <text name="guidance_alert_working" text="%d pracuje"/>
+        <text name="guidance_alert_now" text="právě teď"/>
+        <text name="guidance_alert_more" text="a %d dalších"/>
+        <text name="guidance_set_alertsOnScreen" text="Upozornění na obrazovce"/>
+        <text name="guidance_pattern_lands" text="Záhony"/>
+        <text name="guidance_pattern_spiral" text="Spirála"/>
+        <text name="guidance_set_rowsPerLand" text="Řad na záhon"/>
+        <text name="guidance_set_rowShape" text="Tvar řad"/>
+        <text name="guidance_rowShape_straight" text="Rovné"/>
+        <text name="guidance_rowShape_edge" text="Podél okraje"/>
+        <text name="guidance_set_tramlines" text="Kolejové řádky"/>
+        <text name="guidance_tramlines_off" text="Vyp."/>
+        <text name="guidance_tramlines_on" text="Zap. %s"/>
+        <text name="guidance_tramlines_none" text="Žádná trasa setí"/>
+        <text name="guidance_edit" text="Upravit"/>
+        <text name="guidance_edit_done" text="Hotovo"/>
+        <text name="guidance_edit_clear" text="Vrátit vše"/>
+        <text name="guidance_tool_direction" text="Směr"/>
+        <text name="guidance_tool_start" text="Start"/>
+        <text name="guidance_tool_skipRow" text="Přeskočit řady"/>
+        <text name="guidance_tool_zone" text="Přeskočit oblast"/>
+        <text name="guidance_toolHint_direction" text="Tažením otočíte řady"/>
+        <text name="guidance_toolHint_start" text="Klikněte, kde začít"/>
+        <text name="guidance_toolHint_skipRow" text="Klikněte na řadu: vynechat / vrátit"/>
+        <text name="guidance_toolHint_zone" text="Tažením nakreslete oblast k objetí"/>
+    </texts>
+</l10n>

@@ -367,6 +367,15 @@ end
 function Hud:getStatus(vehicle)
     local C = Hud.C
     local course = vehicle:getGuidanceCourse()
+    -- a helper without a course: what it is doing
+    local helperKind = vehicle.getGuidanceHelperKind and vehicle:getGuidanceHelperKind()
+    if helperKind then
+        if vehicle:getIsGuidancePaused() then
+            return t("guidance_status_pausedHelper"), C.warn
+        end
+        local phase = vehicle:getGuidanceHelperPhase()
+        return phase and t("guidance_phase_" .. phase) or t("guidance_helper_" .. helperKind), C.accent
+    end
     if vehicle:getIsGuidanceActive() then
         local _, done = vehicle:getGuidanceProgress()
         if vehicle:getIsGuidancePaused() then
@@ -386,7 +395,7 @@ function Hud:getStatus(vehicle)
     if vehicle:getIsHelperDriving() then
         return t("guidance_status_otherHelper"), C.muted
     end
-    if course then
+    if course or (self.helperKindFor and self:helperKindFor(vehicle)) then
         return t("guidance_status_ready"), C.text
     end
     return t("guidance_status_noCourse"), C.muted
@@ -674,6 +683,30 @@ function Hud:getSettingRows(vehicle, scope, all)
                 inc = change("callUnloaderAt", math.min(100, at + 5)),
             })
         end
+        -- a seeder / sprayer: where it refills on its own when empty (the game's roads), unless the helper buys
+        if GuidanceTrips and #GuidanceTrips.refillTypes(vehicle) > 0 then
+            local list = GuidanceTrips.refillStations(vehicle)
+            local station = GuidanceTrips.find(list, s.refillX, s.refillZ)
+            local value
+            if station then
+                value = GuidanceTrips.nameOf(station)
+            elseif g_currentMission and g_currentMission.missionInfo and g_currentMission.missionInfo.helperBuySeeds then
+                value = t("guidance_refill_bought")
+            else
+                value = #list > 0 and t("guidance_refill_off") or t("guidance_refill_none")
+            end
+            local function pick(step)
+                return function()
+                    local x, z = GuidanceTrips.cycle(list, s.refillX, s.refillZ, step)
+                    if scope then
+                        scope.set("refillX", x); scope.set("refillZ", z)
+                    else
+                        vehicle:guidanceApplySettings({refillX = x, refillZ = z})
+                    end
+                end
+            end
+            add("refillX", {label = t("guidance_set_refill"), value = value, dec = pick(-1), inc = pick(1)})
+        end
         -- the work area off to one side of where the game says: the helper steers the other way
         local offset = s.toolOffsetX or 0
         local offsetText = t("guidance_offset_centre")
@@ -867,6 +900,11 @@ function Hud:drawView()
     elseif self.view == "team" then
         return self:drawTeam()
     end
+    -- a helper without a course (unloader, bales, silo): its own view
+    local kind = self.vehicle and self:helperKindFor(self.vehicle)
+    if kind then
+        return self:drawHelper(kind)
+    end
     return self:drawVehicle()
 end
 
@@ -1027,7 +1065,11 @@ function Hud:drawVehicle()
     local buttonsH = self:h(44)
     local messageH = self.message and self:h(24) or 0
     local offField = course and course.stats.offField or 0
-    local warnH = offField > 0 and self:h(22) or 0
+    -- islands inside the headland passes (near the edge) aren't worked round: the passes go over them
+    local ignoredIslands = course and course.stats.islandsIgnored or 0
+    local offH = offField > 0 and self:h(22) or 0
+    local islandH = ignoredIslands > 0 and self:h(22) or 0
+    local warnH = offH + islandH
     -- something that runs out before the end
     local shortages = {}
     if course then
@@ -1039,12 +1081,20 @@ function Hud:drawVehicle()
     -- the saved courses to work next
     local queue = vehicle:getGuidanceQueue()
     local queueH = #queue > 0 and self:h(28) or 0
-    warnH = warnH + shortageH + queueH
-    local contentH = progressH + plotH + summaryH + detailsH + warnH + padY * 0.5 + #rows * rowH + moreH + startAtH
+    -- the course was made with another implement
+    local toolWas = course and not active and vehicle.getGuidanceToolChange and vehicle:getGuidanceToolChange()
+    local toolH = toolWas and self:h(28) or 0
+    warnH = warnH + shortageH + queueH + toolH
+    -- the job switch (this vehicle could also be an unloader / bale collector / silo compacter)
+    local switchH = self:jobSwitchHeight(vehicle)
+    local contentH = switchH + progressH + plotH + summaryH + detailsH + warnH + padY * 0.5 + #rows * rowH + moreH + startAtH
         + padY * 0.5 + buttonsH + messageH
 
     local status, statusColor = self:getStatus(vehicle)
     local x, cy = self:drawFrame(m, contentH, vehicle:getName(), status, statusColor)
+    if switchH > 0 then
+        cy = self:drawJobSwitch(x, cy, vehicle, "field")
+    end
 
     -- progress through the course (once there is some)
     if progressH > 0 then
@@ -1133,6 +1183,19 @@ function Hud:drawVehicle()
             self:textIn(dx + colW - self:w(20), dy, detailRowH, smallSize, d[2], C.text, RenderText.ALIGN_RIGHT, true)
         end
     end
+    if toolH > 0 then
+        cy = cy - toolH
+        local againW = Draw.textWidth(smallSize, t("guidance_implAgain"), true) + self:w(16)
+        self:textIn(x + pad, cy, toolH, smallSize,
+            fit(t("guidance_implChanged", toolWas), smallSize, width - 2 * pad - againW - self:w(8)), C.warn)
+        self:button(x + width - pad - againW, cy + self:h(3), againW, toolH - self:h(6), t("guidance_implAgain"),
+            C.chip, C.hover, C.text, function()
+                local ok, err, info = vehicle:guidanceGenerate()
+                if not ok then self:showMessage(err or t("guidance_err_generic"), true)
+                elseif info then self:showMessage(info, false) end
+            end, smallSize)
+        warnH = warnH - toolH
+    end
     if queueH > 0 then
         cy = cy - queueH
         local entry = GuidanceLibrary.getEntry(queue[1])
@@ -1156,10 +1219,15 @@ function Hud:drawVehicle()
         self:textIn(x + pad, cy, shortageH, smallSize, fit(table.concat(parts, " · "), smallSize, width - 2 * pad), C.warn)
         warnH = warnH - shortageH
     end
-    if warnH > 0 then
-        cy = cy - warnH
-        self:textIn(x + pad, cy, warnH, smallSize, offField == 1 and t("guidance_warn_offField1")
+    if offH > 0 then
+        cy = cy - offH
+        self:textIn(x + pad, cy, offH, smallSize, offField == 1 and t("guidance_warn_offField1")
             or t("guidance_warn_offField", offField), C.warn)
+    end
+    if islandH > 0 then
+        cy = cy - islandH
+        self:textIn(x + pad, cy, islandH, smallSize, fit(t("guidance_warn_islandsIgnored", ignoredIslands), smallSize,
+            width - 2 * pad), C.warn)
     end
 
     -- settings: label, - value +
@@ -1232,6 +1300,147 @@ function Hud:drawVehicle()
     end
 
     -- message
+    if self.message then
+        cy = cy - messageH
+        self:textIn(x + pad, cy, messageH, smallSize, self.message, self.messageIsError and C.danger or C.muted)
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- Helpers without a course: unloader, bale collector, silo compacter (the Course tab shows them when the vehicle is
+-- one; a switch on top picks the job when it could be more than one)
+-----------------------------------------------------------------------------------------------------------------------
+
+--- The helper jobs the vehicle could do (looked at once a second): list of kinds
+function Hud:helperKinds(vehicle)
+    self.helperKindCache = self.helperKindCache or {}
+    local c = self.helperKindCache[vehicle]
+    local now = g_time or 0
+    if c == nil or now - c.time > 1000 then
+        local ok, kinds = pcall(vehicle.getGuidanceHelperKinds, vehicle)
+        local info = GuidanceVehicleInfo and GuidanceVehicleInfo.get(vehicle)
+        c = {time = now, kinds = ok and kinds or {}, fieldWork = info == nil or info.hasImplement}
+        self.helperKindCache[vehicle] = c
+    end
+    return c.kinds, c.fieldWork
+end
+
+--- The helper job the Course tab shows for the vehicle, or nil for its field work
+function Hud:helperKindFor(vehicle)
+    if vehicle.getGuidanceHelperKind == nil then return nil end
+    local running = vehicle:getGuidanceHelperKind()
+    if running then return running end
+    if vehicle:getIsGuidanceActive() then return nil end
+    local kinds, fieldWork = self:helperKinds(vehicle)
+    if #kinds == 0 then return nil end
+    self.helperChoice = self.helperChoice or {}
+    local choice = self.helperChoice[vehicle]
+    if choice == "field" then return nil end
+    for _, k in ipairs(kinds) do
+        if k == choice then return k end
+    end
+    -- by itself: the job it is made for (no field work implement: a helper)
+    if fieldWork and vehicle:getGuidanceCourse() ~= nil then return nil end
+    if fieldWork then return nil end
+    return kinds[1]
+end
+
+--- The job switch (field work, unloader, bales, silo), when there is more than one: its height
+function Hud:jobSwitchHeight(vehicle)
+    if vehicle:getIsGuidanceActive() then return 0 end
+    local kinds = self:helperKinds(vehicle)
+    return #kinds > 0 and self:h(34) or 0
+end
+
+function Hud:drawJobSwitch(x, cy, vehicle, current)
+    local kinds = self:helperKinds(vehicle)
+    local options = {{"field", t("guidance_job_field")}}
+    for _, k in ipairs(kinds) do table.insert(options, {k, t("guidance_helper_" .. k)}) end
+    return self:drawSwitch(x, cy, self:h(34), nil, options, current or "field", function(value)
+        self.helperChoice = self.helperChoice or {}
+        self.helperChoice[vehicle] = value
+    end, true)
+end
+
+function Hud:drawHelper(kind)
+    local vehicle = self.vehicle
+    local C = Hud.C
+    local m = self:metrics()
+    local pad, padY, rowH, width = m.pad, m.padY, m.rowH, m.width
+    local smallSize = m.smallSize
+    local running = vehicle:getGuidanceHelperKind() ~= nil
+    local s = vehicle:getGuidanceSettings()
+    local farmId = vehicle:getOwnerFarmId()
+
+    -- settings
+    local rows = {}
+    if kind == "unload" then
+        local list = GuidanceTrips.unloadingStations(farmId)
+        local station = GuidanceTrips.find(list, s.unloadX, s.unloadZ)
+        local function pick(step)
+            return function()
+                local px, pz = GuidanceTrips.cycle(list, s.unloadX, s.unloadZ, step)
+                vehicle:guidanceApplySettings({unloadX = px, unloadZ = pz})
+            end
+        end
+        table.insert(rows, {label = t("guidance_set_unloadAt"),
+                            value = station and GuidanceTrips.nameOf(station) or t("guidance_unload_stop"),
+                            dec = pick(-1), inc = pick(1)})
+        local full = s.unloadFull or 97
+        table.insert(rows, {label = t("guidance_set_unloadFull"), value = string.format("%d%%", full),
+                            dec = function() vehicle:guidanceApplySettings({unloadFull = math.max(50, full - 5)}) end,
+                            inc = function() vehicle:guidanceApplySettings({unloadFull = math.min(100, full + 5)}) end})
+    end
+
+    local switchH = self:jobSwitchHeight(vehicle)
+    local about = t("guidance_helperAbout_" .. kind)
+    local aboutLines = math.min(6, self:countLines(about, smallSize, width - 2 * pad))
+    local aboutH = self:h(17) * aboutLines + self:h(8)
+    local phaseH = self:h(26)
+    local buttonsH = self:h(44)
+    local messageH = self.message and self:h(24) or 0
+    local contentH = switchH + aboutH + phaseH + #rows * rowH + padY + buttonsH + messageH
+
+    local status, statusColor = self:getStatus(vehicle)
+    local x, cy = self:drawFrame(m, contentH, vehicle:getName(), status, statusColor)
+    if switchH > 0 then
+        cy = self:drawJobSwitch(x, cy, vehicle, kind)
+    end
+    -- what it does
+    cy = cy - aboutH
+    self:textLines(x + pad, cy + self:h(4), aboutH - self:h(8), smallSize, about, width - 2 * pad, C.muted, aboutLines)
+    -- what it is doing now
+    cy = cy - phaseH
+    local phase = vehicle:getGuidanceHelperPhase()
+    local phaseText = running and phase and t("guidance_phase_" .. phase) or t("guidance_helperReady_" .. kind)
+    self:textIn(x + pad, cy, phaseH, m.textSize, fit(phaseText, m.textSize, width - 2 * pad, true),
+        running and C.accent or C.text, nil, true)
+    if #rows > 0 then
+        cy = self:drawSettingRows(x, cy, rows, not running)
+    end
+    -- buttons
+    cy = cy - padY - buttonsH
+    local gap = self:w(10)
+    local half = (width - 2 * pad - gap) / 2
+    local white = {1, 1, 1, 1}
+    if running then
+        local paused = vehicle:getIsGuidancePaused()
+        self:button(x + pad, cy, half, buttonsH, paused and t("guidance_btn_resume") or t("guidance_btn_pause"),
+            paused and C.accent or C.surface, paused and C.accentHover or C.hover, paused and white or C.text,
+            function() vehicle:guidanceSetPaused(not paused) end)
+        self:button(x + pad + half + gap, cy, half, buttonsH, t("guidance_btn_stop"), C.danger, C.dangerHover, white,
+            function() vehicle:guidanceStop() end)
+    elseif vehicle:getIsHelperDriving() then
+        self:button(x + pad, cy, width - 2 * pad, buttonsH, t("guidance_btn_stopHelper"), C.danger, C.dangerHover, white,
+            function() vehicle:guidanceStopHelper() end)
+    else
+        self:button(x + pad, cy, width - 2 * pad, buttonsH, t("guidance_btn_start"), C.accent, C.accentHover, white,
+            function()
+                local ok, err = vehicle:guidanceStartHelper(kind, {unloadX = s.unloadX or 0, unloadZ = s.unloadZ or 0,
+                                                                  fullLevel = (s.unloadFull or 97) / 100})
+                if not ok and err then self:showMessage(err, true) end
+            end)
+    end
     if self.message then
         cy = cy - messageH
         self:textIn(x + pad, cy, messageH, smallSize, self.message, self.messageIsError and C.danger or C.muted)
@@ -1638,7 +1847,7 @@ end
 -- player's own defaults (on this PC, for tractors not set up yet)
 -----------------------------------------------------------------------------------------------------------------------
 
-Hud.SETTINGS_PAGE_ONLY = {tramlines = true, minHeadlandWidth = true, teamMode = true, teamSize = true, teamIndex = true, autoResume = true,
+Hud.SETTINGS_PAGE_ONLY = {refillX = true, tramlines = true, minHeadlandWidth = true, teamMode = true, teamSize = true, teamIndex = true, autoResume = true,
                           rowFrom = true, rowTo = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true,
                           lights = true,
                           lowerLate = true, raiseLate = true, callUnloaderAt = true, toolOffsetX = true}
@@ -1753,7 +1962,7 @@ Hud.TRACTOR_SECTIONS = {
     course = {workWidth = true, headlands = true, rowAngle = true, turnRadius = true, clockwise = true,
               headlandsFirst = true, pattern = true, roundedPasses = true, minHeadlandWidth = true, workPart = true,
               rowFrom = true, rowTo = true, rowsPerLand = true, landsSide = true, rowShape = true, tramlines = true},
-    driving = {keepLowered = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
+    driving = {refillX = true, keepLowered = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
                callUnloaderAt = true, toolOffsetX = true, autoResume = true, lowerLate = true, raiseLate = true},
     team = {teamMode = true, teamSize = true, teamIndex = true},
 }
@@ -1844,9 +2053,15 @@ local function wrapLines(text, size, width, maxLines)
 end
 
 --- Up to two lines of small text in a box of height h at y (top line first)
-function Hud:textLines(x, y, h, size, text, width, color)
-    local lines = wrapLines(text, size, width, 2)
-    local lineH = h / 2
+--- How many lines a text takes in that width
+function Hud:countLines(text, size, width)
+    return #wrapLines(text, size, width, 99)
+end
+
+function Hud:textLines(x, y, h, size, text, width, color, maxLines)
+    maxLines = maxLines or 2
+    local lines = wrapLines(text, size, width, maxLines)
+    local lineH = h / maxLines
     for i, l in ipairs(lines) do
         local ly = #lines == 1 and y + (h - lineH) / 2 or y + h - i * lineH
         self:textIn(x, ly, lineH, size, l, color)

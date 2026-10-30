@@ -4,6 +4,40 @@
         <text name="input_GUIDANCE_TOGGLE_HUD" text="CourseCorrect: panel"/>
         <text name="input_GUIDANCE_START_STOP" text="CourseCorrect: start / stop"/>
         <text name="guidance_oldModLoaded" text="FS25_Guidance.zip (CourseCorrect's old name) is loaded too: CourseCorrect is off. Remove FS25_Guidance.zip from the mods."/>
+        <text name="guidance_implChanged" text="Made for: %s. Other implement now"/>
+        <text name="guidance_implAgain" text="Make again"/>
+        <text name="guidance_job_field" text="Field work"/>
+        <text name="guidance_helper_unload" text="Unloader"/>
+        <text name="guidance_helper_bales" text="Bales"/>
+        <text name="guidance_helper_silo" text="Silo"/>
+        <text name="guidance_helper_noTrailer" text="Hitch a trailer or an auger wagon to unload combines"/>
+        <text name="guidance_helper_noBaleTool" text="Hitch a bale loader or a bale wrapper to collect bales"/>
+        <text name="guidance_helper_noSilo" text="Drive to a bunker silo to compact it"/>
+        <text name="guidance_helperAbout_unload" text="Waits at the field edge, drives to a combine of this field that calls (round the crop), catches its grain under the pipe at its speed. Full: to the station on the game's roads and back, or it stops for you."/>
+        <text name="guidance_helperAbout_bales" text="Picks up (or wraps) every bale on this field, the nearest first. A full loader unloads the stack where it started; at the end it brings the rest there too."/>
+        <text name="guidance_helperAbout_silo" text="Drives up and down the bunker silo lane by lane, forwards in and backing out. Waits when the silo is compacted, goes on when more is tipped; stops when it is closed."/>
+        <text name="guidance_helperReady_unload" text="Start it at the field edge"/>
+        <text name="guidance_helperReady_bales" text="Start it where the stack should be"/>
+        <text name="guidance_helperReady_silo" text="Start it at the silo"/>
+        <text name="guidance_set_unloadAt" text="Unload at"/>
+        <text name="guidance_unload_stop" text="Stop when full"/>
+        <text name="guidance_set_unloadFull" text="Leave when full at"/>
+        <text name="guidance_set_refill" text="Refill at"/>
+        <text name="guidance_refill_off" text="Off: stops when empty"/>
+        <text name="guidance_refill_none" text="No station for it"/>
+        <text name="guidance_refill_bought" text="Helper buys it"/>
+        <text name="guidance_status_pausedHelper" text="Paused"/>
+        <text name="guidance_phase_unloadWait" text="Waiting for a combine"/>
+        <text name="guidance_phase_unloadDrive" text="Driving to the combine"/>
+        <text name="guidance_phase_unloadFollow" text="Unloading the combine"/>
+        <text name="guidance_phase_unloadLeave" text="Full, leaving the field"/>
+        <text name="guidance_phase_unloadTrip" text="On the road to unload"/>
+        <text name="guidance_phase_balesFind" text="Looking for bales"/>
+        <text name="guidance_phase_balesPick" text="Picking up a bale"/>
+        <text name="guidance_phase_balesHome" text="Full, to the stack"/>
+        <text name="guidance_phase_balesUnload" text="Unloading the stack"/>
+        <text name="guidance_phase_siloDrive" text="Compacting the silo"/>
+        <text name="guidance_phase_siloWait" text="Silo compacted, waiting"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -44,6 +78,7 @@
         <text name="guidance_corners_round" text="Round"/>
         <text name="guidance_corners_needsReverse" text="Round (towed)"/>
         <text name="guidance_warn_offField" text="%d turns would leave the field: add a headland"/>
+        <text name="guidance_warn_islandsIgnored" text="%d obstacle(s) near the edge: the headland passes go over them"/>
         <text name="guidance_warn_offField1" text="1 turn would leave the field: add a headland"/>
         <text name="guidance_summary_islands" text="%d islands"/>
         <text name="guidance_set_turns" text="In turns"/>
@@ -100,7 +135,7 @@
         <text name="guidance_saved_renamePrompt" text="Name of the course"/>
         <text name="guidance_saved_line" text="Field %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Field %d"/>
-        <text name="guidance_folder_back" text="< All fields"/>
+        <text name="guidance_folder_back" text="&lt; All fields"/>
         <text name="guidance_folder_count" text="%d courses"/>
         <text name="guidance_folder_one" text="1 course"/>
         <text name="guidance_folder_here" text="you are here"/>

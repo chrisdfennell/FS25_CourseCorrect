@@ -4,6 +4,40 @@
         <text name="input_GUIDANCE_TOGGLE_HUD" text="CourseCorrect: Panel"/>
         <text name="input_GUIDANCE_START_STOP" text="CourseCorrect: Start / Stopp"/>
         <text name="guidance_oldModLoaded" text="FS25_Guidance.zip (der alte Name von CourseCorrect) ist auch geladen: CourseCorrect ist aus. Entferne FS25_Guidance.zip aus den Mods."/>
+        <text name="guidance_implChanged" text="Gemacht für: %s. Jetzt anderes Gerät"/>
+        <text name="guidance_implAgain" text="Neu machen"/>
+        <text name="guidance_job_field" text="Feldarbeit"/>
+        <text name="guidance_helper_unload" text="Überlader"/>
+        <text name="guidance_helper_bales" text="Ballen"/>
+        <text name="guidance_helper_silo" text="Silo"/>
+        <text name="guidance_helper_noTrailer" text="Hänge einen Anhänger oder Überladewagen an, um Drescher abzufahren"/>
+        <text name="guidance_helper_noBaleTool" text="Hänge einen Ballensammler oder Wickler an, um Ballen einzusammeln"/>
+        <text name="guidance_helper_noSilo" text="Fahre zu einem Fahrsilo, um es zu verdichten"/>
+        <text name="guidance_helperAbout_unload" text="Wartet am Feldrand, fährt zu einem rufenden Drescher dieses Felds (um den Bestand), nimmt sein Korn unter dem Rohr in seinem Tempo auf. Voll: auf den Straßen des Spiels zur Station und zurück, oder er hält für dich."/>
+        <text name="guidance_helperAbout_bales" text="Sammelt (oder wickelt) jeden Ballen dieses Felds, den nächsten zuerst. Ein voller Sammler lädt den Stapel dort ab, wo er gestartet wurde; am Ende bringt er den Rest auch dorthin."/>
+        <text name="guidance_helperAbout_silo" text="Fährt Bahn für Bahn auf dem Fahrsilo hinauf und rückwärts hinaus. Wartet, wenn es verdichtet ist, macht weiter, wenn mehr abgekippt wird; hört auf, wenn es geschlossen ist."/>
+        <text name="guidance_helperReady_unload" text="Starte ihn am Feldrand"/>
+        <text name="guidance_helperReady_bales" text="Starte ihn dort, wo der Stapel hin soll"/>
+        <text name="guidance_helperReady_silo" text="Starte ihn am Silo"/>
+        <text name="guidance_set_unloadAt" text="Abladen bei"/>
+        <text name="guidance_unload_stop" text="Halt wenn voll"/>
+        <text name="guidance_set_unloadFull" text="Fährt los bei"/>
+        <text name="guidance_set_refill" text="Nachfüllen bei"/>
+        <text name="guidance_refill_off" text="Aus: hält wenn leer"/>
+        <text name="guidance_refill_none" text="Keine Station dafür"/>
+        <text name="guidance_refill_bought" text="Helfer kauft"/>
+        <text name="guidance_status_pausedHelper" text="Pause"/>
+        <text name="guidance_phase_unloadWait" text="Wartet auf einen Drescher"/>
+        <text name="guidance_phase_unloadDrive" text="Fährt zum Drescher"/>
+        <text name="guidance_phase_unloadFollow" text="Überlädt vom Drescher"/>
+        <text name="guidance_phase_unloadLeave" text="Voll, verlässt das Feld"/>
+        <text name="guidance_phase_unloadTrip" text="Auf der Straße zum Abladen"/>
+        <text name="guidance_phase_balesFind" text="Sucht Ballen"/>
+        <text name="guidance_phase_balesPick" text="Nimmt einen Ballen auf"/>
+        <text name="guidance_phase_balesHome" text="Voll, zum Stapel"/>
+        <text name="guidance_phase_balesUnload" text="Lädt den Stapel ab"/>
+        <text name="guidance_phase_siloDrive" text="Verdichtet das Silo"/>
+        <text name="guidance_phase_siloWait" text="Silo verdichtet, wartet"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: Starten"/>
         <text name="guidance_action_stop" text="CourseCorrect: Stoppen"/>
@@ -44,6 +78,7 @@
         <text name="guidance_corners_round" text="Rund"/>
         <text name="guidance_corners_needsReverse" text="Rund (gezogen)"/>
         <text name="guidance_warn_offField" text="%d Wenden würden das Feld verlassen: Vorgewende hinzufügen"/>
+        <text name="guidance_warn_islandsIgnored" text="%d Hindernis(se) nahe am Rand: die Vorgewendebahnen fahren darüber"/>
         <text name="guidance_warn_offField1" text="1 Wende würde das Feld verlassen: Vorgewende hinzufügen"/>
         <text name="guidance_summary_islands" text="%d Inseln"/>
         <text name="guidance_set_turns" text="Beim Wenden"/>
@@ -100,7 +135,7 @@
         <text name="guidance_saved_renamePrompt" text="Name des Kurses"/>
         <text name="guidance_saved_line" text="Feld %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Feld %d"/>
-        <text name="guidance_folder_back" text="< Alle Felder"/>
+        <text name="guidance_folder_back" text="&lt; Alle Felder"/>
         <text name="guidance_folder_count" text="%d Kurse"/>
         <text name="guidance_folder_one" text="1 Kurs"/>
         <text name="guidance_folder_here" text="du bist hier"/>

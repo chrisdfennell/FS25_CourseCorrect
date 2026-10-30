@@ -66,6 +66,7 @@ function makeScene(course, mode, showMore)
     plan.workWidth, plan.turnRadius, plan.autoWidth = 6, 6, true
     local active = mode ~= "ready" and mode ~= "library" and mode ~= "folders" and mode ~= "recording"
         and mode:sub(1, 4) ~= "set_" and mode:sub(1, 4) ~= "edit" and mode ~= "otherHelper"
+        and mode:sub(1, 6) ~= "helper" and mode ~= "jobswitch"
     local wps = course.waypoints
     local progressIx = active and math.floor(#wps * 0.45) or 1
     local p = wps[progressIx]
@@ -235,6 +236,35 @@ function makeScene(course, mode, showMore)
     end
     hud.mouseX, hud.mouseY = -1, -1
     DRAW = {}
+    -- helpers without a course
+    function v:getGuidanceHelperKinds() return {} end
+    function v:getGuidanceHelperKind() return nil end
+    function v:getGuidanceHelperPhase() return nil end
+    local helperModes = {helper_unload = {"unload"}, helper_unloadRun = {"unload", "unloadFollow"},
+                         helper_bales = {"bales"}, helper_siloRun = {"silo", "siloWait"}}
+    local hm = helperModes[mode]
+    if hm then
+        function v:getGuidanceHelperKinds() return {hm[1]} end
+        function v:getGuidanceCourse() return nil end
+        GuidanceVehicleInfo = {get = function() return {hasImplement = false} end}
+        local station = {owningPlaceable = {getName = function() return "Grain elevator (Riverside)" end},
+                         getAITargetPositionAndDirection = function() return 100, 200, 1, 0 end,
+                         getAISupportedFillTypes = function() return {[1] = true} end}
+        g_currentMission.storageSystem = {getUnloadingStations = function() return {station} end}
+        g_currentMission.accessHandler = {canFarmAccess = function() return true end}
+        UnloadingStation = nil
+        plan.unloadX, plan.unloadZ, plan.unloadFull = 100, 200, 95
+        if hm[2] then
+            function v:getGuidanceHelperKind() return hm[1] end
+            function v:getGuidanceHelperPhase() return hm[2] end
+            function v:getIsGuidanceActive() return true end
+            function v:getIsAIActive() return true end
+        end
+    end
+    if mode == "jobswitch" then
+        function v:getGuidanceHelperKinds() return {"silo"} end
+        GuidanceVehicleInfo = {get = function() return {hasImplement = true} end}
+    end
     if mode == "alerts" then
         -- the farm's helpers: one stuck, one full, one finished, two working; nothing on the panel
         local list = g_currentMission.vehicleSystem.vehicles
@@ -334,7 +364,7 @@ def main():
         return font(size * H, bold).getlength(s) / W
     lua.globals().TEXT_WIDTH = text_width
     for rel in ["scripts/Prefs.lua", "scripts/ai/Team.lua", "scripts/geometry/Geo.lua", "scripts/geometry/Dubins.lua", "scripts/course/CourseGenerator.lua",
-                "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/ai/Planner.lua",
+                "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/ai/Planner.lua", "scripts/ai/Trips.lua",
                 "scripts/gui/GuidanceDraw.lua",
                 "scripts/gui/GuidanceMap.lua",
                 "scripts/gui/GuidanceHud.lua"]:
@@ -358,7 +388,9 @@ def main():
     for mode, more in (("ready", False), ("working", False), ("paused", True), ("fleet", False),
                        ("library", False), ("folders", False), ("details", False),
                        ("recording", False), ("set_tractor", False), ("set_field", False), ("set_user", False), ("otherHelper", False), ("team", False), ("log", False), ("import", False), ("alerts", False),
-                       ("edit", False), ("edit_direction", False), ("more", True)):
+                       ("edit", False), ("edit_direction", False), ("more", True),
+                       ("helper_unload", False), ("helper_unloadRun", False), ("helper_bales", False),
+                       ("helper_siloRun", False), ("jobswitch", False)):
         draws, box = lua.globals().makeScene(course, mode, more)
         img = paint(draws, bg)
         x0, y0 = box.x * W - 20, (1 - box.y - box.h) * H - 20

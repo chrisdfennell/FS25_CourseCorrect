@@ -1,0 +1,36 @@
+# A version tag (v0.6.0.0) pushed: the mod built and published as a GitHub release with FS25_CourseCorrect.zip.
+# The tag must be modDesc's version. Versions 0.x are pre-releases (not yet tested in the game).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The tag is modDesc's version
+        run: |
+          version=$(python -c "import xml.etree.ElementTree as E; print(E.parse('modDesc.xml').getroot().findtext('version'))")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME, but modDesc says $version"; exit 1
+          fi
+      - name: Build the zip
+        run: python tools/build.py
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          case "$GITHUB_REF_NAME" in v0.*) pre="--prerelease" ;; esac
+          sha=$(sha256sum dist/FS25_CourseCorrect.zip | cut -d' ' -f1)
+          gh release create "$GITHUB_REF_NAME" dist/FS25_CourseCorrect.zip $pre --title "CourseCorrect ${GITHUB_REF_NAME#v}" \
+            --generate-notes --notes "Put FS25_CourseCorrect.zip into your mods folder as it is (don't rename it). On a server, the server and every player need the very same zip. SHA-256: \`$sha\`"

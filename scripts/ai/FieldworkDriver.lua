@@ -67,6 +67,11 @@ function Driver.new(vehicle, course, startIx, startPoint)
     self.sideOffset = (math.abs(self.info.sideOffset) > 0.25 and self.info.sideOffset or 0) - self.toolOffset
     -- next free row: the course has this one's headland passes, the rows it takes as it goes
     self.teamRows = plan.teamMode == GuidancePlan.TEAM_NEXT_ROW and course.teamRows or nil
+    -- started on a field whose rows were all done already: it may start them over (once); otherwise, when the
+    -- others have done them all, it is finished
+    if self.teamRows and GuidanceTeam then
+        self.teamFreshStart = #self.teamRows > 0 and GuidanceTeam.count(plan.fieldId, self.teamRows) >= #self.teamRows
+    end
     self.passesLast = self.teamRows ~= nil and not plan.headlandsFirst
     local hasPasses = false
     for _, wp in ipairs(course.waypoints) do
@@ -697,9 +702,10 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
                 end
             end
         end
+        local ignore = self.ignoreForGiveWay
         for _, other in pairs(vehicles) do
             local otherDriver = other ~= self.vehicle and other.spec_guidance and other.spec_guidance.driver
-            if not otherDriver and Driver.isObstacle(self, other) then
+            if not otherDriver and other ~= ignore and Driver.isObstacle(self, other) then
                 local ox, _, oz = getWorldTranslation(other.rootNode)
                 local size = other.size or {}
                 check(other, ox, oz, (size.width or 3) / 2, (size.length or 6) / 2)
@@ -711,7 +717,9 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
         for _, other in pairs(vehicles) do
             local spec = other ~= self.vehicle and other.spec_guidance or nil
             local od = spec and spec.driver
-            if od and od ~= self and od.state ~= Driver.STATE_DONE and other.rootNode
+            -- (a combine and its unloader alongside never wait for each other)
+            local paired = other == ignore or (od and od.combine == self.vehicle) or (od and self.combine == other)
+            if od and od ~= self and od.state ~= Driver.STATE_DONE and other.rootNode and not paired
                     and not self:isConvoyPartner(od) and not waitsFor(od, self.vehicle) then
                 local ox, _, oz = getWorldTranslation(other.rootNode)
                 local dx, dz = ox - x, oz - z
@@ -872,10 +880,11 @@ function Driver:extendTeamPath()
     local plan = self.course.plan
     local last, h = self:pathEndPose()
     local row, reversed, across = GuidanceTeam.takeRow(plan.fieldId, self.teamRows, self.vehicle, last.x, last.z,
-        self.lastAcross, 2 * plan.turnRadius)
+        self.lastAcross, 2 * plan.turnRadius, self.teamFreshStart)
     if row == nil then
         return false
     end
+    self.teamFreshStart = false
     self.lastAcross = across
     local a, b = row.a, row.b
     if reversed then a, b = b, a end
@@ -1132,9 +1141,12 @@ local function harvesterFillLevel(harvester)
     return harvester:getFillUnitFillLevel(ix) / capacity
 end
 
---- Are there AutoDrive unloaders working for this harvester? Then it waits for them when full, instead of
---- stopping for AutoDrive to drive it away.
+--- Are there unloaders for this harvester (our own on its field, or AutoDrive's)? Then it waits for them when full,
+--- instead of stopping for AutoDrive to drive it away.
 function Driver:hasAutoDriveUnloaders()
+    if self.unloader or self:hasOwnUnloaders() then
+        return true
+    end
     local manager = ADHarvestManager
     if manager == nil and FS25_AutoDrive ~= nil then
         manager = FS25_AutoDrive.ADHarvestManager
@@ -1144,6 +1156,20 @@ function Driver:hasAutoDriveUnloaders()
     end
     local ok, result = pcall(manager.hasHarvesterPotentialUnloaders, manager, self.harvester)
     return ok and result == true
+end
+
+--- One of our unloaders works on this field (waiting or busy)
+function Driver:hasOwnUnloaders()
+    local vehicles = g_currentMission and g_currentMission.vehicleSystem and g_currentMission.vehicleSystem.vehicles
+    local x, z = vehiclePose(self.vehicle)
+    for _, v in pairs(vehicles or {}) do
+        local d = v ~= self.vehicle and v.spec_guidance and v.spec_guidance.driver
+        if d and GuidanceUnloadDriver and getmetatable(d) and getmetatable(d).__index == GuidanceUnloadDriver
+                and not d.done and (d.field == nil or d:isOnField(x, z)) then
+            return true
+        end
+    end
+    return false
 end
 
 local function pipeState(harvester)
@@ -1171,7 +1197,11 @@ function Driver:updatePipe(dt)
     end
     local spec = harvester.spec_pipe
     local somethingUnder = spec and (spec.numObjectsInTriggers or 0) > 0
-    if self.state == Driver.STATE_WAIT_UNLOAD or (somethingUnder and harvesterFillLevel(harvester) > 0.01) then
+    -- our unloader alongside: out with it, and the combine fills the trailer under it by itself
+    local unloaderHere = self.unloader ~= nil and self.unloader.state == "follow"
+    if unloaderHere and spec and spec.automaticDischarge == false then spec.automaticDischarge = true end
+    if self.state == Driver.STATE_WAIT_UNLOAD or unloaderHere
+            or (somethingUnder and harvesterFillLevel(harvester) > 0.01) then
         setPipe(harvester, true)
         self.pipeIdleTimer = 0
     else
@@ -1264,6 +1294,8 @@ function Driver:updateFillLevels(dt)
     self.fillCheckTimer = 0
     local missionInfo = g_currentMission.missionInfo
     local fuelLow, isFull, isEmpty = false, false, false
+    -- what ran out (for a refill trip)
+    local emptyTypes = {}
     for _, v in pairs(allVehicles(self.vehicle)) do
         -- harvested goods: combine tank, forage wagon
         local collector = (v.spec_combine and v.spec_combine.fillUnitIndex)
@@ -1275,12 +1307,25 @@ function Driver:updateFillLevels(dt)
         -- seed, unless the helper buys it
         if v.spec_sowingMachine and not missionInfo.helperBuySeeds then
             local seed = fillPercentage(v, v.spec_sowingMachine.fillUnitIndex)
-            if seed and seed <= 0 then isEmpty = true end
+            if seed and seed <= 0 then
+                isEmpty = true
+                if FillType and FillType.SEEDS then table.insert(emptyTypes, FillType.SEEDS) end
+            end
         end
         if v.getSprayerFillUnitIndex and not missionInfo.helperBuyFertilizer and v.spec_sowingMachine == nil then
             local ok, ix = pcall(v.getSprayerFillUnitIndex, v)
             local sprayLevel = ok and fillPercentage(v, ix)
-            if sprayLevel and sprayLevel <= 0 then isEmpty = true end
+            if sprayLevel and sprayLevel <= 0 then
+                isEmpty = true
+                -- what it was spraying, else what it takes
+                local ft = v.spec_fillUnit and v.spec_fillUnit.fillUnits and v.spec_fillUnit.fillUnits[ix]
+                    and v.spec_fillUnit.fillUnits[ix].lastValidFillType
+                if ft and ft ~= 0 then
+                    table.insert(emptyTypes, ft)
+                elseif v.getFillUnitSupportedFillTypes then
+                    for t in pairs(v:getFillUnitSupportedFillTypes(ix) or {}) do table.insert(emptyTypes, t) end
+                end
+            end
         end
         -- fuel
         if v.spec_motorized and v.spec_motorized.propellantFillUnitIndices and not missionInfo.helperBuyFuel then
@@ -1308,6 +1353,13 @@ function Driver:updateFillLevels(dt)
             self:stop(AIMessageGuidanceIsFull.new(), "NEEDS_UNLOADING")
         end
     elseif isEmpty then
+        -- a refill trip (the plan names a station), else stop for AutoDrive or the player
+        local job = self.task and self.task.job
+        if job and job.startRefillTrip and job:startRefillTrip(self, emptyTypes) then
+            self.state = Driver.STATE_DONE
+            self:raiseImplements()
+            return
+        end
         self:stop(AIMessageErrorOutOfFill.new(), "NEEDS_FILLING")
     end
 end

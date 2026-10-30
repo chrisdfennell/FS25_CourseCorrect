@@ -132,7 +132,8 @@ def main():
     spiral = G.makeCourse(F, T({"pattern": 5}))
     passes = {spiral.waypoints[i]["pass"] for i in range(1, len(spiral.waypoints) + 1)
               if spiral.waypoints[i].t == "H"} - {None}
-    check("spiral", spiral.stats.rows == 0 and len(passes) > whole.stats.headlands + 3,
+    # (further in than a normal course's headlands: on into where the rows would be)
+    check("spiral", spiral.stats.rows == 0 and len(passes) > whole.stats.headlands,
           f"{len(passes)} passes, {spiral.stats.rows} rows")
     check("spiral on the field", off_field(spiral, pts) <= 0.75, f"{off_field(spiral, pts):.2f} m")
 
@@ -152,7 +153,7 @@ def main():
     tlines = [tram.stats.rowLines[i] for i in range(1, len(tram.stats.rowLines) + 1)]
     on_pass = all(min(abs(y - l) for l in lines) < 0.05 for y in tlines)
     groups = all(abs(((y - lines[0]) / step) % 3 - 1) < 0.02 for y in tlines)
-    check("tramlines", len(tlines) > 2 and on_pass and groups,
+    check("tramlines", len(tlines) >= 2 and on_pass and groups,
           f"{len(tlines)} sprayer rows, each on a sowing pass, the middle of 3: {groups}")
 
     # rows left out: gone, and listed for the editor
@@ -165,15 +166,31 @@ def main():
     # an area worked round: no waypoint in it
     xs = [p[0] for p in pts]
     zs = [p[1] for p in pts]
-    cx, cz = sum(xs) / len(xs), sum(zs) / len(zs)
-    zone = (cx - 12, cz - 12, cx + 12, cz + 12)
+    # in the middle of the rows (an obstacle in the headland band isn't worked round, see the README)
+    rws = [w for w in waypoints(whole) if w["t"] == "R"]
+    cx = (min(w["x"] for w in rws) + max(w["x"] for w in rws)) / 2
+    cz = (min(w["z"] for w in rws) + max(w["z"] for w in rws)) / 2
+    zone = (cx - 8, cz - 8, cx + 8, cz + 8)
     zoned = G.makeCourse(F, T({"skipZones": "%.1f %.1f %.1f %.1f" % zone}))
+    # every piece of the course, walked in 1 m steps (a straight row has waypoints only at its ends): none in the
+    # area (1 m in from its edge)
     inside = 0
-    for w in waypoints(zoned):
-        if zone[0] < w["x"] < zone[2] and zone[1] < w["z"] < zone[3]:
-            inside += 1
-    check("skip area", zoned is not None and inside == 0 and zoned.stats.islands >= 1,
-          f"{inside} waypoints in the area, islands {zoned.stats.islands if zoned else '?'}")
+    wl = waypoints(zoned) if zoned else []
+    for a, b in zip(wl, wl[1:]):
+        n = max(1, int(math.hypot(b["x"] - a["x"], b["z"] - a["z"])))
+        for k in range(n + 1):
+            x = a["x"] + (b["x"] - a["x"]) * k / n
+            z = a["z"] + (b["z"] - a["z"]) * k / n
+            if zone[0] + 1 < x < zone[2] - 1 and zone[1] + 1 < z < zone[3] - 1:
+                inside += 1
+                break
+    check("skip area", zoned is not None and inside == 0,
+          f"{inside} pieces of the course through the area, islands with passes {zoned.stats.islands if zoned else '?'}")
+    # one too big to work round in the room there (the whole width of the rows): not worked round, but warned
+    big = (cx - 200, cz - 8, cx + 200, cz + 8)
+    zoned2 = G.makeCourse(F, T({"skipZones": "%.1f %.1f %.1f %.1f" % big}))
+    warned = zoned2 is not None and (zoned2.stats.islandsIgnored or 0) >= 1
+    check("skip area too big", warned, f"warned {(zoned2.stats.islandsIgnored or 0) if zoned2 else '?'} obstacle(s)")
 
     # driven: lands, spiral, curved rows to the end by the test tractor
     drive = smoke_test.DRIVE

@@ -166,8 +166,14 @@ g_currentMission = {
     missionInfo = {helperBuySeeds = true, helperBuyFertilizer = true, helperBuyFuel = true},
     aiMessageManager = {registerMessage = function() end},
     aiJobTypeManager = {
-        registerJobType = function(self, name, title, class) AIJobType = {[name] = 1}; self.class = class end,
-        createJob = function(self, typeIx) return self.class.new(true) end,
+        -- every job type by its index (several: field work, unloader, bales, silo)
+        registerJobType = function(self, name, title, class)
+            AIJobType = AIJobType or {}
+            self.classes = self.classes or {}
+            table.insert(self.classes, class)
+            AIJobType[name] = #self.classes
+        end,
+        createJob = function(self, typeIx) return self.classes[typeIx].new(true) end,
     },
     aiSystem = {startJob = function(_, job, farmId) STARTED_JOB = job end},
     showBlinkingWarning = function(_, text) log("WARNING %s", text) end,
