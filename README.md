@@ -13,10 +13,10 @@ show what this build does; in the game it looks the same, on the game's own pict
 
 | | |
 |---|---|
-| Version | **0.7.1.0** (called *Guidance* up to 0.4.4.0) |
+| Version | **0.7.2.0** (called *Guidance* up to 0.4.4.0) |
 | Author | Chris Fennell |
-| Zip | `FS25_CourseCorrect.zip`: 41 files, 246,244 bytes |
-| SHA-256 | `95d12b09a4945327642213a064ae987b2e620b8d1af51cfbec70ce579d2bb085` |
+| Zip | `FS25_CourseCorrect.zip`: 41 files, 249,726 bytes |
+| SHA-256 | `62e8b0e3f6d14fd3faf566acfe39e166c8dba98b0a646a025621c46e37e561c0` |
 | Status | Pre-release: tested offline (see Testing), not yet in the game. Download the zip from the Releases page. |
 | Multiplayer | Yes, including dedicated servers |
 | Languages | English, German, French, Polish, Dutch, Spanish, Italian, Czech |
@@ -291,11 +291,12 @@ passes, row direction and pattern as the rake's course got (a rake working in a 
 turning radius, speeds and timing. The baler's own stops (tying, dropping a bale) and a full loader wagon are handled
 as with any implement. Mowing and raking are ordinary courses.
 
-## Vineyards
+## Vineyards and orchards
 
-Standing among vines (the game's vine system: grapes), *Make course* makes a field of the vineyard: all its rows that
+The game builds vineyards and orchards (olives...) the same way, on its vine system, and CourseCorrect reads them the
+same way: standing among the rows, *Make course* makes a field of the vineyard (or orchard): all its rows that
 belong together (plots side by side, rows in pieces end to end), with 15 m round them to turn in, named
-"*Vineyard 1*"... The course drives along the rows, 2 m past the vines at each end, without headland passes. The next
+"*Vineyard 1*" (anything but grapes: "*Orchard 1*")... The course drives along the rows, 2 m past the vines at each end, without headland passes. The next
 row is the nearest one far enough to the side to turn into without backing up, the rows skipped on the way filled in
 on the way back.
 
@@ -409,8 +410,12 @@ in its path, and goes on once it has moved off: another CourseCorrect helper, a 
 the game's helper, any vehicle moving, a person on foot. Not for parked vehicles (it would wait forever) and not for
 AutoDrive's vehicles (they keep clear themselves, and an unloader drives right beside a combine). Side by side on
 neighbouring passes isn't in the way (only implements that would overlap). Helpers never all wait for each other:
-when waiting goes round in a circle (two or more), one goes first. A helper waiting more than 3 s shows *Giving
-way*; the waiting doesn't count against the time estimate. Convoy partners don't give way to each other once both
+when waiting goes round in a circle (two or more), one goes first, but it never drives into one standing in its way
+(it stops 12 m short, middle to middle). Then the one that started waiting first makes room: it backs up at an
+angle, out of the other's line, until the other can go by (at most 25 m), waits, and drives back onto its own path.
+A helper that ends up more than 15 m off its path (round a corner too tight for a convoy's outer lane, after
+making room) comes back onto it 30 m further along, up to three times, before it gives up. A helper waiting more
+than 3 s shows *Giving way*; the waiting doesn't count against the time estimate. Convoy partners don't give way to each other once both
 are in their lanes (their spacing keeps them apart).
 
 ## Driving
@@ -584,15 +589,15 @@ hand out finished rows again.
 | `tools/planner_test.py` | seed and the seeder's fertiliser by the game's rates; everything that runs out, the first first; with Precision Farming (its real PrecisionFarming.xml, stand-in maps): seed rate set high, seed by soil, fertiliser by need and set, lime by need, switched off in My defaults (the plain amounts), the part still to do, worked out at most every 2 s | **11/11 OK** |
 | `tools/helpers_test.py` | the helpers without a course, through the mod's own drive loop: unloader (a combine harvesting field 9's rows, turning at each end; grain only flows under the pipe): comes, follows under the pipe, takes a full load, back to where it started, stops full; forage harvester (no tank, it holds while nothing is under its spout): beside it, and behind it with crop on both sides (the tractor never nearer than 8.9 m), the trailer filled; auger wagon into a truck 8 m off the field edge (pipe over the opening within 0.4 m, emptied, pipe in, waiting again); heap (two loads, the second going on 0.5 m from where the first ended, rear tip side); bale collector: all 6 bales with a 4-bale loader, the stacks unloaded where it started; bale wrapper: every hay bale wrapped, the straw bale left, that shown when done; bale wrapper behind a baler still at work: each bale wrapped as it is dropped, waiting for the next (59 s), finished only once the baler is switched off (closest 7 m centre to centre); silo compacter: every lane of a 12 m silo, never over the walls, waits when compacted, finishes when closed; refill trip: to the station, filled at the trigger, back, the course on; loader (arm and bucket wired the other way round, it has to learn them): a 16.2 t heap into a 20 t trailer, all of it in 9 min, nothing spilled, done when the heap is gone; a 6 t trailer filled, then stops | **12/12 OK** (unloader: 19.4 t, under the pipe 85 % of its following; forage harvester held 34 % of the time, mostly while the trailer came round after its turns) |
 | `tools/support_test.py` | the editor's moved points (there, neighbours following less, over the network, dropped by another change, not on a new course), the problem report (version, vehicle, settings, the mod's last log lines; written through the game's file functions), the debug overlay (a helper's way, target and text); the grass chain (a baler with a 9 m turning radius on a 6 m rake's course: the same 5 rows, row ends 0.00 m apart, the same headland passes); *Start at* sent to the server without making the course again or losing where it got to, kept through a later course change | **11/11 OK** |
-| `tools/vines_test.py` | a made-up vineyard (14 rows 2.8 m apart in two plots, one in pieces; another vineyard apart): read as 14 rows, made into a field; a grape harvester drives every row once, on it, 2 m past the vines, never off the vineyard, never into the row beside (all turns round); a 5.6 m sprayer between the rows, every other gap, every row sprayed; the vine tool unfolded, lowered, on, then up and off | **5/5 OK** |
-| `tools/check_translations.py` | every language (8) has exactly English's 348 texts, the same placeholders, the names kept | **OK** |
-| `tools/team_drive_test.py` | a whole team driving at the same time, every mode (lands too: field 9 × 3 in 21 min against 53 alone), against one tractor alone: field 9 × 3 tractors, field 12 × 2, field 27 × 4 | all finish; 99 %+ of the field worked on fields 12 and 27 (field 9: the same as alone); every next-free-row row done exactly once; closest two tractors came 4.4 m; 3 tractors about 2.6× as fast as one |
+| `tools/vines_test.py` | an olive orchard read like a vineyard and named an orchard; a made-up vineyard (14 rows 2.8 m apart in two plots, one in pieces; another vineyard apart): read as 14 rows, made into a field; a grape harvester drives every row once, on it, 2 m past the vines, never off the vineyard, never into the row beside (all turns round); a 5.6 m sprayer between the rows, every other gap, every row sprayed; the vine tool unfolded, lowered, on, then up and off | **6/6 OK** |
+| `tools/check_translations.py` | every language (8) has exactly English's 350 texts, the same placeholders, the names kept | **OK** |
+| `tools/team_drive_test.py` | a whole team driving at the same time, every mode, against one tractor alone: the small field 9 (6 rows) × 3 tractors, field 12 × 3, field 27 × 4; what each did when two came closest and why one stopped is printed | field 9 × 3: every mode finishes, next free row 17 min against 34 alone, closest 5.9 m (before 0.7.2.0: 0.2 m, two met head-on); convoy finishes but its 18 m passes leave 14 % (the panel warns). Field 12 × 3: all modes, 99.6 %, closest 5.6 m. Field 27 × 4: strips, lands, next free row finish, 99.5 %, closest 5.6 m (before: 0.0 m in next free row, 1.3 m in lands); convoy × 4 there works 96.7 % (outer lanes in the corners), 0.8 points short of the bar, as before |
 | `tools/pathfinder_test.py` | ways around standing crop, then driven, 8 fields (with 40 m headlands field 2's way came in along its row from the far end and turned back on the spot, 13 m off when driven: now a proper turn into the row, 0.4 m) | **8/8 OK** |
 | `tools/envelope_test.py` | every turn and connection stays on the field (the work area's corners and both front corners of the tractor): 36 fields × 6/12/24/45 m × mounted/towed (288 courses), plus the Lizard plows (22 m / 26 m) | **360/360**, worst 0.55 m |
 | `tools/hud_preview.py` | renders every panel view to PNG to check the layout | checked |
 | `tools/readme_images.py` | draws this README's pictures (`docs/images`): every panel view, the patterns, a team's shares, a painted field, the icon | drawn for 0.5.0.0 |
 
-**Not yet tested in the game:** waiting for the baler (0.7.1.0); the loader, vineyards, balers following the rake, *Start at* in multiplayer (0.7.0.0);
+**Not yet tested in the game:** making room and coming back onto the path, orchards (0.7.2.0); waiting for the baler (0.7.1.0); the loader, vineyards, balers following the rake, *Start at* in multiplayer (0.7.0.0);
 forage harvester chasing, overloading into a truck, tipping a heap, the bale
 wrapper, moving points in the editor, the debug overlay, the problem report and the Precision Farming switch
 (0.6.1.0); the unloader, bale collector, silo compacter, refill trips, the implement check and the new languages
@@ -604,14 +609,15 @@ These are offline-tested only.
 
 ## Not in this build yet
 
-- orchards (olives): not checked whether the game keeps them on the vine system; only vineyards are tested
+- orchards: the game's scripts build them on the vine system (the "vineOrchard" brush, each plot with its own fruit
+  type) and the vine harvester's fruit type is set per machine, so olive rows are read like vines; a real olive
+  orchard's files (packed in the game) weren't looked at, and it isn't tested in the game
 - the loader doesn't load into a mixer wagon or a belt / conveyor, and doesn't push a heap together
 - obstacles inside the headland band (a tree or pole within the headland passes' reach of the edge) aren't worked
   round: the passes go over them; the Course tab warns "*N obstacle(s) near the edge*". Islands further in are
   worked round.
-- teams on a very small field (three tractors on a field of a handful of rows): where their ways cross they can get
-  in each other's way (one stops, stuck); use fewer tractors there. On fields of usual size all modes are tested
-  (see Testing).
+- a convoy on a field too narrow for its combined width works only its headland passes there (the Course tab says
+  *Too narrow for a convoy*); next free row or strips work such a field fully
 
 ---
 

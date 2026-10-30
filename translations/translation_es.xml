@@ -75,6 +75,8 @@
         <text name="guidance_phase_shovelNoTrailer" text="Parada: ningún remolque con sitio cerca del montón"/>
         <text name="guidance_phase_shovelNoHeap" text="Parada: no hay montón delante (aparca mirando a él)"/>
         <text name="guidance_phase_balesWaitBaler" text="Esperando a la empacadora"/>
+        <text name="guidance_orchard_name" text="Huerto %d"/>
+        <text name="guidance_warn_convoyNarrow" text="Demasiado estrecho para un convoy de %d: queda un %d%% sin trabajar. Prueba Siguiente surco libre o Franjas."/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>

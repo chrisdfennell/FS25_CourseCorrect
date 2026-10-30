@@ -1,4 +1,5 @@
--- Vineyards (and the game's other row plantations on the vine system): their rows read from the map, made into the
+-- Vineyards and orchards (the game builds both on its vine system, "vineOrchard": grapes, olives...): their rows read
+-- from the map, made into the
 -- lines a course drives. The game's helper can't work them; we drive on the rows (grape harvester, pre-pruner) or
 -- between them (sprayer, mulcher).
 
@@ -21,12 +22,15 @@ function Vines.segments()
         local spec = type(placeable) == "table" and placeable.spec_vine
         if spec and not seen[placeable] and type(spec.vineSegments) == "table" then
             seen[placeable] = true
+            -- what grows there (GRAPE, OLIVE...)
+            local fruit = spec.fruitType and spec.fruitType.name
             for k, v in pairs(spec.vineSegments) do
                 -- (the segments are the keys, or the values)
                 local seg = (type(k) == "table" and k.x1 ~= nil) and k or v
                 if type(seg) == "table" and seg.x1 and seg.z1 and seg.x2 and seg.z2 then
                     local h = math.atan2(seg.z2 - seg.z1, seg.x2 - seg.x1) % math.pi
-                    out[#out + 1] = {x1 = seg.x1, z1 = seg.z1, x2 = seg.x2, z2 = seg.z2, width = spec.width or 2.5, h = h}
+                    out[#out + 1] = {x1 = seg.x1, z1 = seg.z1, x2 = seg.x2, z2 = seg.z2, width = spec.width or 2.5, h = h,
+                                     fruit = fruit}
                 end
             end
         end
@@ -121,7 +125,7 @@ function Vines.rowsOf(segs)
     local outline = {corner(minA - m, minL - m), corner(maxA + m, minL - m), corner(maxA + m, maxL + m),
                      corner(minA - m, maxL + m)}
     return {rows = rows, spacing = spacing, angle = h, outline = outline,
-            area = (maxA - minA + 2 * m) * (maxL - minL + 2 * m)}
+            area = (maxA - minA + 2 * m) * (maxL - minL + 2 * m), fruit = longest.fruit}
 end
 
 --- The vineyard at (x, z): its rows (Vines.rowsOf) when there are vines within NEAR m; else nil

@@ -1080,7 +1080,17 @@ function Hud:drawVehicle()
     local ignoredIslands = course and course.stats.islandsIgnored or 0
     local offH = offField > 0 and self:h(22) or 0
     local islandH = ignoredIslands > 0 and self:h(22) or 0
-    local warnH = offH + islandH
+    -- a convoy on a field too narrow for it: its passes leave strips unworked (no rows at all, or less worked)
+    local convoyGap = 0
+    local plan = course and vehicle:getGuidancePlan()
+    if plan and plan.teamMode == GuidancePlan.TEAM_CONVOY and (plan.teamSize or 1) > 1 and course.stats.area then
+        local worked = (course.stats.workLength or 0) * plan:getCourseWidth() / math.max(1, math.abs(course.stats.area))
+        if (course.stats.rows or 0) == 0 or worked < 0.93 then
+            convoyGap = math.max(1, math.floor((1 - math.min(1, worked)) * 100 + 0.5))
+        end
+    end
+    local convoyH = convoyGap > 0 and self:h(22) or 0
+    local warnH = offH + islandH + convoyH
     -- something that runs out before the end
     local shortages = {}
     if course then
@@ -1251,6 +1261,11 @@ function Hud:drawVehicle()
         cy = cy - offH
         self:textIn(x + pad, cy, offH, smallSize, offField == 1 and t("guidance_warn_offField1")
             or t("guidance_warn_offField", offField), C.warn)
+    end
+    if convoyH > 0 then
+        cy = cy - convoyH
+        self:textIn(x + pad, cy, convoyH, smallSize, fit(t("guidance_warn_convoyNarrow", plan.teamSize, convoyGap),
+            smallSize, width - 2 * pad), C.warn)
     end
     if islandH > 0 then
         cy = cy - islandH

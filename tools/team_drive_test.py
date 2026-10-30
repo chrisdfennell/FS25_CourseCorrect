@@ -51,6 +51,9 @@ function runTeam(flat, size, mode)
         local v = makeTeamVehicle(flat)
         -- side by side near the field's first corner, a little apart
         v.rootNode.x, v.rootNode.z = flat[1] + 5 + (k - 1) * 9, flat[2] + 5
+        -- (each its own name, for the log)
+        local name = "Tractor " .. k
+        function v:getName() return name end
         members[k] = v
     end
     g_currentMission.vehicleSystem = {vehicles = members}
@@ -133,6 +136,32 @@ function runTeam(flat, size, mode)
                 end
             elseif not finished[k] then
                 finished[k] = STOP_MESSAGE and STOP_MESSAGE.name or "stopped"
+                if finished[k] ~= "AIMessageSuccessFinishedJob" then
+                    -- why: where it was, what it waited for, where the others were
+                    local dr = v.spec_aiFieldWorker.driveStrategies[1]
+                    local n = v.rootNode
+                    local others = {}
+                    for j, o in ipairs(members) do
+                        if o ~= v then
+                            local od = o.spec_aiFieldWorker.driveStrategies[1]
+                            others[#others + 1] = string.format("#%d (%.0f, %.0f) %.0f deg %s%s", j, o.rootNode.x,
+                                o.rootNode.z, math.deg(o.rootNode.h) % 360, o.job and "driving" or "done",
+                                od and od.blockedBy == v and ", waiting for it" or "")
+                        end
+                    end
+                    STOPPED_ALL = STOPPED_ALL or {}
+                    STOPPED_WHY = string.format("#%d stopped at step %d at (%.0f, %.0f) %.0f deg, waiting for %s, backing up %s; %s",
+                        k, steps, n.x, n.z, math.deg(n.h) % 360, dr.blockedBy and "a helper" or "nobody",
+                        tostring(dr.makingRoom ~= nil), table.concat(others, "; "))
+                    -- and the mod's last words about it
+                    local log, mine = GuidanceDebug.log, {}
+                    local me = v:getName()
+                    for i = #log, 1, -1 do
+                        if log[i]:find(me, 1, true) and #mine < 6 then table.insert(mine, 1, log[i]) end
+                    end
+                    STOPPED_WHY = STOPPED_WHY .. " || " .. table.concat(mine, " || ")
+                    STOPPED_ALL[#STOPPED_ALL + 1] = STOPPED_WHY
+                end
             end
         end
         if TEAM_DEBUG and steps % TEAM_DEBUG == 0 then
@@ -143,7 +172,21 @@ function runTeam(flat, size, mode)
             for b = a + 1, size do
                 if members[a].job and members[b].job then
                     local na, nb = members[a].rootNode, members[b].rootNode
-                    minDist = math.min(minDist, math.sqrt((na.x - nb.x) ^ 2 + (na.z - nb.z) ^ 2))
+                    local d = math.sqrt((na.x - nb.x) ^ 2 + (na.z - nb.z) ^ 2)
+                    if d < minDist then
+                        minDist = d
+                        -- (what each was doing then: for the report)
+                        local function about(v, n)
+                            local dr = v.spec_aiFieldWorker.driveStrategies[1]
+                            local f = dr.follower
+                            local wp = f and f.points[math.min(#f.points, f.ix + 1)]
+                            return string.format("#%d (%.0f, %.0f) heading %.0f, state %s, on %s%s, giving way to %s",
+                                v == members[1] and 1 or (v == members[2] and 2 or 3), n.x, n.z, math.deg(n.h) % 360,
+                                tostring(dr.state), wp and wp.t or "?", f and f:isReversing() and " backing" or "",
+                                dr.blockedBy and dr.blockedBy:getName() or "nobody")
+                        end
+                        CLOSEST_AT = string.format("step %d: %s | %s", steps, about(members[a], na), about(members[b], nb))
+                    end
                 end
             end
         end
@@ -157,7 +200,15 @@ function runTeam(flat, size, mode)
         if worked[key] then covered = covered + 1 end
         if twice[key] then overlap = overlap + 1 end
     end
-    local result = {steps = steps, coverage = covered / nInside, twice = overlap / nInside,
+    -- a convoy on a field too narrow for it: the panel says so (see GuidanceHud: the same rule)
+    local narrow = false
+    local c1 = members[1]:getGuidanceCourse()
+    local p1 = members[1]:getGuidancePlan()
+    if c1 and p1.teamMode == GuidancePlan.TEAM_CONVOY then
+        local w = (c1.stats.workLength or 0) * p1:getCourseWidth() / math.max(1, math.abs(c1.stats.area or 1))
+        narrow = (c1.stats.rows or 0) == 0 or w < 0.93
+    end
+    local result = {steps = steps, coverage = covered / nInside, twice = overlap / nInside, convoyNarrow = narrow,
                     minDist = minDist, finished = finished}
     -- next free row: every row once
     local rows = members[1]:getGuidanceCourse().teamRows
@@ -208,14 +259,26 @@ def main():
         minutes = r["steps"] / 600
         line = (f"{name} ({n}): {minutes:.0f} min, worked {100 * r['coverage']:.1f}% of the field, twice "
                 f"{100 * r['twice']:.1f}%, closest {r['minDist']:.1f} m, finished: {', '.join(finished)}")
+        if lua.globals().STOPPED_ALL and any(f != "AIMessageSuccessFinishedJob" for f in finished):
+            for why in lua.globals().STOPPED_ALL.values():
+                print("    stopped:", why)
+        lua.globals().STOPPED_ALL = None
+        if r["minDist"] < 4 and lua.globals().CLOSEST_AT:
+            print("    closest at", lua.globals().CLOSEST_AT)
         if r["rows"]:
             line += f"; {r['rows']}"
         good = all_done
         if name == "alone":
             alone = r
         else:
-            good = (good and r["coverage"] >= alone["coverage"] - 0.02 and r["minDist"] > 4
-                    and minutes < alone["steps"] / 600)
+            if r["convoyNarrow"]:
+                # too narrow for a convoy: the panel warns; every one still has to get done, none stuck, none
+                # driving into another
+                line += " (the panel warns: too narrow for a convoy)"
+                good = good and r["minDist"] > 3.5
+            else:
+                good = (good and r["coverage"] >= alone["coverage"] - 0.02 and r["minDist"] > 4
+                        and minutes < alone["steps"] / 600)
             if r["rows"]:
                 good = good and r["rowsOk"]
         print(line + (": OK" if good else ": FAILED"))

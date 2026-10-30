@@ -2,6 +2,7 @@
 
 - a made-up vineyard on the vine system: 14 rows 2.8 m apart, 80 m long, turned 30 degrees, in two plots (the rows of
   one in two pieces each, end to end), and a second vineyard 300 m away at another angle that must stay apart;
+- an olive orchard elsewhere (the game builds orchards on the vine system too) is read the same, named an orchard;
 - standing among the vines makes a field of the vineyard (its rows and room round them), named "Vineyard 1";
 - with a grape harvester the course drives every row once, on the row, from 2 m before its first vine to 2 m past
   its last; turns stay inside the vineyard's outline, the next row far enough to the side to turn into;
@@ -44,7 +45,11 @@ function checkVines()
     local p1 = plot(ox, oz, h, 1, 8, 1, 80, 2.8)
     local p2 = plot(ox, oz, h, 9, 14, 2, 80, 2.8)
     local other = plot(1300, 1000, math.rad(100), 1, 6, 1, 50, 2.5)
-    g_currentMission.vineSystem = {nodes = {[11] = p1, [12] = p1, [13] = p2, [14] = other}}
+    -- an olive orchard (the game builds orchards on the vine system too)
+    local olives = plot(2000, 2000, math.rad(10), 1, 10, 1, 60, 4)
+    olives.spec_vine.fruitType = {name = "OLIVE"}
+    p1.spec_vine.fruitType, p2.spec_vine.fruitType = {name = "GRAPE"}, {name = "GRAPE"}
+    g_currentMission.vineSystem = {nodes = {[11] = p1, [12] = p1, [13] = p2, [14] = other, [15] = olives}}
     -- standing between rows 4 and 5, near the start
     local nx, nz = -math.sin(h), math.cos(h)
     local sx, sz = ox + math.cos(h) * 5 + nx * 3.5 * 2.8, oz + math.sin(h) * 5 + nz * 3.5 * 2.8
@@ -55,6 +60,11 @@ function checkVines()
     -- the field of it
     local id, err, field = GuidanceCourse.fieldForCourse(sx, sz, 1)
     r.fieldName = field and field.name or tostring(err)
+    local olivesAt = GuidanceVines.at(2005, 2005 + 4 * 1.5)
+    local _, _, oliveField = GuidanceCourse.fieldForCourse(2005, 2006, 1)
+    r.orchard = olivesAt ~= nil and #olivesAt.rows == 10 and olivesAt.fruit == "OLIVE" and oliveField ~= nil
+        and (oliveField.name == "Orchard 2" or oliveField.name == "guidance_orchard_name")
+    r.orchardName = oliveField and oliveField.name or "none"
     local outline = GuidanceCourse.getFieldOutline(id)
     local poly = {}
     for i, p in ipairs(outline) do poly[i] = {x = p.x, y = p.z} end
@@ -169,6 +179,7 @@ def main():
           f"{r['separate']}")
     # (the stand-in for the game's texts gives the text's name)
     check("vineyard field", r["fieldName"] in ("Vineyard 1", "guidance_vines_name"), r["fieldName"])
+    check("olive orchard", r["orchard"], f"10 rows read, named {r['orchardName']}")
     check("grape harvester", r["harvester"], r["harvesterInfo"])
     check("sprayer", r["sprayer"], r["sprayerInfo"])
     check("vine tool", r["tools"] == "unfold down3 on up3 off", r["tools"])

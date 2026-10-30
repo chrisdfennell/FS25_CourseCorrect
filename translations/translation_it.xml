@@ -75,6 +75,8 @@
         <text name="guidance_phase_shovelNoTrailer" text="Fermo: nessun rimorchio con spazio vicino al mucchio"/>
         <text name="guidance_phase_shovelNoHeap" text="Fermo: nessun mucchio davanti (parcheggia davanti)"/>
         <text name="guidance_phase_balesWaitBaler" text="Aspetta la rotopressa"/>
+        <text name="guidance_orchard_name" text="Frutteto %d"/>
+        <text name="guidance_warn_convoyNarrow" text="Troppo stretto per un convoglio di %d: circa il %d%% resta non lavorato. Prova Prossima fila libera o Strisce."/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: avvia"/>
         <text name="guidance_action_stop" text="CourseCorrect: ferma"/>

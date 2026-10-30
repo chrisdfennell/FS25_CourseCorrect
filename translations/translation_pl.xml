@@ -75,6 +75,8 @@
         <text name="guidance_phase_shovelNoTrailer" text="Zatrzymano: brak przyczepy z miejscem przy pryzmie"/>
         <text name="guidance_phase_shovelNoHeap" text="Zatrzymano: brak pryzmy z przodu (ustaw się przodem do niej)"/>
         <text name="guidance_phase_balesWaitBaler" text="Czeka na prasę"/>
+        <text name="guidance_orchard_name" text="Sad %d"/>
+        <text name="guidance_warn_convoyNarrow" text="Za wąskie na kolumnę %d: około %d%% zostanie nieobrobione. Spróbuj Następny wolny rząd lub Pasy."/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

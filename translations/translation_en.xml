@@ -75,6 +75,8 @@
         <text name="guidance_phase_shovelNoTrailer" text="Stopped: no trailer with room near the heap"/>
         <text name="guidance_phase_shovelNoHeap" text="Stopped: no heap ahead (park facing it)"/>
         <text name="guidance_phase_balesWaitBaler" text="Waiting for the baler"/>
+        <text name="guidance_orchard_name" text="Orchard %d"/>
+        <text name="guidance_warn_convoyNarrow" text="Too narrow for a convoy of %d: about %d%% stays unworked. Try Next free row or Strips."/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

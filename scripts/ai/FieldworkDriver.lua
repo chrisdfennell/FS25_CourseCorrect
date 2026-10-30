@@ -24,6 +24,8 @@ Driver.LATERAL_ACCEL = 1.2 -- m/s², limits speed in curves
 Driver.STUCK_TIME = 20000 -- ms without progress while we want to move
 Driver.LOST_DISTANCE = 15 -- m off the course
 Driver.LOST_TIME = 5000
+Driver.REJOIN_AHEAD = 30 -- m along the course a lost helper comes back on (past what threw it off)
+Driver.REJOINS = 3 -- times it may do that before it gives up
 Driver.LOWER_TIMEOUT = 10000
 Driver.FILL_CHECK_INTERVAL = 1000
 Driver.OFFSET_CHECK_INTERVAL = 500
@@ -35,6 +37,13 @@ Driver.GIVE_WAY_GAP = 4 -- m kept between us (our front) and the back of another
 Driver.GIVE_WAY_SLOW = 18 -- m further than that we start slowing down
 Driver.GIVE_WAY_OVERLAP = 0.5 -- m the work widths may overlap side by side (neighbouring passes) without a clash
 Driver.GIVE_WAY_SHOW = 3000 -- ms waiting before the status says so
+-- one that gives us the right of way but stands in our way: we never come nearer than this (middle to middle: both
+-- fronts and a bit), and it backs up to let us by (straight back, at most ROOM_BACK m, at ROOM_SPEED km/h)
+Driver.HARD_GAP = 2 * 5 + 2
+Driver.ROOM_BACK = 25
+Driver.ROOM_SPEED = 3
+Driver.ROOM_ANGLE = math.rad(30) -- backing up this much to the side, out of the other's way
+Driver.ROOM_RETURN = 20000 -- ms after that the way back to our path isn't "lost"
 Driver.CUSP_DISTANCE = 0.5 -- m from a change of direction counts as there
 Driver.UNLOAD_RESUME_LEVEL = 0.9 -- a waiting combine goes on below this, once nothing is under the pipe
 Driver.PIPE_CLOSE_DELAY = 3000
@@ -365,6 +374,7 @@ function Driver:getDriveData(dt, vX, vY, vZ)
         reversing = self.follower:isReversing()
         maxSpeed = self:giveWay(dt, maxSpeed, x, z, h, reversing)
         maxSpeed = self:keepConvoy(maxSpeed)
+        self:updateMakingRoom(dt, x, z, h)
     end
 
     self:updateProgress()
@@ -372,7 +382,15 @@ function Driver:getDriveData(dt, vX, vY, vZ)
     self:updateStats(dt)
     self:updateFillLevels(dt)
     self:updatePipe(dt)
-    self:checkStuck(dt, maxSpeed)
+    self:checkStuck(dt, self.makingRoom and self.makingRoom.speed or maxSpeed)
+
+    -- making room for one we stand in the way of: straight back
+    if self.makingRoom and self.state == Driver.STATE_DRIVING then
+        local room = self.makingRoom
+        local tx, tz = x + room.dirX * 5, z + room.dirZ * 5
+        self.debugTarget = {tx, tz, Driver.ROOM_SPEED}
+        return tx, tz, false, room.speed, 5
+    end
 
     -- target: on the path ahead (behind the vehicle when reversing), moved back by the side offset so the work
     -- area, not the vehicle, follows the path
@@ -721,8 +739,20 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
             local od = spec and spec.driver
             -- (a combine and its unloader alongside never wait for each other)
             local paired = other == ignore or (od and od.combine == self.vehicle) or (od and self.combine == other)
+            local yields = od and waitsFor(od, self.vehicle)
             if od and od ~= self and od.state ~= Driver.STATE_DONE and other.rootNode and not paired
-                    and not self:isConvoyPartner(od) and not waitsFor(od, self.vehicle) then
+                    and not self:isConvoyPartner(od) and yields then
+                -- it gives us the right of way, but we don't drive into it: stop short of it (it makes room)
+                local ox, _, oz = getWorldTranslation(other.rootNode)
+                local dx, dz = ox - x, oz - z
+                local ahead = dx * dirX + dz * dirZ
+                local side = math.abs(dx * dirZ - dz * dirX)
+                local otherHalf = (od.course and od.course.plan.workWidth or 6) / 2 - Driver.GIVE_WAY_OVERLAP / 2
+                if ahead > 0 and ahead < Driver.HARD_GAP and side < half + otherHalf then
+                    limit, blockedBy = 0, other
+                end
+            elseif od and od ~= self and od.state ~= Driver.STATE_DONE and other.rootNode and not paired
+                    and not self:isConvoyPartner(od) then
                 local ox, _, oz = getWorldTranslation(other.rootNode)
                 local dx, dz = ox - x, oz - z
                 local ahead = dx * dirX + dz * dirZ
@@ -742,7 +772,14 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
             end
         end
     end
+    local was = self.blockedBy
     self.blockedBy = limit == 0 and blockedBy or nil
+    -- since when we wait for that one (who waited first makes room when two stand in each other's way)
+    if self.blockedBy == nil then
+        self.blockedSince = nil
+    elseif self.blockedBy ~= was or self.blockedSince == nil then
+        self.blockedSince = g_time or 0
+    end
     self.giveWayTimer = self.blockedBy and (self.giveWayTimer or 0) + dt or 0
     local showing = self.giveWayTimer > Driver.GIVE_WAY_SHOW
     if showing ~= (self.showingGiveWay or false) then
@@ -755,6 +792,80 @@ end
 -----------------------------------------------------------------------------------------------------------------------
 -- Teams: a convoy keeps its order and spacing; next free row takes rows as it goes
 -----------------------------------------------------------------------------------------------------------------------
+
+--- Helpers standing in each other's way (a circle of them each waiting for the next, the ones with the right of way
+--- stopped short): the one that waited first backs up, straight back, until nobody is held up by it any more (at
+--- most ROOM_BACK m; something behind it: it stays). Then the usual giving way: it waits until the other has gone by.
+function Driver:updateMakingRoom(dt, x, z, h)
+    local room = self.makingRoom
+    if room then
+        local backed = math.sqrt((x - room.x) ^ 2 + (z - room.z) ^ 2)
+        local stillHeld = false
+        for _, d in ipairs(room.circle) do
+            if d ~= self and d.blockedBy == self.vehicle and d.state == Driver.STATE_DRIVING then stillHeld = true end
+        end
+        -- out of the way of the one we back away from: beside its line of travel by both our widths
+        local ox, _, oz = getWorldTranslation(room.other.rootNode)
+        local _, _, oh = vehiclePose(room.other)
+        local clear = math.abs((x - ox) * math.sin(oh) - (z - oz) * math.cos(oh)) > room.clearance
+        if not stillHeld or clear or backed > Driver.ROOM_BACK then
+            self.makingRoom = nil
+            self.returnUntil = (g_time or 0) + Driver.ROOM_RETURN
+        else
+            -- nothing behind us to back into
+            room.speed = self:giveWay(dt, Driver.ROOM_SPEED, x, z, h, true)
+            self.blockedBy = room.other
+        end
+        return
+    end
+    if self.blockedBy == nil then return end
+    -- the circle we're in: from us, each to the one it waits for, back to us
+    local circle, d, seen = {self}, self, {[self] = true}
+    while true do
+        local nextVehicle = d.blockedBy
+        local nd = nextVehicle and nextVehicle.spec_guidance and nextVehicle.spec_guidance.driver
+        if nd == nil then return end
+        if nd == self then break end
+        if seen[nd] then return end
+        seen[nd] = true
+        circle[#circle + 1] = nd
+        d = nd
+    end
+    -- the one that waited first (the same moment: the higher id) makes room
+    for _, o in ipairs(circle) do
+        if o ~= self then
+            local mine, theirs = self.blockedSince or 0, o.blockedSince or 0
+            if theirs < mine or (theirs == mine and Driver.priority(o.vehicle) > Driver.priority(self.vehicle)) then
+                return
+            end
+        end
+    end
+    -- back away at an angle, to the side of the other's line of travel we're on (on it: the right)
+    local other = self.blockedBy
+    local ox, _, oz = getWorldTranslation(other.rootNode)
+    local _, _, oh = vehiclePose(other)
+    local across = (x - ox) * math.sin(oh) - (z - oz) * math.cos(oh)
+    local lx, lz = leftOf(h)
+    local towardsLeftOfOther = across >= 0
+    -- which of our sides that is: the other's left seen from us
+    local olx, olz = math.sin(oh), -math.cos(oh)
+    local sideSign = ((lx * olx + lz * olz) >= 0) == towardsLeftOfOther and 1 or -1
+    local a = Driver.ROOM_ANGLE
+    local dirX = -math.cos(h) * math.cos(a) + lx * sideSign * math.sin(a)
+    local dirZ = -math.sin(h) * math.cos(a) + lz * sideSign * math.sin(a)
+    local od = other.spec_guidance and other.spec_guidance.driver
+    local width = (self.course.plan.workWidth or 6) / 2 + (od and od.course and od.course.plan.workWidth or 6) / 2 + 1
+    Guidance.debug("%s: backing up to let the others by", Guidance.vehicleName(self.vehicle))
+    self.makingRoom = {x = x, z = z, other = other, circle = circle, speed = Driver.ROOM_SPEED, dirX = dirX,
+                       dirZ = dirZ, clearance = width}
+end
+
+--- Who backs up when two waited for each other from the same moment: the one with the higher id
+function Driver.priority(vehicle)
+    local id = vehicle.id or vehicle.rootNode
+    if type(id) == "number" then return id end
+    return tonumber(string.match(tostring(vehicle), "%x+$") or "0", 16) or 0
+end
 
 --- Distance along the course (not our path, which starts with the way to it): negative before we're on it
 function Driver:getCourseDistance()
@@ -1307,9 +1418,16 @@ function Driver:checkStuck(dt, maxSpeed)
         self:stop(AIMessageErrorBlockedByObject.new(), "IS_STUCK")
         return
     end
-    if self.follower.crossTrack > Driver.LOST_DISTANCE then
+    -- (backing up to make room takes us off the course on purpose)
+    local returning = self.returnUntil ~= nil and (g_time or 0) < self.returnUntil
+    if self.follower.crossTrack > Driver.LOST_DISTANCE and not self.makingRoom and not returning then
         self.lostTimer = self.lostTimer + dt
         if self.lostTimer > Driver.LOST_TIME then
+            self.lostTimer = 0
+            -- (a convoy's outer lane round a corner too tight for it, pushed off...): back on a bit further along
+            if (self.rejoins or 0) < Driver.REJOINS and self:rejoin() then
+                return
+            end
             Guidance.info("%s: %.0f m off the course, giving up", Guidance.vehicleName(self.vehicle),
                 self.follower.crossTrack)
             self:stop(AIMessageErrorBlockedByObject.new(), "IS_STUCK")
@@ -1317,6 +1435,75 @@ function Driver:checkStuck(dt, maxSpeed)
     else
         self.lostTimer = 0
     end
+end
+
+--- Off the course and can't get back on where it is: a new way to the course REJOIN_AHEAD m further along (to its
+--- own lane in a convoy), the implements up until it is there. False when the course ends before that.
+function Driver:rejoin()
+    local f = self.follower
+    if not self.convoy then
+        -- a way from here onto our own path further along (the rows a team member took stay as they are)
+        local j
+        for k = f.ix + 1, #f.points do
+            if f.points[k].d >= f.s + Driver.REJOIN_AHEAD then
+                j = k
+                break
+            end
+        end
+        -- (the path so far ends sooner: a team member adds its rows as it goes) its end
+        if j == nil and #f.points > f.ix + 1 then j = #f.points end
+        if j == nil then return false end
+        self:noteRejoin()
+        local tp = f.points[j]
+        local np = f.points[j + 1] or tp
+        local pp = f.points[j - 1] or tp
+        local h0 = np ~= tp and math.atan2(np.z - tp.z, np.x - tp.x) or math.atan2(tp.z - pp.z, tp.x - pp.x)
+        local vx, vz, vh = vehiclePose(self.vehicle)
+        local wx, wz = self:workPoint(vx, vz, vh)
+        local runIn = math.max(self.info.runOut, 3)
+        local settings = self.course.plan:getGeneratorSettings()
+        local pts = GuidanceCourseGenerator.planApproach(self.course.area, settings, {x = wx, y = wz, h = vh},
+            {x = tp.x - math.cos(h0) * runIn, y = tp.z - math.sin(h0) * runIn, h = h0})
+        local way = {{x = wx, z = wz, t = "C", work = false}}
+        for _, q in ipairs(pts) do way[#way + 1] = {x = q.x, z = q.y, t = "C", work = false} end
+        f:replaceRange(f.ix, j, way)
+    else
+        -- a convoy member: to its lane again (and on it from its start), the course further along
+        local wps = self.course.waypoints
+        local d = self:getCourseDistance() + Driver.REJOIN_AHEAD
+        local ix
+        for i = 1, #wps - 1 do
+            if wps[i].d >= d then
+                ix = i
+                break
+            end
+        end
+        if ix == nil then return false end
+        self:noteRejoin()
+        if self.onLane then
+            self.onLane = false
+            self.sideOffset = self.sideOffset + self.convoyOffset
+            if self.targetSideOffset then self.targetSideOffset = self.targetSideOffset + self.convoyOffset end
+        end
+        self.follower = GuidancePathFollower.new(self:buildPath(ix))
+        self.laneStartPoint = nil
+        for _, pt in ipairs(self.follower.points) do
+            if pt.laneStart then self.laneStartPoint = pt break end
+        end
+    end
+    self.turns = self:findTurns()
+    self.turnIx = nil
+    self.keepGaps = self.keepEnabled and self:findKeepGaps() or {}
+    self.lastS = nil
+    self.stuckTimer = 0
+    return true
+end
+
+function Driver:noteRejoin()
+    self.rejoins = (self.rejoins or 0) + 1
+    Guidance.info("%s: %.0f m off the course, back on %d m further along", Guidance.vehicleName(self.vehicle),
+        self.follower.crossTrack, Driver.REJOIN_AHEAD)
+    self:raiseImplements()
 end
 
 local function fillPercentage(object, fillUnitIndex)

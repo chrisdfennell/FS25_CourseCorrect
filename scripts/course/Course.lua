@@ -592,7 +592,8 @@ function GuidanceCourse.fieldForCourse(x, z, farmId)
     -- among vines: the vineyard (its rows and room round them to turn), not the ground
     local vineyard = GuidanceVines and GuidanceVines.at(x, z)
     if vineyard then
-        scan = {outline = vineyard.outline, area = vineyard.area, vines = true}
+        scan = {outline = vineyard.outline, area = vineyard.area, vines = true,
+                orchard = vineyard.fruit ~= nil and vineyard.fruit ~= "GRAPE"}
         mapId = nil
     elseif GuidanceFieldScan and GuidanceFieldScan.isAvailable() then
         local ok, result = pcall(GuidanceFieldScan.scan, x, z, mapId)
@@ -632,7 +633,7 @@ function GuidanceCourse.fieldForCourse(x, z, farmId)
         for _, f in ipairs(GuidanceLibrary.fields) do
             if f.baseField == 0 and f.farmId == farmId then n = n + 1 end
         end
-        name = string.format(g_i18n:getText("guidance_vines_name"), n)
+        name = string.format(g_i18n:getText(scan.orchard and "guidance_orchard_name" or "guidance_vines_name"), n)
     elseif onMapField then
         name = string.format(g_i18n:getText("guidance_scan_name"), mapId)
     else

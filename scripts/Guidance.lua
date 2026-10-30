@@ -7,7 +7,7 @@ Guidance = {
     MOD_NAME = g_currentModName,
     MOD_DIR = g_currentModDirectory,
     SPEC_NAME = g_currentModName .. ".guidance",
-    VERSION = "0.7.1.0",
+    VERSION = "0.7.2.0",
     -- the name players see
     TITLE = "CourseCorrect",
     -- the mod's name before 0.5: its data is read once, and it must not be loaded as well
