@@ -74,6 +74,7 @@
         <text name="guidance_phase_shovelEmpty" text="Hotovo: hromada je pryč"/>
         <text name="guidance_phase_shovelNoTrailer" text="Zastaveno: žádný přívěs s místem u hromady"/>
         <text name="guidance_phase_shovelNoHeap" text="Zastaveno: před ním není hromada (zaparkujte čelem k ní)"/>
+        <text name="guidance_phase_balesWaitBaler" text="Čeká na lis"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

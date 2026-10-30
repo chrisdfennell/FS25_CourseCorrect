@@ -775,8 +775,25 @@ local Bales_mt = {__index = Bales}
 Bales.APPROACH = 12 -- m straight in
 Bales.PICK_SPEED = 4 -- km/h over the bale
 Bales.TRIES = 3
+Bales.BALER_CLEAR = 12 -- m from a working baler: its bales left alone for now (it may be dropping the next there)
 -- bales a collector is after (two don't take the same)
 Bales.taken = {}
+
+--- The balers switched on (or driven by a helper) on our field: list of {x, z}
+function Bales:workingBalers()
+    local out = {}
+    for _, v in pairs(g_currentMission.vehicleSystem and g_currentMission.vehicleSystem.vehicles or {}) do
+        if v.spec_baler and v.rootNode then
+            local root = v.getRootVehicle and v:getRootVehicle() or v
+            local on = (v.getIsTurnedOn and v:getIsTurnedOn()) or (root.getIsAIActive and root:getIsAIActive())
+            if on and root ~= self.vehicle then
+                local x, _, z = getWorldTranslation(v.rootNode)
+                if self.field == nil or self:isOnField(x, z) then out[#out + 1] = {x = x, z = z} end
+            end
+        end
+    end
+    return out
+end
 
 function Bales.new(vehicle, job)
     local self = setmetatable({}, Bales_mt)
@@ -865,7 +882,8 @@ local BALE_PHASES = {find = "balesFind", pick = "balesPick", home = "balesHome",
 
 function Bales:getDriveData(dt, vX, vY, vZ)
     local vehicle = self.vehicle
-    vehicle:guidanceSetHelperPhase(BALE_PHASES[self.state])
+    vehicle:guidanceSetHelperPhase(self.state == "find" and self.waitingForBaler and "balesWaitBaler"
+        or BALE_PHASES[self.state])
     if self:isPaused() then return self:standStill() end
     if self.done or self.tool == nil then
         if not self.done then self:finish(AIMessageErrorNoValidFillTypeLoaded and AIMessageErrorNoValidFillTypeLoaded.new() or nil) end
@@ -898,11 +916,23 @@ function Bales:getDriveData(dt, vX, vY, vZ)
         if self.timer < 500 then return self:standStill() end
         self.timer = 0
         local x, z = Base.poseOf(vehicle)
+        local balers = self:workingBalers()
         local best, bestD
         for _, b in ipairs(self:bales()) do
             local d = dist(x, z, b.x, b.z)
-            if bestD == nil or d < bestD then best, bestD = b, d end
+            local clear = true
+            for _, bl in ipairs(balers) do
+                if dist(b.x, b.z, bl.x, bl.z) < Bales.BALER_CLEAR then clear = false end
+            end
+            if clear and (bestD == nil or d < bestD) then best, bestD = b, d end
         end
+        if best == nil and #balers > 0 then
+            -- a baler still at it on this field: more bales are coming
+            self.waitingForBaler = true
+            vehicle:guidanceSetHelperPhase("balesWaitBaler")
+            return self:standStill()
+        end
+        self.waitingForBaler = nil
         if best == nil then
             -- all done: what is on the loader goes to the stack, then finished
             if self:hasBales() then

@@ -14,6 +14,8 @@ the tractor):
 - loader: a wheel loader (arm and bucket wired the other way round, it has to learn which way is which) loads a
   16 t heap into a trailer standing beside it: all of it, nothing spilled, done when the heap is gone; with a 6 t
   trailer it fills it and stops (no trailer with room).
+- bale wrapper behind a baler still at work: the bales wrapped as they come, waiting for the next while the baler
+  is switched on, its bales near it left alone, finished only once the baler is done.
 - silo compacter: a 12 x 50 m bunker silo: every lane driven, never outside the walls, waiting when compacted,
   finished when the silo is closed.
 - refill trip: a seeder runs empty: to the station (the game's drive task), filled at the trigger, back, the field
@@ -263,7 +265,7 @@ end
 -----------------------------------------------------------------------------------------------------------------------
 -- bale wrapper: picks up the unwrapped bales it can wrap (hay), wraps and drops each; straw it can't wrap is left
 -----------------------------------------------------------------------------------------------------------------------
-function runWrapper(flat, baleFlat, homeX, homeZ)
+function runWrapper(flat, baleFlat, homeX, homeZ, withBaler)
     makeField(7, flat)
     Bale = {}
     SlotSystem = {LIMITED_OBJECT_BALE = 1}
@@ -293,6 +295,19 @@ function runWrapper(flat, baleFlat, homeX, homeZ)
     end
     tractor.children = {tractor, wrapper}
     g_currentMission.vehicleSystem = {vehicles = {tractor}}
+    -- a baler still at work: it drives on, a new bale behind it every 40 s, switched off after 6 of them
+    local baler, balerBales, nearBaler = nil, 0, math.huge
+    local allBales = {}
+    for _, b in ipairs(bales) do allBales[#allBales + 1] = b end
+    if withBaler then
+        baler = {rootNode = {x = baleFlat[1], z = baleFlat[2], h = 0}, spec_baler = {}, on = true}
+        function baler:getIsTurnedOn() return self.on end
+        g_currentMission.vehicleSystem.vehicles = {tractor, baler}
+        -- only the first bale is out yet
+        for i = #bales, 2, -1 do bales[i].hidden = true end
+        g_currentMission.slotSystem.objectLimits[1].objects = {bales[1]}
+    end
+    local balerTimer = 0
     WRAPPED = 0
     local job = startHelper(tractor, GuidanceBaleJob)
     local dt, steps = 100, 0
@@ -300,6 +315,27 @@ function runWrapper(flat, baleFlat, homeX, homeZ)
         steps = steps + 1
         local tn = tractor.rootNode
         local spec = wrapper.spec_baleWrapper
+        if baler and baler.on then
+            -- the baler moves from bale to bale, dropping each as it gets there
+            balerTimer = balerTimer + dt
+            local nextIx = balerBales + 2
+            local target = bales[nextIx]
+            if target then
+                local f = math.min(1, balerTimer / 40000)
+                local from = bales[nextIx - 1].nodeId
+                baler.rootNode.x = from.x + (target.nodeId.x - from.x) * f
+                baler.rootNode.z = from.z + (target.nodeId.z - from.z) * f
+                if f >= 1 then
+                    target.hidden = nil
+                    table.insert(g_currentMission.slotSystem.objectLimits[1].objects, target)
+                    balerBales, balerTimer = balerBales + 1, 0
+                end
+            else
+                baler.on = false
+            end
+            nearBaler = math.min(nearBaler, dist(tn.x, tn.z, baler.rootNode.x, baler.rootNode.z))
+            if tractor.job == nil then break end
+        end
         if spec.baleWrapperState == BaleWrapper.STATE_NONE then
             local gx = tn.x + math.sin(tn.h) * grab.lx + math.cos(tn.h) * grab.lz
             local gz = tn.z - math.cos(tn.h) * grab.lx + math.sin(tn.h) * grab.lz
@@ -317,6 +353,7 @@ function runWrapper(flat, baleFlat, homeX, homeZ)
             if wrapper.timer <= 0 then spec.baleWrapperState = BaleWrapper.STATE_WRAPPER_FINSIHED end
         end
         tractor:update(dt)
+        if tractor:getGuidanceHelperPhase() == "balesWaitBaler" then WAITED_FOR_BALER = (WAITED_FOR_BALER or 0) + 1 end
         g_time = (g_time or 0) + dt
     end
     local wrappedHay, straw = 0, 0
@@ -324,7 +361,8 @@ function runWrapper(flat, baleFlat, homeX, homeZ)
         if b.fill == "STRAW" then straw = straw + b.wrappingState else wrappedHay = wrappedHay + b.wrappingState end
     end
     return {wrapped = wrappedHay, hay = #bales - 1, strawWrapped = straw, finished = tractor.job == nil, steps = steps,
-            phase = tostring(tractor:getGuidanceHelperPhase())}
+            phase = tostring(tractor:getGuidanceHelperPhase()), balerDone = baler == nil or not baler.on,
+            nearBaler = nearBaler, waited = WAITED_FOR_BALER or 0}
 end
 
 local function worldOf(n, lx, lz)
@@ -871,6 +909,13 @@ def main():
           and r["tipSide"] == 2 and r["off"],
           f"two loads tipped over {r['cells']} cells, starting {r['fromHome']:.0f} m from the heap's place, the second "
           f"on {r['gap']:.1f} m from where the first ended, {r['steps'] / 600:.1f} min")
+
+    G.WAITED_FOR_BALER = 0
+    r = G.runWrapper(T(flat), T(bales), pts[0][0] + 6, pts[0][1] + 6, True)
+    check("bale wrapper behind a baler", r["wrapped"] == r["hay"] and r["finished"] and r["balerDone"]
+          and r["waited"] > 0 and r["nearBaler"] > 5,
+          f"{r['wrapped']} of {r['hay']} hay bales wrapped as the baler dropped them, waited for it "
+          f"{r['waited'] / 10:.0f} s, never nearer to it than {r['nearBaler']:.0f} m, finished once it was done")
 
     r = G.runShovel(20000)
     check("loader", r["finished"] and r["phase"] == "shovelEmpty" and r["trailer"] > 0.97 * r["heap"]

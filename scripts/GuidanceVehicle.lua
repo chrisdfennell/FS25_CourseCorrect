@@ -581,7 +581,7 @@ GuidanceVehicle.HELPER_PHASES = {"unloadWait", "unloadDrive", "unloadFollow", "u
                                  "balesFind", "balesPick", "balesHome", "balesUnload", "siloDrive", "siloWait",
                                  "balesCantWrap", "unloadToTruck", "unloadOverload", "unloadToHeap", "unloadHeap",
                                  "shovelLoad", "shovelToTrailer", "shovelTip", "shovelBack", "shovelEmpty",
-                                 "shovelNoTrailer", "shovelNoHeap"}
+                                 "shovelNoTrailer", "shovelNoHeap", "balesWaitBaler"}
 -- why a helper stopped by itself: still shown after the job
 GuidanceVehicle.END_PHASES = {balesCantWrap = true, shovelEmpty = true, shovelNoTrailer = true, shovelNoHeap = true}
 

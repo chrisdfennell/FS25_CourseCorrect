@@ -74,6 +74,7 @@
         <text name="guidance_phase_shovelEmpty" text="Terminé : le tas a disparu"/>
         <text name="guidance_phase_shovelNoTrailer" text="Arrêté : aucune remorque avec de la place près du tas"/>
         <text name="guidance_phase_shovelNoHeap" text="Arrêté : pas de tas devant (garez-vous face à lui)"/>
+        <text name="guidance_phase_balesWaitBaler" text="Attend la presse"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
         <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>

@@ -74,6 +74,7 @@
         <text name="guidance_phase_shovelEmpty" text="Hecho: el montón se acabó"/>
         <text name="guidance_phase_shovelNoTrailer" text="Parada: ningún remolque con sitio cerca del montón"/>
         <text name="guidance_phase_shovelNoHeap" text="Parada: no hay montón delante (aparca mirando a él)"/>
+        <text name="guidance_phase_balesWaitBaler" text="Esperando a la empacadora"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>
