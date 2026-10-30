@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Podłącz przyczepę lub przyczepę ze ślimakiem, aby rozładowywać kombajny"/>
         <text name="guidance_helper_noBaleTool" text="Podłącz ładowacz lub owijarkę bel, aby zbierać bele"/>
         <text name="guidance_helper_noSilo" text="Podjedź do silosu przejazdowego, aby go zagęścić"/>
-        <text name="guidance_helperAbout_unload" text="Czeka na skraju pola, jedzie do kombajnu z tego pola, który go wzywa (naokoło uprawy), i łapie ziarno pod rurą z jego prędkością. Gdy pełny: jedzie do stacji drogami gry i wraca, albo staje i czeka na Ciebie."/>
+        <text name="guidance_helperAbout_unload" text="Czeka na skraju pola, jedzie do kombajnu lub sieczkarni z tego pola, która go wzywa (naokoło uprawy), i odbiera ładunek pod rurą z jej prędkością (obok sieczkarni albo za nią w stojącej uprawie). Gdy pełny: jedzie do stacji drogami gry i wraca, przeładowuje do ciężarówki na skraju pola (przyczepa przeładowcza), wysypuje pryzmę w miejscu startu (wywrotka) albo staje i czeka na Ciebie."/>
         <text name="guidance_helperAbout_bales" text="Podnosi (lub owija) wszystkie bele na tym polu, najbliższe najpierw. Pełny ładowacz zrzuca stos tam, gdzie zaczął; na końcu zwozi tam też resztę."/>
         <text name="guidance_helperAbout_silo" text="Jeździ po silosie przejazdowym pas po pasie, wjeżdża do przodu i wycofuje się. Czeka, gdy silos jest zagęszczony, rusza dalej, gdy dosypano więcej; staje, gdy jest zamknięty."/>
         <text name="guidance_helperReady_unload" text="Uruchom na skraju pola"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Rozładowuje stos"/>
         <text name="guidance_phase_siloDrive" text="Zagęszcza silos"/>
         <text name="guidance_phase_siloWait" text="Silos zagęszczony, czeka"/>
+        <text name="guidance_set_debugOverlay" text="Nakładka debugowania"/>
+        <text name="guidance_report_btn" text="Zgłoś problem"/>
+        <text name="guidance_report_written" text="Raport zapisany: %s"/>
+        <text name="guidance_report_failed" text="Nie udało się zapisać raportu"/>
+        <text name="guidance_tool_move" text="Przesuń"/>
+        <text name="guidance_toolHint_move" text="Przeciągnij punkt kursu"/>
+        <text name="guidance_phase_balesCantWrap" text="Gotowe; pozostałych bel ta owijarka nie owinie"/>
+        <text name="guidance_unload_truck" text="Ciężarówka na skraju pola"/>
+        <text name="guidance_unload_heap" text="Pryzma w miejscu startu"/>
+        <text name="guidance_phase_unloadToTruck" text="Jedzie do ciężarówki"/>
+        <text name="guidance_phase_unloadOverload" text="Przeładowuje do ciężarówki"/>
+        <text name="guidance_phase_unloadToHeap" text="Jedzie do pryzmy"/>
+        <text name="guidance_phase_unloadHeap" text="Wysypuje pryzmę"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (zainstalowany)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (brak)"/>
+        <text name="guidance_pf_off" text="Wył."/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

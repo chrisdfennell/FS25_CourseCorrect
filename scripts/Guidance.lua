@@ -7,7 +7,7 @@ Guidance = {
     MOD_NAME = g_currentModName,
     MOD_DIR = g_currentModDirectory,
     SPEC_NAME = g_currentModName .. ".guidance",
-    VERSION = "0.6.0.0",
+    VERSION = "0.6.1.0",
     -- the name players see
     TITLE = "CourseCorrect",
     -- the mod's name before 0.5: its data is read once, and it must not be loaded as well
@@ -15,12 +15,18 @@ Guidance = {
 }
 
 function Guidance.info(fmt, ...)
-    print(string.format("CourseCorrect: " .. fmt, ...))
+    local line = string.format(fmt, ...)
+    print("CourseCorrect: " .. line)
+    if GuidanceDebug then GuidanceDebug.remember(line) end
 end
 
 function Guidance.debug(fmt, ...)
+    -- (kept for a problem report even when not printed)
+    local ok, line = pcall(string.format, fmt, ...)
+    if not ok then return end
+    if GuidanceDebug then GuidanceDebug.remember(line) end
     if Guidance.debugEnabled then
-        print(string.format("CourseCorrect [dbg]: " .. fmt, ...))
+        print("CourseCorrect [dbg]: " .. line)
     end
 end
 
@@ -173,6 +179,7 @@ function Guidance:loadMap()
         GuidanceLibrary.load()
     end
     addConsoleCommand("ccDebug", "CourseCorrect: toggle debug output", "consoleToggleDebug", self)
+    addConsoleCommand("ccOverlay", "CourseCorrect: toggle the debug overlay", "consoleToggleOverlay", self)
     Guidance.info("%s loaded, AutoDrive interface %s", Guidance.VERSION,
         Guidance.providesAutoDriveInterface() and "on" or "off (Courseplay is installed)")
 end
@@ -183,6 +190,7 @@ function Guidance:deleteMap()
         self.hud = nil
     end
     removeConsoleCommand("ccDebug")
+    removeConsoleCommand("ccOverlay")
 end
 
 function Guidance:consoleToggleDebug()
@@ -190,7 +198,19 @@ function Guidance:consoleToggleDebug()
     return "CourseCorrect debug " .. (Guidance.debugEnabled and "on" or "off")
 end
 
+function Guidance:consoleToggleOverlay()
+    GuidancePrefs.set("debugOverlay", not GuidancePrefs.debugOverlay)
+    return "CourseCorrect debug overlay " .. (GuidancePrefs.debugOverlay and "on" or "off")
+end
+
 function Guidance:draw()
+    if GuidancePrefs and GuidancePrefs.debugOverlay and GuidanceDebug and not g_gui:getIsGuiVisible() then
+        local ok, err = pcall(GuidanceDebug.draw)
+        if not ok and not self.overlayFailed then
+            self.overlayFailed = true
+            Guidance.info("overlay: %s", tostring(err))
+        end
+    end
     if self.hud and not g_gui:getIsGuiVisible() and not g_noHudModeEnabled then
         -- the alerts (a broken one must not take the panel with it)
         local ok, err = pcall(self.hud.drawAlerts, self.hud)

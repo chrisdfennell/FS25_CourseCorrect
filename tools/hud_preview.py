@@ -364,7 +364,7 @@ def main():
         return font(size * H, bold).getlength(s) / W
     lua.globals().TEXT_WIDTH = text_width
     for rel in ["scripts/Prefs.lua", "scripts/ai/Team.lua", "scripts/geometry/Geo.lua", "scripts/geometry/Dubins.lua", "scripts/course/CourseGenerator.lua",
-                "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/ai/Planner.lua", "scripts/ai/Trips.lua",
+                "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/ai/Planner.lua", "scripts/ai/Trips.lua", "scripts/ai/Helpers.lua",
                 "scripts/gui/GuidanceDraw.lua",
                 "scripts/gui/GuidanceMap.lua",
                 "scripts/gui/GuidanceHud.lua"]:

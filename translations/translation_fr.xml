@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Attelez une remorque ou une vis de chargement pour décharger les moissonneuses-batteuses"/>
         <text name="guidance_helper_noBaleTool" text="Attelez un chargeur de balles ou une enrubanneuse pour ramasser les balles"/>
         <text name="guidance_helper_noSilo" text="Allez à un silo couloir pour le tasser"/>
-        <text name="guidance_helperAbout_unload" text="Attend au bord du champ, rejoint une moissonneuse-batteuse de ce champ qui appelle (autour de la culture), récupère son grain sous le tube à sa vitesse. Plein : va à la station par les routes du jeu et revient, ou s'arrête pour vous."/>
+        <text name="guidance_helperAbout_unload" text="Attend au bord du champ, rejoint une moissonneuse ou une ensileuse de ce champ qui appelle (autour de la culture) et prend son chargement sous le tube à sa vitesse (à côté de l'ensileuse, ou derrière elle dans la culture). Plein : va à une station par les routes du jeu et revient, vide dans un camion en bordure du champ (benne de transbordement), fait un tas au point de départ (benne), ou s'arrête pour vous."/>
         <text name="guidance_helperAbout_bales" text="Ramasse (ou enrubanne) toutes les balles de ce champ, les plus proches d'abord. Un chargeur plein décharge la pile là où il a démarré ; à la fin, il y apporte aussi le reste."/>
         <text name="guidance_helperAbout_silo" text="Roule sur le silo couloir voie par voie, en avançant puis en reculant. Attend quand le silo est tassé, reprend quand on en verse davantage ; s'arrête quand il est fermé."/>
         <text name="guidance_helperReady_unload" text="Démarrez-le au bord du champ"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Décharge la pile"/>
         <text name="guidance_phase_siloDrive" text="Tasse le silo"/>
         <text name="guidance_phase_siloWait" text="Silo tassé, attend"/>
+        <text name="guidance_set_debugOverlay" text="Affichage de débogage"/>
+        <text name="guidance_report_btn" text="Rapport de problème"/>
+        <text name="guidance_report_written" text="Rapport écrit : %s"/>
+        <text name="guidance_report_failed" text="Le rapport n'a pas pu être écrit"/>
+        <text name="guidance_tool_move" text="Déplacer"/>
+        <text name="guidance_toolHint_move" text="Faites glisser un point du parcours"/>
+        <text name="guidance_phase_balesCantWrap" text="Terminé ; balles restantes que cette enrubanneuse ne peut pas enrubanner"/>
+        <text name="guidance_unload_truck" text="Camion en bordure du champ"/>
+        <text name="guidance_unload_heap" text="Tas au point de départ"/>
+        <text name="guidance_phase_unloadToTruck" text="Va au camion"/>
+        <text name="guidance_phase_unloadOverload" text="Vide dans le camion"/>
+        <text name="guidance_phase_unloadToHeap" text="Va au tas"/>
+        <text name="guidance_phase_unloadHeap" text="Déverse le tas"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (installé)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (non installé)"/>
+        <text name="guidance_pf_off" text="Désactivé"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
         <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>

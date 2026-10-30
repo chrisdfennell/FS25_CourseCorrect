@@ -198,6 +198,12 @@ def main():
     want = area / 10000 * 1200 * west
     check("PF lime by need", lime and lime.label == "Lime" and close(lime.needed, want, 0.001),
           f"{lime.needed:.0f} l (want {want:.0f} l)" if lime else "none")
+    # Precision Farming switched off in My defaults: the plain amounts, as without it
+    G.GuidancePrefs.precisionFarming = False
+    off = G.find(P.compute(v, course, 3600, 1), "spray")
+    G.GuidancePrefs.precisionFarming = True
+    check("PF switched off", off and not off.pf and not close(off.needed, want, 0.001),
+          f"{off.needed:.0f} l without it" if off else "none")
     # half the course done: half of it still needed (by the remaining spots)
     half = G.find(P.compute(v, course, 3600, 0.5), "spray")
     check("remaining part", half and 0 < half.needed < lime.needed, f"{half.needed:.0f} l of {lime.needed:.0f} l")

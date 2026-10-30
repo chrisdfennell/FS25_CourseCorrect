@@ -393,6 +393,8 @@ function Driver:getDriveData(dt, vX, vY, vZ)
     end
     vehicle.aiDriveTarget = {x, z}
 
+    -- (for the debug overlay)
+    self.debugTarget = {tx, tz, maxSpeed}
     if self.state == Driver.STATE_DONE then
         return tx, tz, true, 0, 0
     end
@@ -1197,6 +1199,21 @@ function Driver:updatePipe(dt)
     end
     local spec = harvester.spec_pipe
     local somethingUnder = spec and (spec.numObjectsInTriggers or 0) > 0
+    -- a forage harvester: the spout always out; nothing under it (and not turning): it holds
+    if GuidanceUnloadDriver and GuidanceUnloadDriver.isChopper(harvester) then
+        setPipe(harvester, true)
+        if spec then spec.automaticDischarge = true end
+        local ok, node = pcall(function() return harvester:getDischargeNodeByIndex(harvester:getPipeDischargeNodeIndex()) end)
+        local target = ok and node and (node.dischargeObject
+            or (harvester.getDischargeTargetObject and harvester:getDischargeTargetObject(node)))
+        local waiting = target == nil and self.lowered and not self:isManeuvering()
+        if waiting then self:hold(500) end
+        if waiting ~= (self.chopperWaiting or false) then
+            self.chopperWaiting = waiting
+            self.vehicle:guidanceSetInfoText("NEEDS_UNLOADING", waiting)
+        end
+        return
+    end
     -- our unloader alongside: out with it, and the combine fills the trailer under it by itself
     local unloaderHere = self.unloader ~= nil and self.unloader.state == "follow"
     if unloaderHere and spec and spec.automaticDischarge == false then spec.automaticDischarge = true end

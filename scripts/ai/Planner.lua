@@ -37,6 +37,11 @@ function PF.isLoaded()
     return g_modIsLoaded ~= nil and g_modIsLoaded["FS25_precisionFarming"] == true
 end
 
+--- Used for the amounts: installed, and the player hasn't switched it off (My defaults)
+function PF.isOn()
+    return PF.isLoaded() and not (GuidancePrefs ~= nil and GuidancePrefs.precisionFarming == false)
+end
+
 --- Precision Farming's own object (its maps), or nil
 function PF.instance()
     local ok, inst = pcall(function()
@@ -250,7 +255,7 @@ function Planner.compute(vehicle, course, seconds, remaining)
     local list = {}
     local missionInfo = g_currentMission and g_currentMission.missionInfo or {}
     local st = course.stats
-    local pfOn = PF.isLoaded()
+    local pfOn = PF.isOn()
     -- worked area: the worked stretches times the work width
     local area = st.workLength * course.plan.workWidth * remaining
     local workLength = st.workLength * remaining

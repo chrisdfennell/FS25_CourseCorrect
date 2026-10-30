@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Koppel een aanhanger of overlaadwagen om maaidorsers te lossen"/>
         <text name="guidance_helper_noBaleTool" text="Koppel een balenlader of balenwikkelaar om balen te verzamelen"/>
         <text name="guidance_helper_noSilo" text="Rijd naar een sleufsilo om hem aan te rijden"/>
-        <text name="guidance_helperAbout_unload" text="Wacht aan de veldrand, rijdt naar een maaidorser van dit veld die roept (om het gewas heen) en vangt het graan onder de pijp op met diens snelheid. Vol: over de wegen van het spel naar het station en terug, of hij stopt voor jou."/>
+        <text name="guidance_helperAbout_unload" text="Wacht aan de veldrand, rijdt naar een maaidorser of hakselaar van dit veld die roept (om het gewas heen) en vangt de lading onder de pijp op met diens snelheid (naast de hakselaar, of erachter in staand gewas). Vol: over de wegen van het spel naar een station en terug, in een vrachtwagen aan de veldrand (overlaadwagen), op een hoop waar hij begon (kipper), of hij stopt voor jou."/>
         <text name="guidance_helperAbout_bales" text="Pakt elke baal op dit veld op (of wikkelt hem), de dichtstbijzijnde eerst. Een volle lader legt de stapel neer waar hij begon; aan het eind brengt hij de rest er ook heen."/>
         <text name="guidance_helperAbout_silo" text="Rijdt baan voor baan op en neer over de sleufsilo, voorwaarts erin en achteruit eruit. Wacht als de silo aangereden is, gaat door als er meer gestort wordt; stopt als hij gesloten is."/>
         <text name="guidance_helperReady_unload" text="Start hem aan de veldrand"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Lost de stapel"/>
         <text name="guidance_phase_siloDrive" text="Rijdt de silo aan"/>
         <text name="guidance_phase_siloWait" text="Silo aangereden, wacht"/>
+        <text name="guidance_set_debugOverlay" text="Debugweergave"/>
+        <text name="guidance_report_btn" text="Probleemrapport"/>
+        <text name="guidance_report_written" text="Rapport geschreven: %s"/>
+        <text name="guidance_report_failed" text="Het rapport kon niet worden geschreven"/>
+        <text name="guidance_tool_move" text="Verplaatsen"/>
+        <text name="guidance_toolHint_move" text="Sleep een punt van de route"/>
+        <text name="guidance_phase_balesCantWrap" text="Klaar; overgebleven balen kan deze wikkelaar niet wikkelen"/>
+        <text name="guidance_unload_truck" text="Vrachtwagen aan de veldrand"/>
+        <text name="guidance_unload_heap" text="Hoop waar hij begon"/>
+        <text name="guidance_phase_unloadToTruck" text="Rijdt naar de vrachtwagen"/>
+        <text name="guidance_phase_unloadOverload" text="Lost in de vrachtwagen"/>
+        <text name="guidance_phase_unloadToHeap" text="Rijdt naar de hoop"/>
+        <text name="guidance_phase_unloadHeap" text="Kipt de hoop"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (geïnstalleerd)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (niet geïnstalleerd)"/>
+        <text name="guidance_pf_off" text="Uit"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

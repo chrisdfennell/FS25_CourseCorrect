@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Hänge einen Anhänger oder Überladewagen an, um Drescher abzufahren"/>
         <text name="guidance_helper_noBaleTool" text="Hänge einen Ballensammler oder Wickler an, um Ballen einzusammeln"/>
         <text name="guidance_helper_noSilo" text="Fahre zu einem Fahrsilo, um es zu verdichten"/>
-        <text name="guidance_helperAbout_unload" text="Wartet am Feldrand, fährt zu einem rufenden Drescher dieses Felds (um den Bestand), nimmt sein Korn unter dem Rohr in seinem Tempo auf. Voll: auf den Straßen des Spiels zur Station und zurück, oder er hält für dich."/>
+        <text name="guidance_helperAbout_unload" text="Wartet am Feldrand, fährt zu einem rufenden Drescher oder Häcksler dieses Felds (um den Bestand) und nimmt seine Ladung unter dem Rohr in seinem Tempo auf (neben dem Häcksler, im stehenden Bestand dahinter). Voll: auf den Straßen des Spiels zur Station und zurück, in einen LKW am Feldrand (Überladewagen), auf einen Haufen am Startpunkt (Kipper), oder er hält für dich."/>
         <text name="guidance_helperAbout_bales" text="Sammelt (oder wickelt) jeden Ballen dieses Felds, den nächsten zuerst. Ein voller Sammler lädt den Stapel dort ab, wo er gestartet wurde; am Ende bringt er den Rest auch dorthin."/>
         <text name="guidance_helperAbout_silo" text="Fährt Bahn für Bahn auf dem Fahrsilo hinauf und rückwärts hinaus. Wartet, wenn es verdichtet ist, macht weiter, wenn mehr abgekippt wird; hört auf, wenn es geschlossen ist."/>
         <text name="guidance_helperReady_unload" text="Starte ihn am Feldrand"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Lädt den Stapel ab"/>
         <text name="guidance_phase_siloDrive" text="Verdichtet das Silo"/>
         <text name="guidance_phase_siloWait" text="Silo verdichtet, wartet"/>
+        <text name="guidance_set_debugOverlay" text="Debug-Anzeige"/>
+        <text name="guidance_report_btn" text="Problembericht"/>
+        <text name="guidance_report_written" text="Bericht geschrieben: %s"/>
+        <text name="guidance_report_failed" text="Der Bericht konnte nicht geschrieben werden"/>
+        <text name="guidance_tool_move" text="Verschieben"/>
+        <text name="guidance_toolHint_move" text="Einen Punkt des Kurses ziehen"/>
+        <text name="guidance_phase_balesCantWrap" text="Fertig; übrige Ballen kann dieser Wickler nicht wickeln"/>
+        <text name="guidance_unload_truck" text="LKW am Feldrand"/>
+        <text name="guidance_unload_heap" text="Haufen am Startpunkt"/>
+        <text name="guidance_phase_unloadToTruck" text="Fährt zum LKW"/>
+        <text name="guidance_phase_unloadOverload" text="Überlädt in den LKW"/>
+        <text name="guidance_phase_unloadToHeap" text="Fährt zum Haufen"/>
+        <text name="guidance_phase_unloadHeap" text="Kippt den Haufen"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (installiert)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (nicht installiert)"/>
+        <text name="guidance_pf_off" text="Aus"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: Starten"/>
         <text name="guidance_action_stop" text="CourseCorrect: Stoppen"/>

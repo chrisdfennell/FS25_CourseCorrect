@@ -6,6 +6,11 @@ the tractor):
   trailer's fill point is under the pipe. The unloader must come, follow under the pipe, take a load, leave full
   and stop (no station) for the player.
 - bale collector: bales on the field, a 4-bale loader: every bale picked up, the stacks unloaded where it started.
+- chopper: a forage harvester (no tank) with a trailer beside or behind it, held while nothing is under its spout:
+  the trailer filled, then stops full.
+- auger wagon: full, it empties into a truck standing 8 m off the field edge, then waits again.
+- heap: a tipper tips two loads onto a heap where it started, standing while it runs out and on where the ground is
+  full; the second load goes on where the first ended.
 - silo compacter: a 12 x 50 m bunker silo: every lane driven, never outside the walls, waiting when compacted,
   finished when the silo is closed.
 - refill trip: a seeder runs empty: to the station (the game's drive task), filled at the trigger, back, the field
@@ -253,6 +258,289 @@ function runBales(flat, baleFlat, homeX, homeZ)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- bale wrapper: picks up the unwrapped bales it can wrap (hay), wraps and drops each; straw it can't wrap is left
+-----------------------------------------------------------------------------------------------------------------------
+function runWrapper(flat, baleFlat, homeX, homeZ)
+    makeField(7, flat)
+    Bale = {}
+    SlotSystem = {LIMITED_OBJECT_BALE = 1}
+    BaleWrapper = {STATE_NONE = 0, STATE_WRAPPER_WRAPPING_BALE = 3, STATE_WRAPPER_FINSIHED = 4, CHANGE_WRAPPER_START_DROP_BALE = 5}
+    function entityExists(node) return node ~= nil and not node.gone end
+    local bales = {}
+    for i = 1, #baleFlat - 1, 2 do
+        local b = {id = i, nodeId = {x = baleFlat[i], z = baleFlat[i + 1]}, wrappingState = 0,
+                   fill = (i == 1) and "STRAW" or "DRYGRASS"}
+        function b:isa(c) return c == Bale end
+        bales[#bales + 1] = b
+    end
+    g_currentMission.slotSystem = {objectLimits = {[1] = {objects = bales}}}
+    local tractor = makeVehicle(homeX, homeZ, 0, "Wrapper")
+    local grab = {lx = 0, lz = -5}
+    local wrapper = {timer = 0}
+    wrapper.spec_baleWrapper = {baleWrapperState = BaleWrapper.STATE_NONE, baleGrabber = {grabNode = grab}}
+    function wrapper:getIsBaleWrappable(b) return b.fill ~= "STRAW" end
+    function wrapper:doStateChange(change)
+        if change == BaleWrapper.CHANGE_WRAPPER_START_DROP_BALE then
+            self.current.wrappingState = 1
+            self.current.mountObject = nil
+            WRAPPED = (WRAPPED or 0) + 1
+            self.current = nil
+            self.spec_baleWrapper.baleWrapperState = BaleWrapper.STATE_NONE
+        end
+    end
+    tractor.children = {tractor, wrapper}
+    g_currentMission.vehicleSystem = {vehicles = {tractor}}
+    WRAPPED = 0
+    local job = startHelper(tractor, GuidanceBaleJob)
+    local dt, steps = 100, 0
+    while tractor.job ~= nil and steps < 40000 do
+        steps = steps + 1
+        local tn = tractor.rootNode
+        local spec = wrapper.spec_baleWrapper
+        if spec.baleWrapperState == BaleWrapper.STATE_NONE then
+            local gx = tn.x + math.sin(tn.h) * grab.lx + math.cos(tn.h) * grab.lz
+            local gz = tn.z - math.cos(tn.h) * grab.lx + math.sin(tn.h) * grab.lz
+            for _, b in ipairs(bales) do
+                if b.wrappingState == 0 and b.fill ~= "STRAW" and dist(gx, gz, b.nodeId.x, b.nodeId.z) < 1.2 then
+                    -- taken onto the wrapper: wrapped for 5 s
+                    wrapper.current, wrapper.timer = b, 5000
+                    b.mountObject = wrapper
+                    spec.baleWrapperState = BaleWrapper.STATE_WRAPPER_WRAPPING_BALE
+                    break
+                end
+            end
+        elseif spec.baleWrapperState == BaleWrapper.STATE_WRAPPER_WRAPPING_BALE then
+            wrapper.timer = wrapper.timer - dt
+            if wrapper.timer <= 0 then spec.baleWrapperState = BaleWrapper.STATE_WRAPPER_FINSIHED end
+        end
+        tractor:update(dt)
+        g_time = (g_time or 0) + dt
+    end
+    local wrappedHay, straw = 0, 0
+    for _, b in ipairs(bales) do
+        if b.fill == "STRAW" then straw = straw + b.wrappingState else wrappedHay = wrappedHay + b.wrappingState end
+    end
+    return {wrapped = wrappedHay, hay = #bales - 1, strawWrapped = straw, finished = tractor.job == nil, steps = steps,
+            phase = tostring(tractor:getGuidanceHelperPhase())}
+end
+
+local function worldOf(n, lx, lz)
+    return n.x + math.sin(n.h) * lx + math.cos(n.h) * lz, n.z - math.cos(n.h) * lx + math.sin(n.h) * lz
+end
+Dischargeable = {DISCHARGE_STATE_OFF = 0, DISCHARGE_STATE_OBJECT = 1, DISCHARGE_STATE_GROUND = 2}
+
+-----------------------------------------------------------------------------------------------------------------------
+-- chopper: no tank, it throws straight into the trailer beside or behind it; it holds while nothing is there
+-----------------------------------------------------------------------------------------------------------------------
+function runChopper(flat, rowsFlat, homeX, homeZ, cropBoth)
+    makeField(7, flat)
+    GuidanceUnloadDriver.serving = {}
+    local rows = {}
+    for i = 1, #rowsFlat - 3, 4 do
+        rows[#rows + 1] = {ax = rowsFlat[i], az = rowsFlat[i + 1], bx = rowsFlat[i + 2], bz = rowsFlat[i + 3]}
+    end
+    local chopper = makeVehicle(rows[1].ax, rows[1].az, math.atan2(rows[1].bz - rows[1].az, rows[1].bx - rows[1].ax), "Chopper")
+    chopper.spec_combine = {fillUnitIndex = 1, isBufferCombine = true}
+    chopper.spec_pipe = {numStates = 2, currentState = 2}
+    function chopper:getFillUnitCapacity() return 1e8 end
+    function chopper:getFillUnitFillLevel() return 0 end
+    function chopper:getPipeDischargeNodeIndex() return 1 end
+    function chopper:getDischargeNodeByIndex() return {node = {x = 0, z = 0}} end
+    function chopper:getIsAIActive() return true end
+    chopper.children = {chopper}
+    local tractor = makeVehicle(homeX, homeZ, 0, "Trailer")
+    local trailer = {spec_trailer = {}, level = 0, capacity = 20000}
+    local fillNode = {lx = 0, lz = -7}
+    function trailer:getFillUnits() return {{}} end
+    function trailer:getFillUnitCapacity() return self.capacity end
+    function trailer:getFillUnitFillLevel() return self.level end
+    function trailer:getFillUnitExactFillRootNode() return fillNode end
+    tractor.children = {tractor, trailer}
+    g_currentMission.vehicleSystem = {vehicles = {chopper, tractor}}
+    STOP_MESSAGE = nil
+    startHelper(tractor, GuidanceUnloadJob, {unloadX = 0, unloadZ = 0, fullLevel = 0.97})
+    if cropBoth then
+        -- (opening a field: standing crop on both sides of it, the trailer behind; its way there not around crop)
+        tractor.spec_guidance.helperDriver.probe = {hasFruit = function() return true end}
+        tractor.spec_guidance.helperDriver.area = nil
+    end
+    local dt, steps = 100, 0
+    local row, s, turning = 1, 0, 0
+    local transferred, held, worked = 0, 0, 0
+    local closest = math.huge
+    local beside, behind = 0, 0
+    while tractor.job ~= nil and steps < 40000 do
+        steps = steps + 1
+        local cnode = chopper.rootNode
+        local tn = tractor.rootNode
+        local fx, fz = worldOf(tn, 0, -7)
+        -- the spout reaches the trailer beside it (5 m left, 1.5 m back) or behind it (10 to 25 m back, on its line)
+        local sx, sz = worldOf(cnode, 5, -1.5)
+        local bh = -((fx - cnode.x) * math.cos(cnode.h) + (fz - cnode.z) * math.sin(cnode.h))
+        local bl = math.abs((fx - cnode.x) * math.sin(cnode.h) - (fz - cnode.z) * math.cos(cnode.h))
+        local under = (dist(fx, fz, sx, sz) < 3 and "side") or (bh > 10 and bh < 25 and bl < 2 and "back") or nil
+        -- never into it: the tractor's middle at least 5 m from the chopper's
+        closest = math.min(closest, dist(tn.x, tn.z, cnode.x, cnode.z))
+        local r = rows[row]
+        local len = dist(r.ax, r.az, r.bx, r.bz)
+        if turning > 0 then
+            turning = turning - dt
+            chopper.speed = 0
+            if turning <= 0 then
+                row = row % #rows + 1
+                r = rows[row]
+                s = 0
+                cnode.x, cnode.z, cnode.h = r.ax, r.az, math.atan2(r.bz - r.az, r.bx - r.ax)
+            end
+        elseif under == nil or trailer.level >= trailer.capacity then
+            -- (our forage harvester holds while nothing is under its spout)
+            chopper.speed = 0
+            -- (not counting the wait for the next trailer once this one is full)
+            local d = tractor.spec_guidance.helperDriver
+            if transferred > 0 and d and d.state ~= "leave" then held = held + 1 end
+        else
+            s = s + 5 / 3.6 * dt / 1000
+            chopper.speed = 5
+            worked = worked + 1
+            if under == "side" then beside = beside + 1 else behind = behind + 1 end
+            local q = math.min(40 * dt / 1000, trailer.capacity - trailer.level)
+            trailer.level, transferred = trailer.level + q, transferred + q
+            cnode.x = r.ax + (r.bx - r.ax) * s / len
+            cnode.z = r.az + (r.bz - r.az) * s / len
+            if s >= len then turning = 20000 end
+        end
+        tractor:update(dt)
+        g_time = (g_time or 0) + dt
+    end
+    return {transferred = transferred, held = held, worked = worked, beside = beside, behind = behind, steps = steps,
+            closest = closest,
+            finished = tractor.job == nil,
+            info = tractor:getGuidanceInfoTexts()[1] and tractor:getGuidanceInfoTexts()[1].name or ""}
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- auger wagon: full, into the truck standing at the field edge
+-----------------------------------------------------------------------------------------------------------------------
+function runOverload(flat, startX, startZ, truckX, truckZ, truckH)
+    makeField(7, flat)
+    GuidanceUnloadDriver.serving = {}
+    local tractor = makeVehicle(startX, startZ, truckH, "Auger tractor")
+    local dn = {lx = 6, lz = -3, x = 0, z = 0}
+    local wagon = {spec_pipe = {numStates = 2, currentState = 1}, level = 30000, capacity = 30000, state = 0}
+    function wagon:getFillUnits() return {{}} end
+    function wagon:getFillUnitCapacity() return self.capacity end
+    function wagon:getFillUnitFillLevel() return self.level end
+    function wagon:getFillUnitExactFillRootNode() return {lx = 0, lz = -4} end
+    function wagon:getCurrentDischargeNode() return {node = dn, fillUnitIndex = 1} end
+    function wagon:getDischargeFillType() return 7 end
+    function wagon:getDischargeState() return self.state end
+    function wagon:getIsPipeStateChangeAllowed() return true end
+    function wagon:setPipeState(st) self.spec_pipe.currentState = st end
+    tractor.children = {tractor, wagon}
+    local truckNode = {x = truckX, z = truckZ, h = truckH}
+    local tfx, tfz = worldOf(truckNode, 0, -4)
+    local truckFill = {x = tfx, z = tfz}
+    local truck = {rootNode = truckNode, spec_trailer = {}, level = 0, capacity = 40000}
+    function truck:getRootVehicle() return self end
+    function truck:getLastSpeed() return 0 end
+    function truck:getAIDirectionNode() return truckNode end
+    function truck:getFillUnits() return {{}} end
+    function truck:getFillUnitFreeCapacity() return self.capacity - self.level end
+    function truck:getFillUnitSupportsFillType() return true end
+    function truck:getFillUnitExactFillRootNode() return truckFill end
+    g_currentMission.vehicleSystem = {vehicles = {tractor, truck}}
+    startHelper(tractor, GuidanceUnloadJob, {unloadX = 0, unloadZ = 0, fullLevel = 0.97, unloadMode = 1})
+    local d = tractor.spec_guidance.helperDriver
+    d:onFull()
+    local started = d.state == "toTruck"
+    local dt, steps, offWhenFlowing, sawOverload, pipeClosed = 100, 0, 0, false, false
+    while tractor.job ~= nil and steps < 20000 do
+        steps = steps + 1
+        local tn = tractor.rootNode
+        dn.x, dn.z = worldOf(tn, dn.lx, dn.lz)
+        local off = dist(dn.x, dn.z, truckFill.x, truckFill.z)
+        wagon.state = 0
+        if wagon.spec_pipe.currentState == 2 and wagon.spec_pipe.automaticDischarge and off < 1.5 and wagon.level > 0 then
+            local q = math.min(wagon.level, 500 * dt / 1000)
+            wagon.level, truck.level = wagon.level - q, truck.level + q
+            wagon.state = 1
+            offWhenFlowing = math.max(offWhenFlowing, off)
+        end
+        if d.state == "overload" then sawOverload = true end
+        tractor:update(dt)
+        g_time = (g_time or 0) + dt
+        if sawOverload and d.state == "wait" then
+            pipeClosed = wagon.spec_pipe.currentState == 1
+            break
+        end
+    end
+    local tn = tractor.rootNode
+    return {started = started, truck = truck.level, wagon = wagon.level, back = tostring(d.state), pipeClosed = pipeClosed,
+            steps = steps, offWhenFlowing = offWhenFlowing, truckDist = dist(tn.x, tn.z, truckX, truckZ)}
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- tipper: full, a heap where it started; it stands while the load runs out, on where the ground is full; the next
+-- load goes on where the last ended
+-----------------------------------------------------------------------------------------------------------------------
+function runHeap(flat, startX, startZ, heapX, heapZ, heapH)
+    makeField(7, flat)
+    GuidanceUnloadDriver.serving = {}
+    local tractor = makeVehicle(startX, startZ, heapH, "Tipper tractor")
+    local tipNode = {lx = 0, lz = -8, x = 0, z = 0}
+    local tipper = {spec_trailer = {dischargeNodeIndexToTipSide = {[1] = {index = 2}}},
+                    spec_dischargeable = {dischargeNodes = {{node = tipNode, canDischargeToGround = true, fillUnitIndex = 1, index = 1}}},
+                    level = 20000, capacity = 20000, state = 0}
+    function tipper:getFillUnits() return {{}} end
+    function tipper:getFillUnitCapacity() return self.capacity end
+    function tipper:getFillUnitFillLevel() return self.level end
+    function tipper:getFillUnitExactFillRootNode() return {lx = 0, lz = -5} end
+    function tipper:setPreferedTipSide(i) self.tipSide = i end
+    function tipper:setManualDischargeState(st) self.state = st end
+    function tipper:getCanDischargeToGround() return true end
+    function tipper:getAIHasFinishedDischarge() return true end
+    tractor.children = {tractor, tipper}
+    g_currentMission.vehicleSystem = {vehicles = {tractor}}
+    startHelper(tractor, GuidanceUnloadJob, {unloadX = 0, unloadZ = 0, fullLevel = 0.97, unloadMode = 2})
+    local d = tractor.spec_guidance.helperDriver
+    d.home = {x = heapX, z = heapZ, h = heapH}
+    local cells, used = {}, {}
+    local loads = {}
+    local dt, steps = 100, 0
+    for load = 1, 2 do
+        tipper.level = 20000
+        d:onFull()
+        local first, last
+        while tractor.job ~= nil and steps < 40000 do
+            steps = steps + 1
+            local tn = tractor.rootNode
+            tipNode.x, tipNode.z = worldOf(tn, tipNode.lx, tipNode.lz)
+            if tipper.state == Dischargeable.DISCHARGE_STATE_GROUND and tipper.level > 0 then
+                -- the ground under the tip point takes 4000 l per 2 m square
+                local key = math.floor(tipNode.x / 2) .. ":" .. math.floor(tipNode.z / 2)
+                local room = 4000 - (cells[key] or 0)
+                local q = math.min(tipper.level, 600 * dt / 1000, room)
+                if q > 0 then
+                    if cells[key] == nil then used[#used + 1] = key end
+                    cells[key] = (cells[key] or 0) + q
+                    tipper.level = tipper.level - q
+                    first = first or {x = tipNode.x, z = tipNode.z}
+                    last = {x = tipNode.x, z = tipNode.z}
+                end
+            end
+            tractor:update(dt)
+            g_time = (g_time or 0) + dt
+            if d.state == "wait" and tipper.level <= 0 then break end
+        end
+        loads[load] = {first = first, last = last, emptied = tipper.level <= 0, state = d.state}
+    end
+    local gap = (loads[1].last and loads[2].first) and dist(loads[1].last.x, loads[1].last.z, loads[2].first.x, loads[2].first.z) or 999
+    local fromHome = loads[1].first and dist(loads[1].first.x, loads[1].first.z, heapX, heapZ) or 999
+    return {emptied1 = loads[1].emptied, emptied2 = loads[2].emptied, cells = #used, gap = gap, fromHome = fromHome,
+            tipSide = tipper.tipSide or 0, off = tipper.state == Dischargeable.DISCHARGE_STATE_OFF, steps = steps}
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- silo compacter
 -----------------------------------------------------------------------------------------------------------------------
 function runSilo(sx, sz)
@@ -423,6 +711,50 @@ def main():
     check("bale collector", r["picked"] == r["total"] and r["stacks"] >= 2 and r["stackFar"] < 15 and r["finished"],
           f"{r['picked']} of {r['total']} bales, {r['stacks']} stacks unloaded (at most {r['stackFar']:.0f} m from "
           f"where it started), {r['steps'] / 600:.0f} min, {r['message']}")
+
+    r = G.runWrapper(T(flat), T(bales), pts[0][0] + 6, pts[0][1] + 6)
+    check("bale wrapper", r["wrapped"] == r["hay"] and r["strawWrapped"] == 0 and r["finished"]
+          and r["phase"] == "balesCantWrap",
+          f"{r['wrapped']} of {r['hay']} hay bales wrapped, the straw bale left, {r['steps'] / 600:.0f} min, "
+          f"then: {r['phase']}")
+
+    r = G.runChopper(T(flat), T(rows), pts[0][0] + 6, pts[0][1] + 6)
+    share = r["held"] / max(1, r["held"] + r["worked"])
+    check("chopper", r["transferred"] > 19000 and r["finished"] and r["info"] == "NEEDS_UNLOADING" and share < 0.5,
+          f"took {r['transferred']:.0f} l, beside {r['beside'] / 10:.0f} s, behind {r['behind'] / 10:.0f} s, the "
+          f"chopper held {100 * share:.0f}% of the time once going (the trailer coming round after its turns), "
+          f"stopped: {r['info']}")
+    r = G.runChopper(T(flat), T(rows), pts[0][0] + 6, pts[0][1] + 6, True)
+    share = r["held"] / max(1, r["held"] + r["worked"])
+    check("chopper, crop on both sides", r["transferred"] > 19000 and r["finished"] and r["behind"] > r["beside"]
+          and r["closest"] > 5 and share < 0.5,
+          f"took {r['transferred']:.0f} l, behind {r['behind'] / 10:.0f} s, beside {r['beside'] / 10:.0f} s, never "
+          f"nearer than {r['closest']:.1f} m, the chopper held {100 * share:.0f}%")
+
+    # the truck: 8 m off the field's westmost edge, along it
+    import math
+    west = min(range(len(pts)), key=lambda i: pts[i][0])
+    a, b = pts[west], pts[(west + 1) % len(pts)]
+    if abs(b[0] - a[0]) > 5:
+        b = pts[west - 1]
+    th = math.atan2(b[1] - a[1], b[0] - a[0])
+    mx, mz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+    nx, nz = math.sin(th), -math.cos(th)
+    if inside(mx + nx * 2, mz + nz * 2, pts, 0):
+        nx, nz = -nx, -nz
+    tx, tz = mx + nx * 8, mz + nz * 8
+    r = G.runOverload(T(flat), mx - nx * 50, mz - nz * 50, tx, tz, th)
+    check("auger wagon into a truck", r["started"] and r["truck"] > 29850 and r["wagon"] < 100 and r["back"] == "wait"
+          and r["pipeClosed"],
+          f"{r['truck']:.0f} l into the truck {r['truckDist']:.0f} m away, pipe off the fill point at most "
+          f"{r['offWhenFlowing']:.1f} m, {r['steps'] / 600:.1f} min, then: {r['back']}, pipe in: {r['pipeClosed']}")
+
+    hx, hz = mx - nx * 40, mz - nz * 40
+    r = G.runHeap(T(flat), mx - nx * 80, mz - nz * 80, hx, hz, th)
+    check("heap", r["emptied1"] and r["emptied2"] and r["cells"] >= 10 and r["gap"] < 4 and r["fromHome"] < 12
+          and r["tipSide"] == 2 and r["off"],
+          f"two loads tipped over {r['cells']} cells, starting {r['fromHome']:.0f} m from the heap's place, the second "
+          f"on {r['gap']:.1f} m from where the first ended, {r['steps'] / 600:.1f} min")
 
     r = G.runSilo(1000, 1000)
     check("silo compacter", r["outside"] == 0 and r["minX"] < 3 and r["maxX"] > 9 and r["reversed"] > 100

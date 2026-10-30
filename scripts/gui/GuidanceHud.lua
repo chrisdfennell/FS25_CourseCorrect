@@ -1375,17 +1375,32 @@ function Hud:drawHelper(kind)
     -- settings
     local rows = {}
     if kind == "unload" then
-        local list = GuidanceTrips.unloadingStations(farmId)
-        local station = GuidanceTrips.find(list, s.unloadX, s.unloadZ)
-        local function pick(step)
-            return function()
-                local px, pz = GuidanceTrips.cycle(list, s.unloadX, s.unloadZ, step)
-                vehicle:guidanceApplySettings({unloadX = px, unloadZ = pz})
+        -- where a full one goes: stop, a truck at the field edge (auger wagon), a heap (tipper), a station
+        local choices = {{mode = 0, x = 0, z = 0, label = t("guidance_unload_stop")}}
+        if GuidanceUnloadDriver.findAuger(vehicle) then
+            table.insert(choices, {mode = 1, x = 0, z = 0, label = t("guidance_unload_truck")})
+        end
+        if GuidanceUnloadDriver.findTipper(vehicle) then
+            table.insert(choices, {mode = 2, x = 0, z = 0, label = t("guidance_unload_heap")})
+        end
+        for _, st in ipairs(GuidanceTrips.unloadingStations(farmId)) do
+            local sx, sz = GuidanceTrips.targetOf(st)
+            table.insert(choices, {mode = 0, x = sx, z = sz, label = GuidanceTrips.nameOf(st)})
+        end
+        local cur = 1
+        for i, c in ipairs(choices) do
+            if c.mode == (s.unloadMode or 0) and (c.mode ~= 0 or ((s.unloadX or 0) == 0 and c.x == 0)
+                    or (c.x ~= 0 and math.abs(c.x - (s.unloadX or 0)) < 1 and math.abs(c.z - (s.unloadZ or 0)) < 1)) then
+                cur = i
             end
         end
-        table.insert(rows, {label = t("guidance_set_unloadAt"),
-                            value = station and GuidanceTrips.nameOf(station) or t("guidance_unload_stop"),
-                            dec = pick(-1), inc = pick(1)})
+        local function pick(step)
+            return function()
+                local c = choices[(cur - 1 + step) % #choices + 1]
+                vehicle:guidanceApplySettings({unloadMode = c.mode, unloadX = c.x, unloadZ = c.z})
+            end
+        end
+        table.insert(rows, {label = t("guidance_set_unloadAt"), value = choices[cur].label, dec = pick(-1), inc = pick(1)})
         local full = s.unloadFull or 97
         table.insert(rows, {label = t("guidance_set_unloadFull"), value = string.format("%d%%", full),
                             dec = function() vehicle:guidanceApplySettings({unloadFull = math.max(50, full - 5)}) end,
@@ -1412,7 +1427,9 @@ function Hud:drawHelper(kind)
     -- what it is doing now
     cy = cy - phaseH
     local phase = vehicle:getGuidanceHelperPhase()
-    local phaseText = running and phase and t("guidance_phase_" .. phase) or t("guidance_helperReady_" .. kind)
+    -- (after the job: why the wrapper left bales)
+    local phaseText = ((running or phase == "balesCantWrap") and phase and t("guidance_phase_" .. phase))
+        or t("guidance_helperReady_" .. kind)
     self:textIn(x + pad, cy, phaseH, m.textSize, fit(phaseText, m.textSize, width - 2 * pad, true),
         running and C.accent or C.text, nil, true)
     if #rows > 0 then
@@ -1437,7 +1454,8 @@ function Hud:drawHelper(kind)
         self:button(x + pad, cy, width - 2 * pad, buttonsH, t("guidance_btn_start"), C.accent, C.accentHover, white,
             function()
                 local ok, err = vehicle:guidanceStartHelper(kind, {unloadX = s.unloadX or 0, unloadZ = s.unloadZ or 0,
-                                                                  fullLevel = (s.unloadFull or 97) / 100})
+                                                                  fullLevel = (s.unloadFull or 97) / 100,
+                                                                  unloadMode = s.unloadMode or 0})
                 if not ok and err then self:showMessage(err, true) end
             end)
     end
@@ -1930,6 +1948,13 @@ function Hud:getScopeContent(vehicle, scope, editable)
         table.insert(rows, {label = t("guidance_set_panelScale"), value = string.format("%d%%", math.floor(scale * 100 + 0.5)),
                             dec = setScale(math.max(0.7, scale - 0.1)), inc = setScale(math.min(1.5, scale + 0.1)),
                             click = math.abs(scale - 1) > 0.01 and setScale(1) or nil})
+        table.insert(rows, {label = t("guidance_set_debugOverlay"), value = onOff(GuidancePrefs.debugOverlay == true),
+                            dec = toggle("debugOverlay"), inc = toggle("debugOverlay")})
+        -- Precision Farming: automatic (used when installed) or off
+        local pfValue = GuidancePrefs.precisionFarming == false and t("guidance_pf_off")
+            or (GuidancePlanner.PF.isLoaded() and t("guidance_pf_autoFound") or t("guidance_pf_autoMissing"))
+        local function pfToggle() GuidancePrefs.set("precisionFarming", GuidancePrefs.precisionFarming == false) end
+        table.insert(rows, {label = t("guidance_set_precisionFarming"), value = pfValue, dec = pfToggle, inc = pfToggle})
         local buttons = {
             {t("guidance_scope_applyTractor"), editable and function()
                 local v = {}
@@ -1937,6 +1962,15 @@ function Hud:getScopeContent(vehicle, scope, editable)
                 vehicle:guidanceApplySettings(v)
                 self:showMessage(t("guidance_scope_applied"), false)
             end or nil},
+            -- a text file for a GitHub issue: version, vehicle, settings, what the helper did, the last log lines
+            {t("guidance_report_btn"), function()
+                local ok, path = pcall(GuidanceDebug.writeReport, vehicle)
+                if ok and path then
+                    self:showMessage(t("guidance_report_written", path), false)
+                else
+                    self:showMessage(t("guidance_report_failed"), true)
+                end
+            end},
         }
         return rows, t("guidance_scope_userNote"), buttons, true
     end
@@ -2591,7 +2625,7 @@ end
 -- to work round. Every change is a setting of the course (the same on every machine) and makes it again.
 -----------------------------------------------------------------------------------------------------------------------
 
-Hud.EDIT_TOOLS = {"direction", "start", "skipRow", "zone"}
+Hud.EDIT_TOOLS = {"direction", "start", "skipRow", "zone", "move"}
 
 --- Distance (screen, in height units) from p to the segment a-b
 local function screenDist(px, py, ax, ay, bx, by)
@@ -2625,8 +2659,23 @@ function Hud:drawEditor(vehicle, plot)
         local x2, y2 = plot.toScreen(zone[3].x, zone[3].z)
         Draw.rect(math.min(x1, x2), math.min(y1, y2), math.abs(x2 - x1), math.abs(y2 - y1), {0.93, 0.36, 0.36, 0.35})
     end
+    -- points moved: a ring on each
+    local wps = course.waypoints
+    for _, m in ipairs(plan:getMoves()) do
+        local w = wps[m.ix]
+        if w then
+            local sx, sy = plot.toScreen(w.x, w.z)
+            Draw.disc(sx, sy, self:h(5), C.warn)
+        end
+    end
     -- the area being drawn, the direction being turned to
     local d = self.editDrag
+    if d and d.tool == "move" and d.x2 then
+        local w = wps[d.ix]
+        local sx, sy = plot.toScreen(w.x, w.z)
+        Draw.line(sx, sy, d.x2, d.y2, self:h(2), C.warn)
+        Draw.disc(d.x2, d.y2, self:h(6), C.warn)
+    end
     if d and d.tool == "zone" and d.x2 then
         Draw.rect(math.min(d.x1, d.x2), math.min(d.y1, d.y2), math.abs(d.x2 - d.x1), math.abs(d.y2 - d.y1),
             {0.98, 0.75, 0.25, 0.35})
@@ -2671,17 +2720,39 @@ function Hud:drawEditor(vehicle, plot)
     self:textIn(box.x + self:w(8), box.y + box.h - self:h(24), self:h(20), self:h(10.5),
         fit(t("guidance_toolHint_" .. self.editTool), self:h(10.5), box.w * 0.62), C.muted)
     -- undo the rows and areas left out
-    if (plan.skipRows or "") ~= "" or (plan.skipZones or "") ~= "" then
+    if (plan.skipRows or "") ~= "" or (plan.skipZones or "") ~= "" or (plan.moves or "") ~= "" then
         local label = t("guidance_edit_clear")
         local bw, bh = Draw.textWidth(self:h(10.5), label, true) + self:w(14), self:h(20)
         self:button(box.x + self:w(6), ty + toolH + self:h(4), bw, bh, label, C.chip, C.hover, C.text, function()
-            vehicle:guidanceApplySettings({skipRows = "", skipZones = ""})
+            vehicle:guidanceApplySettings({skipRows = "", skipZones = "", moves = ""})
         end, self:h(10.5))
     end
     -- the map itself: clicks and drags (added last: the buttons on it come first)
     local mapEl = self:addElement(box.x, areaY0, box.w, areaY1 - areaY0)
     local tool = self.editTool
-    if tool == "direction" or tool == "zone" then
+    if tool == "move" then
+        -- a point of the course, dragged somewhere else
+        mapEl.onDrag = function(px, py, phase)
+            if phase == "start" then
+                local best, bestD
+                for i, w in ipairs(wps) do
+                    local sx, sy = plot.toScreen(w.x, w.z)
+                    local dd = math.sqrt(((sx - px) * g_screenAspectRatio) ^ 2 + (sy - py) ^ 2)
+                    if bestD == nil or dd < bestD then best, bestD = i, dd end
+                end
+                self.editDrag = best and bestD < self:h(12) and {tool = tool, ix = best} or nil
+                return
+            end
+            local e = self.editDrag
+            if e == nil then return end
+            e.x2, e.y2 = px, py
+            if phase == "end" then
+                self.editDrag = nil
+                local wx, wz = plot.toWorld(px, py)
+                vehicle:guidanceApplySettings({moves = plan:withMove(e.ix, wx, wz)})
+            end
+        end
+    elseif tool == "direction" or tool == "zone" then
         mapEl.onDrag = function(px, py, phase)
             if tool == "direction" then
                 local wx, wz = plot.toWorld(px, py)

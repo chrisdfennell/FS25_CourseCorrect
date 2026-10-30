@@ -309,6 +309,8 @@ function GuidanceVehicle:guidanceGenerate(team)
     end
     plan.fieldId = fieldId
     plan.startX, plan.startZ = x, z
+    -- a new course: no moved points
+    plan.moves, spec.settings.moves = "", ""
     plan.landsPipe = GuidanceVehicle.pipeSide(self)
     plan.toolSig = GuidanceVehicle.toolSignature(self)
     GuidanceVehicle.applyTramlines(self, plan)
@@ -403,6 +405,11 @@ function GuidanceVehicle:guidanceApplySettings(values)
         spec.settings[name] = value
         if not GuidanceVehicle.START_SETTINGS[name] then remake = true end
     end
+    -- a change of the course (other than the moves themselves) drops the editor's moved points
+    if remake and values.moves == nil and (spec.settings.moves or "") ~= "" then
+        values.moves = ""
+        spec.settings.moves = ""
+    end
     if spec.plan and remake then
         local plan = spec.plan:copy()
         for name, value in pairs(values) do plan[name] = value end
@@ -412,7 +419,7 @@ end
 
 -- settings only for starting the helper: changing them doesn't make the course again
 GuidanceVehicle.START_SETTINGS = {startMode = true, refillX = true, refillZ = true, unloadX = true, unloadZ = true,
-                                  unloadFull = true}
+                                  unloadFull = true, unloadMode = true}
 
 --- Changes a setting (from the HUD) and makes the course again if there is one
 function GuidanceVehicle:guidanceChangeSetting(name, value)
@@ -429,6 +436,8 @@ function GuidanceVehicle:guidanceChangeSetting(name, value)
     end
     spec.settings[name] = value
     if name == "workWidth" then spec.settings.autoWidth = false end
+    -- (the course changes: the editor's moved points go)
+    spec.settings.moves = ""
     if name == "turnRadius" then spec.settings.autoRadius = false end
     if spec.plan then
         local plan = spec.plan:copy()
@@ -457,7 +466,8 @@ GuidanceVehicle.HELPER_JOBS = {GUIDANCE_UNLOAD = "unload", GUIDANCE_BALES = "bal
 
 -- what a helper without a course is doing, for the panel (sent as a number: only add at the end)
 GuidanceVehicle.HELPER_PHASES = {"unloadWait", "unloadDrive", "unloadFollow", "unloadLeave", "unloadTrip",
-                                 "balesFind", "balesPick", "balesHome", "balesUnload", "siloDrive", "siloWait"}
+                                 "balesFind", "balesPick", "balesHome", "balesUnload", "siloDrive", "siloWait",
+                                 "balesCantWrap", "unloadToTruck", "unloadOverload", "unloadToHeap", "unloadHeap"}
 
 --- (server) a helper without a course says what it is doing (nil: nothing)
 function GuidanceVehicle:guidanceSetHelperPhase(name)
@@ -1174,6 +1184,7 @@ function GuidanceVehicle:onUpdate(dt)
     if spec.helperDriver == nil or tx == nil then
         return
     end
+    driver.debugTarget = {tx, tz, maxSpeed}
     maxSpeed = math.min(maxSpeed or 0, self:getCruiseControlMaxSpeed() or math.huge)
     local ty = getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, tx, 0, tz)
     local node = self:getAISteeringNode()

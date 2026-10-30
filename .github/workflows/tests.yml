@@ -40,6 +40,7 @@ jobs:
           - helpers_test.py tools/fixtures/test_fields.json
           - team_test.py tools/fixtures/test_fields.json
           - pathfinder_test.py tools/fixtures/test_fields.json --fields 1,2,3,7,12,18,24,27
+          - support_test.py tools/fixtures/test_fields.json
           - envelope_test.py tools/fixtures/test_fields.json
           - team_drive_test.py tools/fixtures/test_fields.json 12 3
     steps:

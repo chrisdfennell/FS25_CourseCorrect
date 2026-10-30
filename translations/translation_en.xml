@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Hitch a trailer or an auger wagon to unload combines"/>
         <text name="guidance_helper_noBaleTool" text="Hitch a bale loader or a bale wrapper to collect bales"/>
         <text name="guidance_helper_noSilo" text="Drive to a bunker silo to compact it"/>
-        <text name="guidance_helperAbout_unload" text="Waits at the field edge, drives to a combine of this field that calls (round the crop), catches its grain under the pipe at its speed. Full: to the station on the game's roads and back, or it stops for you."/>
+        <text name="guidance_helperAbout_unload" text="Waits at the field edge, drives to a combine or forage harvester of this field that calls (round the crop) and takes its load under the pipe at its speed (beside a forage harvester, or behind it in standing crop). Full: to a station on the game's roads and back, into a truck standing at the field edge (auger wagon), onto a heap where it started (tipper), or it stops for you."/>
         <text name="guidance_helperAbout_bales" text="Picks up (or wraps) every bale on this field, the nearest first. A full loader unloads the stack where it started; at the end it brings the rest there too."/>
         <text name="guidance_helperAbout_silo" text="Drives up and down the bunker silo lane by lane, forwards in and backing out. Waits when the silo is compacted, goes on when more is tipped; stops when it is closed."/>
         <text name="guidance_helperReady_unload" text="Start it at the field edge"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Unloading the stack"/>
         <text name="guidance_phase_siloDrive" text="Compacting the silo"/>
         <text name="guidance_phase_siloWait" text="Silo compacted, waiting"/>
+        <text name="guidance_set_debugOverlay" text="Debug overlay"/>
+        <text name="guidance_report_btn" text="Problem report"/>
+        <text name="guidance_report_written" text="Report written: %s"/>
+        <text name="guidance_report_failed" text="The report could not be written"/>
+        <text name="guidance_tool_move" text="Move"/>
+        <text name="guidance_toolHint_move" text="Drag a point of the course"/>
+        <text name="guidance_phase_balesCantWrap" text="Done; bales left this wrapper can't wrap"/>
+        <text name="guidance_unload_truck" text="Truck at the field edge"/>
+        <text name="guidance_unload_heap" text="Heap where it started"/>
+        <text name="guidance_phase_unloadToTruck" text="Driving to the truck"/>
+        <text name="guidance_phase_unloadOverload" text="Emptying into the truck"/>
+        <text name="guidance_phase_unloadToHeap" text="Driving to the heap"/>
+        <text name="guidance_phase_unloadHeap" text="Tipping the heap"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (installed)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (not installed)"/>
+        <text name="guidance_pf_off" text="Off"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

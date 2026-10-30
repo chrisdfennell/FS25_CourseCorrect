@@ -86,6 +86,11 @@ function GuidancePlan.new()
     self.refillX, self.refillZ = 0, 0
     -- the unloader: the unloading station it takes a full trailer to (0, 0: stops when full), how full it goes (%)
     self.unloadX, self.unloadZ, self.unloadFull = 0, 0, 97
+    -- 0: the station at unloadX, unloadZ (none: stop when full), 1: a truck at the field edge, 2: a heap
+    self.unloadMode = 0
+    -- the editor's moved points: "ix x z;ix x z" (the course's waypoint ix moved there; its neighbours along the
+    -- course follow, less the further away). Any other change of the course drops them.
+    self.moves = ""
     -- the implements attached when the course was made (names; "" unknown): a different one gets a warning
     self.toolSig = ""
     -- from the vehicle: how far back a towed implement works (0: nothing towed), for tight corners
@@ -185,11 +190,13 @@ function GuidancePlan:writeStream(streamId)
     streamWriteUInt8(streamId, self.landsSide or 0)
     streamWriteUInt8(streamId, self.landsPipe or 0)
     streamWriteString(streamId, self.toolSig or "")
+    streamWriteString(streamId, self.moves or "")
     streamWriteFloat32(streamId, self.refillX or 0)
     streamWriteFloat32(streamId, self.refillZ or 0)
     streamWriteFloat32(streamId, self.unloadX or 0)
     streamWriteFloat32(streamId, self.unloadZ or 0)
     streamWriteUInt8(streamId, self.unloadFull or 97)
+    streamWriteUInt8(streamId, self.unloadMode or 0)
 end
 
 function GuidancePlan.readStream(streamId)
@@ -240,11 +247,13 @@ function GuidancePlan.readStream(streamId)
     self.landsSide = streamReadUInt8(streamId)
     self.landsPipe = streamReadUInt8(streamId)
     self.toolSig = streamReadString(streamId)
+    self.moves = streamReadString(streamId)
     self.refillX = streamReadFloat32(streamId)
     self.refillZ = streamReadFloat32(streamId)
     self.unloadX = streamReadFloat32(streamId)
     self.unloadZ = streamReadFloat32(streamId)
     self.unloadFull = streamReadUInt8(streamId)
+    self.unloadMode = streamReadUInt8(streamId)
     return self
 end
 
@@ -311,6 +320,27 @@ function GuidancePlan:toggleSkipRow(line)
     return table.concat(list, " ")
 end
 
+--- The editor's moved points: list of {ix, x, z}
+function GuidancePlan:getMoves()
+    local list = {}
+    for part in string.gmatch(self.moves or "", "[^;]+") do
+        local v = {}
+        for n in string.gmatch(part, "-?[%d%.]+") do v[#v + 1] = tonumber(n) end
+        if #v == 3 then list[#list + 1] = {ix = math.floor(v[1]), x = v[2], z = v[3]} end
+    end
+    return list
+end
+
+--- The moves with point ix moved to x, z (replacing an earlier move of it): the plan's string
+function GuidancePlan:withMove(ix, x, z)
+    local out = {}
+    for _, m in ipairs(self:getMoves()) do
+        if m.ix ~= ix then out[#out + 1] = string.format("%d %.2f %.2f", m.ix, m.x, m.z) end
+    end
+    out[#out + 1] = string.format("%d %.2f %.2f", ix, x, z)
+    return table.concat(out, ";")
+end
+
 --- The areas worked round: list of polygons {x, z} (rectangles)
 function GuidancePlan:getSkipZones()
     local zones = {}
@@ -337,8 +367,8 @@ GuidancePlan.XML_FIELDS = {
     {"workPart", "INT"}, {"rowFrom", "INT"}, {"rowTo", "INT"}, {"workSpeedMax", "FLOAT"}, {"turnSpeed", "FLOAT"},
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"rowsPerLand", "INT"}, {"rowShape", "INT"}, {"tramlines", "BOOL"},
     {"rowPhase", "FLOAT"}, {"rowSpacing", "FLOAT"}, {"skipRows", "STRING"}, {"skipZones", "STRING"},
-    {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"},
-    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"},
+    {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"}, {"moves", "STRING"},
+    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"}, {"unloadMode", "INT"},
 }
 
 function GuidancePlan.registerXMLPaths(schema, basePath)
@@ -651,7 +681,41 @@ function GuidanceCourse.generate(plan)
     if result == nil then
         return nil, err
     end
+    -- the editor's moved points
+    GuidanceCourse.applyMoves(result.waypoints, plan:getMoves())
     return GuidanceCourse.new(result, plan, outline)
+end
+
+GuidanceCourse.MOVE_REACH = 8 -- m along the course a moved point takes its neighbours with it
+
+--- Moves waypoints where the editor put them; the neighbours within MOVE_REACH along the course follow, less the
+--- further away, so the course bends there instead of kinking
+function GuidanceCourse.applyMoves(wps, moves)
+    if #moves == 0 or #wps < 2 then return end
+    -- distances along the course as made
+    local d = {0}
+    for i = 2, #wps do
+        d[i] = d[i - 1] + math.sqrt((wps[i].x - wps[i - 1].x) ^ 2 + (wps[i].z - wps[i - 1].z) ^ 2)
+    end
+    local reach = GuidanceCourse.MOVE_REACH
+    for _, m in ipairs(moves) do
+        local w = wps[m.ix]
+        if w then
+            local dx, dz = m.x - w.x, m.z - w.z
+            local i0 = m.ix
+            for i = i0, 1, -1 do
+                local f = 1 - (d[i0] - d[i]) / reach
+                if f <= 0 then break end
+                wps[i].x, wps[i].z = wps[i].x + dx * f, wps[i].z + dz * f
+            end
+            for i = i0 + 1, #wps do
+                local f = 1 - (d[i] - d[i0]) / reach
+                if f <= 0 then break end
+                wps[i].x, wps[i].z = wps[i].x + dx * f, wps[i].z + dz * f
+            end
+            w.moved = true
+        end
+    end
 end
 
 function GuidanceCourse.new(result, plan, outline)

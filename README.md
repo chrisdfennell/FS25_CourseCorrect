@@ -13,10 +13,10 @@ show what this build does; in the game it looks the same, on the game's own pict
 
 | | |
 |---|---|
-| Version | **0.6.0.0** (called *Guidance* up to 0.4.4.0) |
+| Version | **0.6.1.0** (called *Guidance* up to 0.4.4.0) |
 | Author | Chris Fennell |
-| Zip | `FS25_CourseCorrect.zip`: 38 files, 217,927 bytes |
-| SHA-256 | `7a3e9657685b9f211bf26b250902d9ebe7652c3f31acce2c9679aba632e19f52` |
+| Zip | `FS25_CourseCorrect.zip`: 39 files, 230,303 bytes |
+| SHA-256 | `3e5b6b811327471b619f05bf374b3153d328d9ffc4f817da4927fccf04f3067d` |
 | Status | Pre-release: tested offline (see Testing), not yet in the game. Download the zip from the Releases page. |
 | Multiplayer | Yes, including dedicated servers |
 | Languages | English, German, French, Polish, Dutch, Spanish, Italian, Czech |
@@ -100,14 +100,18 @@ Five tabs: **Course**, **Team**, **Saved**, **Fleet** and **Settings**.
   short, leaving gaps before the corners.
 <table><tr><td align="center" valign="top"><img src="docs/images/panel/panel_edit_direction.png" width="280"><br><sub>Editor: drag to turn the rows</sub></td><td align="center" valign="top"><img src="docs/images/panel/panel_edit.png" width="280"><br><sub>Editor: rows left out (red), an area worked round</sub></td></tr></table>
 
-- **Edit** (top right of the map): the **course editor**, right on the map. Four tools along its bottom:
+- **Edit** (top right of the map): the **course editor**, right on the map. Five tools along its bottom:
   - *Direction*: drag to turn the rows (5° steps); the handle shows the angle.
   - *Start*: click where the course should start.
   - *Skip rows*: click a row to leave it out (it turns red), click it again to take it back.
   - *Skip area*: drag a box round anything to work round (a pile, a wet patch); it gets headland passes like an
     island.
+  - *Move*: drag a point of the course somewhere else (round a pole, off a ditch); the course bends there, its
+    neighbours within 8 m following less the further away. Moved points are ringed. Any other change of the course
+    (width, direction...) or a new course drops them.
 
-  Every change makes the course again at once; **Take back all** undoes the rows and areas left out, **Done** closes
+  Every change makes the course again at once; **Take back all** undoes the rows and areas left out and the moved
+  points, **Done** closes
   the editor. Rows and areas left out belong to their field (a course on another field starts clean) and go over
   the network and into the savegame with the course.
 - **Summary**: area, headlands, rows and estimated time. Click it to show the **details**:
@@ -121,6 +125,10 @@ Five tabs: **Course**, **Team**, **Saved**, **Fleet** and **Settings**.
       each spot of the course still to do (PF's own seed rate table);
     - fertiliser and lime: the amount set on the machine, or in automatic what each spot still needs (its nitrogen
       against what the crop wants on that soil, its pH against the soil's best), from PF's maps.
+
+    That is automatic: used when Precision Farming is installed, not when it isn't. Settings → *My defaults* →
+    **Precision Farming** shows which (*Auto (installed)* / *Auto (not installed)*) and switches it **Off** (the
+    game's plain rates then, as without it).
 - **Warnings**:
   - everything that will not last, the first first: "*Seed runs out at about 85% of the course · Fertilizer at
     60%*"
@@ -189,7 +197,7 @@ Settings come at three levels. Switch between them at the top of the tab:
 |---|---|---|---|
 | **This tractor** (in three sections: *Course*, *Driving*, *Team*) | Everything: width, radius, headlands, row direction, pattern, rows per land, row shape, tramlines, corners, in turns, minimum headland, team, call unloader at (harvesters), tool offset, lower / raise timing, start at | In the savegame, with the vehicle | That tractor |
 | **This field** | Headlands, row direction, headland direction, headland order, rows pattern, rounded corners | On the server, in the savegame (`courseCorrect.xml`) | **Anyone** who makes a course on that field |
-| **My defaults** | Minimum headland, rounded corners, in turns, lower / raise timing, headland direction and order, pattern, start at, *Remember per field*, *Notifications* | On your own PC (`modSettings/FS25_CourseCorrect.xml`) | You only: tractors that are not set up yet |
+| **My defaults** | Minimum headland, rounded corners, in turns, lower / raise timing, headland direction and order, pattern, start at, *Remember per field*, *Notifications*, *Debug overlay*, *Precision Farming* (Auto / Off), **Problem report** | On your own PC (`modSettings/FS25_CourseCorrect.xml`) | You only: tractors that are not set up yet |
 
 How they combine when a course is made:
 
@@ -289,14 +297,27 @@ unload*...), with *Pause* and *Stop*.
     the combine's speed; CourseCorrect's combine opens its pipe for it, holds on while it gets into place, never
     gives way to it (nor it to the combine), and waits for it when full instead of stopping;
   - stops following while the combine turns, and comes in again after;
-  - *Leave when full at* (50 to 100 %, default 97): back to where it started, then **Unload at**: an unloading
-    station (sell point, silo) chosen in the panel: the game's own road driving takes it there, it tips, and comes
-    back to the field edge to wait again. With *Stop when full* it stops at the field edge (for you, or AutoDrive).
+  - **forage harvesters** call all the time they work: the trailer drives beside it on the side with no standing
+    crop (the side picked as each row starts, kept along it), or straight behind it, the tractor clear of it, when
+    there is crop on both sides (opening a field). CourseCorrect's forage harvester keeps its spout out and holds
+    while nothing is under it (not in turns); the trailer, past its place or off its line beside a standing one,
+    backs off 8 m and comes in again on the line;
+  - *Leave when full at* (50 to 100 %, default 97): back to where it started, then **Unload at**:
+    - an unloading station (sell point, silo) chosen in the panel: the game's own road driving takes it there, it
+      tips, and comes back to the field edge to wait again;
+    - **Truck at the field edge** (with an auger wagon): the nearest trailer standing on the field or within 20 m of
+      it that takes the load; it drives alongside with the pipe towards it, opens the pipe, creeps until the pipe is
+      over the trailer's opening, empties, and goes back to waiting. That truck full: the next one, or it stops full;
+    - **Heap where it started** (with a tipper): tips out the back where it started, standing while the load runs
+      out and rolling on slowly where the ground is full, so the heap gets long; the next load goes on where the
+      last one ended;
+    - *Stop when full*: it stops at the field edge (for you, or AutoDrive).
 - **Bale collector** (a bale loader or a bale wrapper), started where the stack should be: picks up (or wraps)
   every bale of the field it is on, the nearest first, the grab point lined up and slow over the bale; a bale it
   missed is tried again from another side (three times). A full loader drives to where it started and unloads the
   stack, then goes on; at the end it brings the rest there too and finishes. Two collectors never go for the same
-  bale.
+  bale. A **wrapper** goes only for the bales it can wrap (hay and silage, not straw) that aren't wrapped yet, wraps
+  each where it lies and drops it; when it is done with bales left it can't wrap, the panel says so (*Done; bales left this wrapper can't wrap*).
 - **Silo compacter**, started at (or on) a bunker silo: drives up and down it lane by lane (lanes as wide as the
   tractor or its roller), forwards in, backing out, 0.5 m from the walls; waits at 99 % compacted and goes on
   below 95 % (when more is tipped); finishes when the silo is no longer being filled.
@@ -523,17 +544,20 @@ hand out finished rows again.
 | `tools/batch2_test.py` | headlands only / rows only / rows 5-10, turn and work speeds kept in a drive, lights on at night and back after, the work log entry (and over the network), export and import (same map: its field; other map: recorded) | **12/12 OK** |
 | `tools/batch3_test.py` | lands (6-row lands, middle out, every row once; worked side left / right: in every land the rows done before always on that side, 75 looks each, none wrong), spiral (passes to the middle, no rows), curved rows along the edge, tramlines (an 18 m sprayer on a 6 m sowing course: every row on a sowing pass, the middle of each 3), rows left out (gone, listed for the editor), an area worked round (no waypoint in it); each on the field (worst 0.52 m) and lands / spiral / curved driven to the end (pinned to 30 m headlands: with 40 m field 9's inside no longer reaches its bent edge) | **14/14 OK** |
 | `tools/fieldscan_test.py` | painted field ground: the map's field as it is (map outline kept, scan 0.05 s), painted on (80 m strip: its own field, area right within 3 %, rows over 96 % of the new part), the same again (no new field), painted more (same field, bigger), painted away (area right, no waypoint there), a spot inside not field (island, no waypoint on it), a field painted where the map has none, no field ground (map field as before), a player on a server (the field goes to the server first, the course follows) | **9/9 OK** |
-| `tools/planner_test.py` | seed and the seeder's fertiliser by the game's rates; everything that runs out, the first first; with Precision Farming (its real PrecisionFarming.xml, stand-in maps): seed rate set high, seed by soil, fertiliser by need and set, lime by need, the part still to do, worked out at most every 2 s | **10/10 OK** |
-| `tools/helpers_test.py` | the helpers without a course, through the mod's own drive loop: unloader (a combine harvesting field 9's rows, turning at each end; grain only flows under the pipe): comes, follows under the pipe, takes a full load, back to where it started, stops full; bale collector: all 6 bales with a 4-bale loader, the stacks unloaded where it started; silo compacter: every lane of a 12 m silo, never over the walls, waits when compacted, finishes when closed; refill trip: to the station, filled at the trigger, back, the course on | **4/4 OK** (unloader: 19.5 t taken, under the pipe 88 % of its following) |
-| `tools/check_translations.py` | every language (8) has exactly English's 311 texts, the same placeholders, the names kept | **OK** |
+| `tools/planner_test.py` | seed and the seeder's fertiliser by the game's rates; everything that runs out, the first first; with Precision Farming (its real PrecisionFarming.xml, stand-in maps): seed rate set high, seed by soil, fertiliser by need and set, lime by need, switched off in My defaults (the plain amounts), the part still to do, worked out at most every 2 s | **11/11 OK** |
+| `tools/helpers_test.py` | the helpers without a course, through the mod's own drive loop: unloader (a combine harvesting field 9's rows, turning at each end; grain only flows under the pipe): comes, follows under the pipe, takes a full load, back to where it started, stops full; forage harvester (no tank, it holds while nothing is under its spout): beside it, and behind it with crop on both sides (the tractor never nearer than 8.9 m), the trailer filled; auger wagon into a truck 8 m off the field edge (pipe over the opening within 0.4 m, emptied, pipe in, waiting again); heap (two loads, the second going on 0.5 m from where the first ended, rear tip side); bale collector: all 6 bales with a 4-bale loader, the stacks unloaded where it started; bale wrapper: every hay bale wrapped, the straw bale left, that shown when done; silo compacter: every lane of a 12 m silo, never over the walls, waits when compacted, finishes when closed; refill trip: to the station, filled at the trigger, back, the course on | **9/9 OK** (unloader: 19.4 t, under the pipe 85 % of its following; forage harvester held 34 % of the time, mostly while the trailer came round after its turns) |
+| `tools/support_test.py` | the editor's moved points (there, neighbours following less, over the network, dropped by another change, not on a new course), the problem report (version, vehicle, settings, the mod's last log lines; written through the game's file functions), the debug overlay (a helper's way, target and text) | **8/8 OK** |
+| `tools/check_translations.py` | every language (8) has exactly English's 328 texts, the same placeholders, the names kept | **OK** |
 | `tools/team_drive_test.py` | a whole team driving at the same time, every mode (lands too: field 9 × 3 in 21 min against 53 alone), against one tractor alone: field 9 × 3 tractors, field 12 × 2, field 27 × 4 | all finish; 99 %+ of the field worked on fields 12 and 27 (field 9: the same as alone); every next-free-row row done exactly once; closest two tractors came 4.4 m; 3 tractors about 2.6× as fast as one |
 | `tools/pathfinder_test.py` | ways around standing crop, then driven, 8 fields (with 40 m headlands field 2's way came in along its row from the far end and turned back on the spot, 13 m off when driven: now a proper turn into the row, 0.4 m) | **8/8 OK** |
 | `tools/envelope_test.py` | every turn and connection stays on the field (the work area's corners and both front corners of the tractor): 36 fields × 6/12/24/45 m × mounted/towed (288 courses), plus the Lizard plows (22 m / 26 m) | **360/360**, worst 0.55 m |
 | `tools/hud_preview.py` | renders every panel view to PNG to check the layout | checked |
 | `tools/readme_images.py` | draws this README's pictures (`docs/images`): every panel view, the patterns, a team's shares, a painted field, the icon | drawn for 0.5.0.0 |
 
-**Not yet tested in the game:** the unloader, bale collector, silo compacter, refill trips, the implement check and
-the new languages (0.6.0.0); the rename and taking over Guidance's saved data (0.5.0.0); painted fields, the Lands team and worked side, Precision Farming figures (its
+**Not yet tested in the game:** forage harvester chasing, overloading into a truck, tipping a heap, the bale
+wrapper, moving points in the editor, the debug overlay, the problem report and the Precision Farming switch
+(0.6.1.0); the unloader, bale collector, silo compacter, refill trips, the implement check and the new languages
+(0.6.0.0); the rename and taking over Guidance's saved data (0.5.0.0); painted fields, the Lands team and worked side, Precision Farming figures (its
 maps are read the way other mods read them; the seed rate set on a PF seeder is looked for under a few likely names,
 else its automatic rate by soil is used) (0.4.4.0); the course editor, the lands / spiral / curved patterns and
 tramlines (0.4.3.0), the Settings tab, the new time estimate and the field settings in multiplayer.
@@ -541,9 +565,8 @@ These are offline-tested only.
 
 ## Not in this build yet
 
-- moving single waypoints in the editor (the editor changes the plan: direction, start, rows and areas left out)
-- the unloader overloading into a truck at the field edge, or tipping onto a heap (it goes to a station, or stops
-  full at the field edge)
+- vineyards and orchards, balers / loader wagons following the rake's windrows, wheel loaders and front loaders
+  loading from a heap (being worked on)
 - obstacles inside the headland band (a tree or pole within the headland passes' reach of the edge) aren't worked
   round: the passes go over them; the Course tab warns "*N obstacle(s) near the edge*". Islands further in are
   worked round.

@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Aggancia un rimorchio o un carro con coclea per scaricare le mietitrebbie"/>
         <text name="guidance_helper_noBaleTool" text="Aggancia un caricatore o un'avvolgitrice per balle per raccogliere le balle"/>
         <text name="guidance_helper_noSilo" text="Vai a un silo a trincea per compattarlo"/>
-        <text name="guidance_helperAbout_unload" text="Aspetta al bordo del campo, raggiunge una mietitrebbia di questo campo che chiama (attorno alla coltura) e prende il grano sotto il tubo alla sua velocità. Pieno: va alla stazione sulle strade del gioco e torna, oppure si ferma per te."/>
+        <text name="guidance_helperAbout_unload" text="Aspetta al bordo del campo, raggiunge una mietitrebbia o una trincia di questo campo che chiama (attorno alla coltura) e prende il carico sotto il tubo alla sua velocità (accanto alla trincia, o dietro nella coltura in piedi). Pieno: va a una stazione sulle strade del gioco e torna, svuota in un camion al bordo del campo (carro trasbordatore), fa un mucchio dove è partito (ribaltabile), oppure si ferma per te."/>
         <text name="guidance_helperAbout_bales" text="Raccoglie (o avvolge) ogni balla di questo campo, la più vicina per prima. Un caricatore pieno scarica la pila dove è partito; alla fine porta lì anche il resto."/>
         <text name="guidance_helperAbout_silo" text="Percorre il silo a trincea corsia per corsia, entrando in avanti e uscendo in retromarcia. Aspetta quando il silo è compattato, riprende quando ne viene scaricato altro; si ferma se è chiuso."/>
         <text name="guidance_helperReady_unload" text="Avvialo al bordo del campo"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Scarico la pila"/>
         <text name="guidance_phase_siloDrive" text="Compatto il silo"/>
         <text name="guidance_phase_siloWait" text="Silo compattato, attendo"/>
+        <text name="guidance_set_debugOverlay" text="Visualizzazione debug"/>
+        <text name="guidance_report_btn" text="Segnala un problema"/>
+        <text name="guidance_report_written" text="Rapporto scritto: %s"/>
+        <text name="guidance_report_failed" text="Impossibile scrivere il rapporto"/>
+        <text name="guidance_tool_move" text="Sposta"/>
+        <text name="guidance_toolHint_move" text="Trascina un punto del percorso"/>
+        <text name="guidance_phase_balesCantWrap" text="Fatto; restano balle che questa fasciatrice non può fasciare"/>
+        <text name="guidance_unload_truck" text="Camion al bordo del campo"/>
+        <text name="guidance_unload_heap" text="Mucchio dove è partito"/>
+        <text name="guidance_phase_unloadToTruck" text="Va al camion"/>
+        <text name="guidance_phase_unloadOverload" text="Svuota nel camion"/>
+        <text name="guidance_phase_unloadToHeap" text="Va al mucchio"/>
+        <text name="guidance_phase_unloadHeap" text="Scarica il mucchio"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (installato)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (non installato)"/>
+        <text name="guidance_pf_off" text="Off"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: avvia"/>
         <text name="guidance_action_stop" text="CourseCorrect: ferma"/>

@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Připojte přívěs nebo šnekový vůz pro vykládku kombajnů"/>
         <text name="guidance_helper_noBaleTool" text="Připojte nakladač balíků nebo balící stroj pro sběr balíků"/>
         <text name="guidance_helper_noSilo" text="Najeďte k silážnímu žlabu, abyste ho udusali"/>
-        <text name="guidance_helperAbout_unload" text="Čeká na kraji pole, jede ke kombajnu z tohoto pole, který volá (kolem plodiny), a zachytí zrno pod vykládacím šnekem jeho rychlostí. Plný: jede ke stanici po silnicích hry a zpět, nebo se zastaví a čeká na vás."/>
+        <text name="guidance_helperAbout_unload" text="Čeká na kraji pole, jede ke kombajnu nebo řezačce z tohoto pole, která volá (kolem plodiny), a odebírá náklad pod šnekem její rychlostí (vedle řezačky, nebo za ní ve stojící plodině). Plný: jede ke stanici po silnicích hry a zpět, přesype do nákladního auta na kraji pole (překládací vůz), vysype hromadu v místě startu (sklápěč), nebo se zastaví a čeká na vás."/>
         <text name="guidance_helperAbout_bales" text="Sebere (nebo zabalí) každý balík na tomto poli, nejbližší první. Plný nakladač složí hromadu tam, kde začal; na konci tam doveze i zbytek."/>
         <text name="guidance_helperAbout_silo" text="Jezdí po silážním žlabu pruh po pruhu, dopředu dovnitř a couváním ven. Čeká, když je silo udusané, pokračuje, když se přisype další; zastaví, když je zavřené."/>
         <text name="guidance_helperReady_unload" text="Spusťte ho na kraji pole"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Skládá hromadu"/>
         <text name="guidance_phase_siloDrive" text="Dusá silo"/>
         <text name="guidance_phase_siloWait" text="Silo udusáno, čeká"/>
+        <text name="guidance_set_debugOverlay" text="Ladicí zobrazení"/>
+        <text name="guidance_report_btn" text="Hlášení problému"/>
+        <text name="guidance_report_written" text="Hlášení zapsáno: %s"/>
+        <text name="guidance_report_failed" text="Hlášení se nepodařilo zapsat"/>
+        <text name="guidance_tool_move" text="Posunout"/>
+        <text name="guidance_toolHint_move" text="Přetáhněte bod trasy"/>
+        <text name="guidance_phase_balesCantWrap" text="Hotovo; zbylé balíky tento ovíječ neovine"/>
+        <text name="guidance_unload_truck" text="Nákladní auto na kraji pole"/>
+        <text name="guidance_unload_heap" text="Hromada v místě startu"/>
+        <text name="guidance_phase_unloadToTruck" text="Jede k nákladnímu autu"/>
+        <text name="guidance_phase_unloadOverload" text="Přesypává do auta"/>
+        <text name="guidance_phase_unloadToHeap" text="Jede k hromadě"/>
+        <text name="guidance_phase_unloadHeap" text="Vysypává hromadu"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (nainstalováno)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (nenainstalováno)"/>
+        <text name="guidance_pf_off" text="Vyp."/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

@@ -13,7 +13,7 @@
         <text name="guidance_helper_noTrailer" text="Engancha un remolque o una tolva con sinfín para descargar cosechadoras"/>
         <text name="guidance_helper_noBaleTool" text="Engancha un cargador o una enfardadora de pacas para recoger pacas"/>
         <text name="guidance_helper_noSilo" text="Ve a un silo búnker para compactarlo"/>
-        <text name="guidance_helperAbout_unload" text="Espera en el borde del campo, va hasta una cosechadora de este campo que lo pida (rodeando el cultivo) y recoge el grano bajo el tubo a su velocidad. Lleno: va a la estación por las carreteras del juego y vuelve, o se detiene para ti."/>
+        <text name="guidance_helperAbout_unload" text="Espera en el borde del campo, va hasta una cosechadora o picadora de este campo que lo pida (rodeando el cultivo) y recoge la carga bajo el tubo a su velocidad (junto a la picadora, o detrás en cultivo en pie). Lleno: va a una estación por las carreteras del juego y vuelve, vacía en un camión en el borde del campo (remolque de transbordo), hace un montón donde empezó (volquete), o se detiene para ti."/>
         <text name="guidance_helperAbout_bales" text="Recoge (o envuelve) todas las pacas de este campo, empezando por la más cercana. Un cargador lleno descarga la pila donde empezó; al final lleva también el resto allí."/>
         <text name="guidance_helperAbout_silo" text="Recorre el silo búnker carril por carril, entrando hacia delante y saliendo marcha atrás. Espera cuando el silo está compactado, sigue cuando se vuelca más; se detiene cuando está cerrado."/>
         <text name="guidance_helperReady_unload" text="Inícialo en el borde del campo"/>
@@ -38,6 +38,23 @@
         <text name="guidance_phase_balesUnload" text="Descargando la pila"/>
         <text name="guidance_phase_siloDrive" text="Compactando el silo"/>
         <text name="guidance_phase_siloWait" text="Silo compactado, esperando"/>
+        <text name="guidance_set_debugOverlay" text="Vista de depuración"/>
+        <text name="guidance_report_btn" text="Informe de problema"/>
+        <text name="guidance_report_written" text="Informe escrito: %s"/>
+        <text name="guidance_report_failed" text="No se pudo escribir el informe"/>
+        <text name="guidance_tool_move" text="Mover"/>
+        <text name="guidance_toolHint_move" text="Arrastra un punto del recorrido"/>
+        <text name="guidance_phase_balesCantWrap" text="Hecho; quedan pacas que esta encintadora no puede encintar"/>
+        <text name="guidance_unload_truck" text="Camión en el borde del campo"/>
+        <text name="guidance_unload_heap" text="Montón donde empezó"/>
+        <text name="guidance_phase_unloadToTruck" text="Va al camión"/>
+        <text name="guidance_phase_unloadOverload" text="Vacía en el camión"/>
+        <text name="guidance_phase_unloadToHeap" text="Va al montón"/>
+        <text name="guidance_phase_unloadHeap" text="Descarga el montón"/>
+        <text name="guidance_set_precisionFarming" text="Precision Farming"/>
+        <text name="guidance_pf_autoFound" text="Auto (instalado)"/>
+        <text name="guidance_pf_autoMissing" text="Auto (no instalado)"/>
+        <text name="guidance_pf_off" text="Desactivado"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>

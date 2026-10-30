@@ -31,12 +31,16 @@ GuidancePrefs = {
     -- the panel's size (1 = normal)
     panelScale = 1,
     notifications = true,
+    -- the debug overlay (the helpers' ways and thinking drawn in the world)
+    debugOverlay = false,
+    -- Precision Farming in the planner's amounts: true = when it is installed (automatic), false = never
+    precisionFarming = true,
 }
 local Prefs = GuidancePrefs
 
 -- name, kind: what is saved
 Prefs.FIELDS = {
-    {"panelX", "FLOAT"}, {"panelTop", "FLOAT"}, {"minHeadlandWidth", "FLOAT"}, {"headlandRev", "INT"}, {"roundedPasses", "INT"},
+    {"panelX", "FLOAT"}, {"panelTop", "FLOAT"}, {"minHeadlandWidth", "FLOAT"}, {"headlandRev", "INT"}, {"debugOverlay", "BOOL"}, {"precisionFarming", "BOOL"}, {"roundedPasses", "INT"},
     {"keepLowered", "BOOL"}, {"startMode", "INT"}, {"clockwise", "BOOL"}, {"headlandsFirst", "BOOL"},
     {"pattern", "INT"}, {"rememberFields", "BOOL"}, {"notifications", "BOOL"}, {"lowerLate", "FLOAT"},
     {"panelScale", "FLOAT"}, {"autoResume", "BOOL"}, {"workSpeedMax", "FLOAT"}, {"turnSpeed", "FLOAT"},

@@ -51,7 +51,8 @@ function GuidanceHelperTask:stop(wasJobStopped)
     end
     if self.vehicle ~= nil and self.vehicle.spec_guidance ~= nil then
         self.vehicle.spec_guidance.driver = nil
-        if self.isServer and self.vehicle.guidanceSetHelperPhase then
+        if self.isServer and self.vehicle.guidanceSetHelperPhase
+                and self.vehicle:getGuidanceHelperPhase() ~= "balesCantWrap" then
             -- on the road: the game drives
             self.vehicle:guidanceSetHelperPhase(self.job.kind == "unload" and not wasJobStopped and "unloadTrip" or nil)
         end
@@ -80,7 +81,7 @@ function GuidanceHelperJob.new(isServer, customMt, kind)
     group:addParameter(self.vehicleParameter)
     table.insert(self.groupedParameters, group)
     -- where it unloads (its place; 0, 0: stops when full), how full it goes
-    self.unloadX, self.unloadZ, self.fullLevel = 0, 0, GuidanceUnloadDriver.LEAVE_LEVEL
+    self.unloadX, self.unloadZ, self.fullLevel, self.unloadMode = 0, 0, GuidanceUnloadDriver.LEAVE_LEVEL, 0
     if kind == "unload" and AITaskDriveTo ~= nil then
         self.driveToFieldTask = AITaskDriveTo.new(isServer, self)
         self:addTask(self.driveToFieldTask)
@@ -286,7 +287,7 @@ function GuidanceHelperJob:stop(aiMessage)
     if self.task and self.task.isRunning then
         self.task:stop(true)
     end
-    vehicle:guidanceSetHelperPhase(nil)
+    if vehicle:getGuidanceHelperPhase() ~= "balesCantWrap" then vehicle:guidanceSetHelperPhase(nil) end
     vehicle:deleteAgent()
     vehicle:aiJobFinished()
     AIJob.stop(self, aiMessage)
@@ -304,6 +305,7 @@ function GuidanceHelperJob:writeStream(streamId, connection)
     streamWriteFloat32(streamId, self.unloadX or 0)
     streamWriteFloat32(streamId, self.unloadZ or 0)
     streamWriteUInt8(streamId, math.floor((self.fullLevel or 0.97) * 100 + 0.5))
+    streamWriteUInt8(streamId, self.unloadMode or 0)
 end
 
 function GuidanceHelperJob:readStream(streamId, connection)
@@ -318,6 +320,7 @@ function GuidanceHelperJob:readStream(streamId, connection)
     self.unloadX = streamReadFloat32(streamId)
     self.unloadZ = streamReadFloat32(streamId)
     self.fullLevel = streamReadUInt8(streamId) / 100
+    self.unloadMode = streamReadUInt8(streamId)
     self:setValues()
 end
 

@@ -181,6 +181,7 @@ local Unload_mt = {__index = Unload}
 Unload.CALL_LEVEL = 0.8 -- a combine this full calls (ours: its own setting)
 Unload.LEAVE_LEVEL = 0.97 -- the trailer this full goes
 Unload.APPROACH_BEHIND = 14 -- m behind its place under the pipe it comes in, straight
+Unload.APPROACH_CHOPPER = 25 -- (beside a forage harvester, which stands until we're there: further, to be on its line)
 Unload.FOLLOW_GAIN = 1.8 -- km/h faster per metre it is behind its place
 Unload.LOST = 30 -- m from its place: back to approaching
 Unload.REPLAN = 6000 -- ms between new ways while approaching a moving combine
@@ -226,6 +227,15 @@ function Unload:trailerState()
     return capacity > 0 and level / capacity or 1, node
 end
 
+--- A forage harvester (it throws straight into a trailer, it has no tank to speak of)
+function Unload.isChopper(harvester)
+    local spec = harvester and harvester.spec_combine
+    if spec == nil then return false end
+    if spec.isBufferCombine then return true end
+    local c = harvester.getFillUnitCapacity and harvester:getFillUnitCapacity(spec.fillUnitIndex)
+    return c ~= nil and c > 1e7
+end
+
 local function combineLevel(harvester)
     local ix = harvester.spec_combine.fillUnitIndex
     local c = harvester:getFillUnitCapacity(ix)
@@ -247,6 +257,13 @@ function Unload:pickCombine()
                 local call = Unload.CALL_LEVEL
                 if od and od.course and od.course.plan then call = (od.course.plan.callUnloaderAt or 80) / 100 end
                 local waiting = od and od.isWaitingForUnload and od:isWaitingForUnload()
+                -- a forage harvester calls all the time it works (it can't work without a trailer)
+                if Unload.isChopper(harvester) then
+                    local working = (od and od.state == GuidanceFieldworkDriver.STATE_DRIVING)
+                        or (od == nil and v.getIsAIActive and v:getIsAIActive())
+                    level = working and 2 or 0
+                    call = 1
+                end
                 if (level >= call or waiting) and (bestLevel == nil or level > bestLevel) then
                     best, bestLevel = v, level
                 end
@@ -256,10 +273,48 @@ function Unload:pickCombine()
     return best
 end
 
+Unload.CHOP_SIDE_GAP = 1.5 -- m between a forage harvester and the trailer beside it
+Unload.CHOP_BEHIND = 3 -- m between a forage harvester's back and the tractor behind it
+Unload.REALIGN = 8 -- m it backs away from a standing forage harvester to come in again on the line
+
+--- Beside a forage harvester (the side with no standing crop) or behind it (crop on both sides, e.g. opening a
+--- field): where the trailer's fill point goes; looked at again every few seconds
+function Unload:chopperPoint(combine, cx, cz, ch)
+    local lx, lz = leftOf(ch)
+    local w = combine.size and combine.size.width or 4
+    local len = combine.size and combine.size.length or 9
+    -- the side: decided as it starts a row (a new heading), kept along it
+    local turned = self.chopHeading == nil or math.abs((ch - self.chopHeading + math.pi) % (2 * math.pi) - math.pi) > 1
+    if self.chopSide == nil or turned then
+        self.chopHeading = ch
+        local side = w / 2 + Unload.CHOP_SIDE_GAP + 2
+        local function crop(sign)
+            if self.probe == nil then return false end
+            local px, pz = cx + lx * side * sign, cz + lz * side * sign
+            return self.probe:hasFruit(px, pz, 2)
+        end
+        local left, right = crop(1), crop(-1)
+        if left and right then self.chopSide = 0
+        elseif left then self.chopSide = -1
+        elseif right then self.chopSide = 1
+        else self.chopSide = self.chopSide ~= 0 and self.chopSide or 1 end
+    end
+    if self.chopSide == 0 then
+        -- our tractor between it and the trailer: the fill point that much further back
+        local back = len / 2 + Unload.CHOP_BEHIND + GuidanceCourseGenerator.VEHICLE_FRONT + math.max(0, -(self.fillAhead or -4))
+        return cx - math.cos(ch) * back, cz - math.sin(ch) * back, ch
+    end
+    local off = (w / 2 + Unload.CHOP_SIDE_GAP + 1.5) * self.chopSide
+    return cx + lx * off - math.cos(ch) * 1.5, cz + lz * off - math.sin(ch) * 1.5, ch
+end
+
 --- The pipe's discharge point: x, z (world), and the combine's heading
 function Unload:pipePoint(combine)
     local harvester = GuidanceFieldworkDriver.findHarvester(combine)
     local cx, cz, ch = Base.poseOf(combine)
+    if Unload.isChopper(harvester) then
+        return self:chopperPoint(combine, cx, cz, ch)
+    end
     local spec = harvester and harvester.spec_pipe
     if spec and spec.currentState == 2 and harvester.getPipeDischargeNodeIndex and harvester.getDischargeNodeByIndex then
         local ok, node = pcall(function()
@@ -285,9 +340,10 @@ end
 
 --- Where the tractor must be for its fill node to be under the pipe: x, z, heading
 function Unload:placeUnderPipe(combine, node)
-    local px, pz, ch = self:pipePoint(combine)
     local left, ahead = 0, -4
     if node then left, ahead = Base.offsetIn(self.vehicle, node) end
+    self.fillAhead = ahead
+    local px, pz, ch = self:pipePoint(combine)
     local lx, lz = leftOf(ch)
     return px - math.cos(ch) * ahead - lx * left, pz - math.sin(ch) * ahead - lz * left, ch
 end
@@ -309,10 +365,12 @@ function Unload:delete()
 end
 
 local UNLOAD_PHASES = {wait = "unloadWait", approach = "unloadDrive", follow = "unloadFollow", leave = "unloadLeave",
-                       home = "unloadTrip"}
+                       home = "unloadTrip", toTruck = "unloadToTruck", overload = "unloadOverload", toHeap = "unloadToHeap",
+                       heap = "unloadHeap"}
 
 function Unload:getDriveData(dt, vX, vY, vZ)
     self.timer = self.timer + dt
+    self.lastDt = dt
     local vehicle = self.vehicle
     vehicle:guidanceSetHelperPhase(UNLOAD_PHASES[self.state])
     if self:isPaused() then return self:standStill() end
@@ -320,7 +378,9 @@ function Unload:getDriveData(dt, vX, vY, vZ)
         return self:standStill()
     end
     local level, node = self:trailerState()
-    if self.state ~= "leave" and self.state ~= "home" and (level >= self.leaveLevel or node == nil) then
+    local unloading = self.state == "leave" or self.state == "home" or self.state == "toTruck" or self.state == "overload"
+        or self.state == "toHeap" or self.state == "heap"
+    if not unloading and (level >= self.leaveLevel or node == nil) then
         -- full: out of the way, to where it started (the field edge), then on the road or stop
         self:setServing(nil)
         self.state = "leave"
@@ -345,18 +405,34 @@ function Unload:getDriveData(dt, vX, vY, vZ)
             return self:standStill()
         end
         local tx, tz, th = self:placeUnderPipe(combine, node)
-        local x, z = Base.poseOf(vehicle)
-        if dist(x, z, tx, tz) < 6 then
+        local x, z, h = Base.poseOf(vehicle)
+        -- there, or lined up behind the place: following from here
+        local fx, fz = math.cos(th), math.sin(th)
+        local behind = (tx - x) * fx + (tz - z) * fz
+        local side = math.abs((tx - x) * fz - (tz - z) * fx)
+        local turn = math.abs((h - th + math.pi) % (2 * math.pi) - math.pi)
+        -- (beside a forage harvester only lined up: its place is close by it, and it stands until we're there)
+        local chopper = Unload.isChopper(GuidanceFieldworkDriver.findHarvester(combine))
+        local lined = behind > -2 and behind < 25 and side < (chopper and 1.2 or 3) and turn < 0.4
+        if (chopper and lined) or (not chopper and dist(x, z, tx, tz) < 6) then
             self.state = "follow"
             return self:standStill()
         end
+        -- a new way when the place has moved on (a forage harvester standing still: the way there driven to its end)
         self.planTimer = (self.planTimer or 0) + dt
-        if self.follower == nil or self.planTimer > Unload.REPLAN then
+        local moved = not chopper or self.planTarget == nil or dist(tx, tz, self.planTarget.x, self.planTarget.z) > 4
+        if self.follower == nil or (self.planTimer > Unload.REPLAN and moved) then
             self.planTimer = 0
-            self:planTo(tx - math.cos(th) * 2, tz - math.sin(th) * 2, th, Unload.APPROACH_BEHIND)
+            self.planTarget = {x = tx, z = tz}
+            self:planTo(tx - fx * 2, tz - fz * 2, th, chopper and Unload.APPROACH_CHOPPER or Unload.APPROACH_BEHIND)
         end
         local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Base.SPEED, combine)
         if done then
+            -- (not lined up beside a forage harvester: a new way in)
+            if chopper and not lined then
+                self.follower = nil
+                return self:standStill()
+            end
             self.state = "follow"
         end
         return gx, gz, fwd, speed, toStop
@@ -370,6 +446,17 @@ function Unload:getDriveData(dt, vX, vY, vZ)
             return self:standStill()
         end
         return gx, gz, fwd, speed, toStop
+    elseif self.state == "toTruck" or self.state == "toHeap" then
+        local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Base.SPEED, self.truck)
+        if done then
+            self.state = self.state == "toTruck" and "overload" or "heap"
+            return self:standStill()
+        end
+        return gx, gz, fwd, speed, toStop
+    elseif self.state == "overload" then
+        return self:overload(dt)
+    elseif self.state == "heap" then
+        return self:tipHeap(dt)
     end
     return self:standStill()
 end
@@ -403,7 +490,8 @@ function Unload:follow(dt, node)
     -- done with this combine: it is (nearly) empty and not waiting
     local cLevel = harvester and combineLevel(harvester) or 0
     local waiting = od and od.isWaitingForUnload and od:isWaitingForUnload()
-    if cLevel < 0.03 and not waiting then
+    local chopper = Unload.isChopper(harvester)
+    if not chopper and cLevel < 0.03 and not waiting then
         self.emptyTimer = (self.emptyTimer or 0) + dt
         if self.emptyTimer > 4000 then
             self.emptyTimer = 0
@@ -423,7 +511,31 @@ function Unload:follow(dt, node)
     if cSpeed < 0.5 and math.abs(behind) < 0.4 then
         speed = 0
     end
-    if speed > 0 and speed < 1.5 then speed = 1.5 end
+    -- a forage harvester that stands (it waits for us), and we're past our place or off its line: straight back
+    -- 8 m, then in again along the line
+    if chopper and cSpeed < 0.5 then
+        local lateral = math.abs((tx - x) * fz - (tz - z) * fx)
+        if self.realign or behind < -1 or (lateral > 1 and behind < 3) then
+            if not self.realign then self.realigns = (self.realigns or 0) + 1 end
+            -- (backed off twice and still not there: a new way in)
+            if self.realigns > 2 then
+                self.realign, self.realigns = nil, 0
+                self.state = "approach"
+                self.follower = nil
+                return self:standStill()
+            end
+            self.realign = behind < Unload.REALIGN
+            if self.realign then
+                self:checkStuck(dt, 3)
+                return x - math.cos(h) * 5, z - math.sin(h) * 5, false, 3, Unload.REALIGN - behind
+            end
+        end
+    else
+        self.realign = nil
+        if cSpeed > 1 then self.realigns = 0 end
+    end
+    -- (the game stops a vehicle asked for less than about 2 km/h)
+    if speed > 0 and speed < 2 then speed = 2 end
     -- steer along the combine's line, to our place on it a few metres ahead
     local look = math.max(4, self.vehicle:getLastSpeed() / 3.6 * 1.5)
     local gx, gz = tx + fx * (look + math.max(0, behind)), tz + fz * (look + math.max(0, behind))
@@ -431,13 +543,224 @@ function Unload:follow(dt, node)
     return gx, gz, true, speed, math.max(0.5, behind)
 end
 
---- Full at the field edge: the game's roads to the station, or stop for the player / AutoDrive
+--- Full at the field edge: into a truck standing there (auger wagon), onto a heap (tipper), the game's roads to the
+--- station, or stop for the player / AutoDrive
 function Unload:onFull()
     local job = self.job
+    local mode = job and job.unloadMode or 0
+    if mode == Unload.MODE_TRUCK and self:startOverload() then
+        return
+    end
+    if mode == Unload.MODE_HEAP and self:startHeap() then
+        return
+    end
     if job and job.startDeliveryTrip and job:startDeliveryTrip() then
         return
     end
     self:finish(AIMessageGuidanceIsFull.new(), "NEEDS_UNLOADING")
+end
+
+Unload.MODE_STATION = 0 -- (or stop when full: no station)
+Unload.MODE_TRUCK = 1
+Unload.MODE_HEAP = 2
+Unload.TRUCK_REACH = 20 -- m off the field a truck may stand
+Unload.CREEP = 1.5 -- km/h lining the pipe up / tipping
+
+--- The auger wagon of the combination (pipe, no combine), or nil
+function Unload.findAuger(vehicle)
+    for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {}) do
+        if v ~= vehicle and v.spec_pipe and not v.spec_combine and v.getCurrentDischargeNode then return v end
+    end
+    return nil
+end
+
+--- The tipper of the combination and its discharge node that tips onto the ground (the rear one first), or nil
+function Unload.findTipper(vehicle)
+    for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {}) do
+        if v ~= vehicle and v.spec_trailer and v.spec_dischargeable then
+            local best, bestX
+            for _, node in ipairs(v.spec_dischargeable.dischargeNodes or {}) do
+                if node.canDischargeToGround and node.node then
+                    local x = math.abs((localToLocal(node.node, v.rootNode, 0, 0, 0)))
+                    if bestX == nil or x < bestX then best, bestX = node, x end
+                end
+            end
+            if best then return v, best end
+        end
+    end
+    return nil
+end
+
+local function wagonLevel(v)
+    local node = v:getCurrentDischargeNode()
+    local ix = node and node.fillUnitIndex or 1
+    local c = v:getFillUnitCapacity(ix)
+    return (c and c > 0) and v:getFillUnitFillLevel(ix) / c or 0, node
+end
+
+--- The truck to empty into: a trailer standing on or by our field, not ours, that takes what we have; and its fill
+--- point (the nearest)
+function Unload:findTruck(fillType)
+    local x, z = Base.poseOf(self.vehicle)
+    local best, bestNode, bestD
+    local ours = {}
+    for _, v in ipairs(self.vehicle:getChildVehicles() or {}) do ours[v] = true end
+    for _, v in pairs(g_currentMission.vehicleSystem.vehicles or {}) do
+        if not ours[v] and v.spec_trailer and v.getFillUnits and v.rootNode then
+            local root = v.getRootVehicle and v:getRootVehicle() or v
+            local tx, _, tz = getWorldTranslation(v.rootNode)
+            local near = self.field == nil or self:isOnField(tx, tz)
+                or (GuidanceGeo.outlineIndex and dist(x, z, tx, tz) < 400 and self:distToField(tx, tz) < Unload.TRUCK_REACH)
+            if near and (root.getLastSpeed == nil or root:getLastSpeed() < 0.5) then
+                for ix in ipairs(v:getFillUnits()) do
+                    local free = v:getFillUnitFreeCapacity(ix, fillType, self.vehicle:getOwnerFarmId())
+                    local takes = fillType == nil or v.getFillUnitSupportsFillType == nil or v:getFillUnitSupportsFillType(ix, fillType)
+                    local node = v.getFillUnitExactFillRootNode and v:getFillUnitExactFillRootNode(ix)
+                    if takes and free and free > 1 and node then
+                        local nx, _, nz = getWorldTranslation(node)
+                        local d = dist(x, z, nx, nz)
+                        if bestD == nil or d < bestD then best, bestNode, bestD = v, node, d end
+                    end
+                end
+            end
+        end
+    end
+    return best, bestNode
+end
+
+function Unload:distToField(x, z)
+    if self.field == nil then return 0 end
+    self.fieldIndex = self.fieldIndex or GuidanceGeo.outlineIndex(self.field, 10)
+    if self.fieldIndex:isInside({x = x, y = z}) then return 0 end
+    local c, d = self.fieldIndex:closest({x = x, y = z}, 200)
+    return c and d or math.huge
+end
+
+function Unload:startOverload()
+    local auger = Unload.findAuger(self.vehicle)
+    if auger == nil then return false end
+    local _, node = wagonLevel(auger)
+    local ft = node and auger.getDischargeFillType and auger:getDischargeFillType(node)
+    local truck, fillNode = self:findTruck(ft)
+    if truck == nil then
+        Guidance.info("%s: no truck at the field edge to empty into", Guidance.vehicleName(self.vehicle))
+        return false
+    end
+    self.auger, self.truck, self.truckNode = auger, truck, fillNode
+    -- alongside the truck, the pipe towards it: the way that gets there nearer
+    local px, _, pz = getWorldTranslation(fillNode)
+    local th0 = select(3, Base.poseOf(truck.getRootVehicle and truck:getRootVehicle() or truck))
+    local left, ahead = Base.offsetIn(self.vehicle, node.node)
+    local x, z = Base.poseOf(self.vehicle)
+    local best
+    for _, th in ipairs({th0, th0 + math.pi}) do
+        local lx, lz = leftOf(th)
+        local tx = px - math.cos(th) * ahead - lx * left
+        local tz = pz - math.sin(th) * ahead - lz * left
+        local d = dist(x, z, tx, tz)
+        if best == nil or d < best.d then best = {x = tx, z = tz, h = th, d = d} end
+    end
+    self.overloadTarget = best
+    self:planTo(best.x, best.z, best.h, 15)
+    self.state = "toTruck"
+    Guidance.info("%s: emptying into %s", Guidance.vehicleName(self.vehicle), Guidance.vehicleName(truck))
+    return true
+end
+
+local function setPipe(v, open)
+    local spec = v.spec_pipe
+    if spec == nil or (spec.numStates or 0) <= 1 then return end
+    local target = open and 2 or 1
+    if spec.currentState ~= target and spec.currentState ~= 0 and spec.targetState ~= target
+            and (v.getIsPipeStateChangeAllowed == nil or v:getIsPipeStateChangeAllowed(target)) then
+        v:setPipeState(target)
+    end
+end
+
+--- At the truck: the pipe out, creep until it is over the truck's fill point, empty; then back to wait
+function Unload:overload(dt)
+    local auger = self.auger
+    local level, node = wagonLevel(auger)
+    setPipe(auger, true)
+    if auger.spec_pipe then auger.spec_pipe.automaticDischarge = true end
+    local px, _, pz = getWorldTranslation(self.truckNode)
+    local x, z, h = Base.poseOf(self.vehicle)
+    local nx, _, nz = getWorldTranslation(node.node)
+    local along = (px - nx) * math.cos(h) + (pz - nz) * math.sin(h)
+    if level < 0.002 then
+        -- empty: pipe in, back to wait for the combines
+        setPipe(auger, false)
+        self.state = "wait"
+        self.auger, self.truck = nil, nil
+        return self:standStill()
+    end
+    local filling = auger.getDischargeState and auger:getDischargeState() ~= Dischargeable.DISCHARGE_STATE_OFF
+    if not filling and math.abs(along) < 0.3 then
+        -- not filling over the fill point: this truck is full (or out of reach): another one, or stop full
+        self.stallTimer = (self.stallTimer or 0) + dt
+        if self.stallTimer > 4000 then
+            self.stallTimer = 0
+            setPipe(auger, false)
+            if not self:startOverload() then
+                self:finish(AIMessageGuidanceIsFull.new(), "NEEDS_UNLOADING")
+            end
+        end
+        return self:standStill()
+    end
+    self.stallTimer = 0
+    if math.abs(along) < 0.3 then
+        return self:standStill()
+    end
+    -- creep to it (forward or back)
+    local fwd = along > 0
+    local gx, gz = x + math.cos(h) * (fwd and 5 or -5), z + math.sin(h) * (fwd and 5 or -5)
+    return gx, gz, fwd, Unload.CREEP, math.abs(along)
+end
+
+function Unload:startHeap()
+    local tipper, node = Unload.findTipper(self.vehicle)
+    if tipper == nil then return false end
+    self.tipper, self.tipNode = tipper, node
+    -- the heap: where it started, along its way then; the next load where the last one ended
+    local h = self.heapNext or self.home
+    self:planTo(h.x, h.z, h.h, 12)
+    self.state = "toHeap"
+    return true
+end
+
+--- Tipping onto the heap: the rear tip side; standing while it runs out, on slowly where the ground is full
+function Unload:tipHeap(dt)
+    local tipper, node = self.tipper, self.tipNode
+    local ix = node.fillUnitIndex or 1
+    local level = tipper:getFillUnitFillLevel(ix)
+    local x, z, h = Base.poseOf(self.vehicle)
+    if not self.tipSideSet and tipper.setPreferedTipSide and tipper.spec_trailer then
+        local map = tipper.spec_trailer.dischargeNodeIndexToTipSide
+        local side = map and node.index and map[node.index]
+        if side and side.index then tipper:setPreferedTipSide(side.index) end
+        self.tipSideSet = true
+    end
+    if level <= 0.01 then
+        tipper:setManualDischargeState(Dischargeable.DISCHARGE_STATE_OFF)
+        if tipper.getAIHasFinishedDischarge == nil or tipper:getAIHasFinishedDischarge(node) then
+            -- the next load continues the heap here
+            self.heapNext = {x = x, z = z, h = h}
+            self.state = "wait"
+            self.tipSideSet = nil
+        end
+        return self:standStill()
+    end
+    local canTip = tipper.getCanDischargeToGround and tipper:getCanDischargeToGround(node)
+    if canTip then
+        tipper:setManualDischargeState(Dischargeable.DISCHARGE_STATE_GROUND)
+    end
+    -- still running out here: stand; the ground here full: on a bit
+    local falling = self.lastTipLevel and level < self.lastTipLevel - 0.01
+    self.lastTipLevel = level
+    if falling then
+        return self:standStill()
+    end
+    return x + math.cos(h) * 5, z + math.sin(h) * 5, true, Unload.CREEP, 5
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -479,6 +802,8 @@ end
 --- The bales on our field it can take: list of {bale, x, z}
 function Bales:bales()
     local out, seen = {}, {}
+    -- unwrapped bales the wrapper can't wrap (straw...): counted, to say so at the end
+    self.cantWrap = 0
     local limits = g_currentMission.slotSystem and g_currentMission.slotSystem.objectLimits
     local entry = limits and SlotSystem and limits[SlotSystem.LIMITED_OBJECT_BALE]
     local farmId = self.vehicle:getOwnerFarmId()
@@ -495,8 +820,9 @@ function Bales:bales()
             if ok and self.loader then
                 ok = self.loader.getBaleTypeByBale == nil or self.loader:getBaleTypeByBale(bale) ~= nil
             elseif ok and self.wrapper then
-                ok = (bale.wrappingState or 0) <= 0 and (self.wrapper.getIsBaleWrappable == nil
-                    or self.wrapper:getIsBaleWrappable(bale))
+                local unwrapped = (bale.wrappingState or 0) <= 0
+                ok = unwrapped and (self.wrapper.getIsBaleWrappable == nil or self.wrapper:getIsBaleWrappable(bale))
+                if unwrapped and not ok then self.cantWrap = self.cantWrap + 1 end
             end
             if ok then out[#out + 1] = {bale = bale, id = id, x = x, z = z} end
         end
@@ -584,6 +910,10 @@ function Bales:getDriveData(dt, vX, vY, vZ)
                 self.lastRound = true
                 self:planTo(self.home.x, self.home.z, self.home.h, 8)
                 return self:standStill()
+            end
+            if (self.cantWrap or 0) > 0 then
+                Guidance.info("%s: %d bale(s) here this wrapper can't wrap", Guidance.vehicleName(vehicle), self.cantWrap)
+                vehicle:guidanceSetHelperPhase("balesCantWrap")
             end
             self:finish(AIMessageSuccessFinishedJob.new(), "FINISHED")
             return self:standStill()

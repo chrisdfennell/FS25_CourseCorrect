@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="105">
     <author>Chris Fennell</author>
-    <version>0.6.0.0</version>
+    <version>0.6.1.0</version>
     <title>
         <en>CourseCorrect</en>
         <de>CourseCorrect</de>
@@ -66,6 +66,7 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
         <sourceFile filename="scripts/gui/GuidanceDraw.lua"/>
         <sourceFile filename="scripts/gui/GuidanceMap.lua"/>
         <sourceFile filename="scripts/gui/GuidanceHud.lua"/>
+        <sourceFile filename="scripts/gui/GuidanceDebug.lua"/>
     </extraSourceFiles>
 
     <specializations>
