@@ -116,6 +116,166 @@ function checkSupport(flat)
     r.startSetting = r.startSetting and kept and v:getGuidanceSettings().startMode == GuidancePlan.START_FIRST
         and passed == 1
 
+    -- an implement unfolding at the start: the driver waits until the game says it can go (no speed until then),
+    -- measures the vehicle again then; one that never gets ready (and isn't getting ready) stops with a message
+    local function prepareRun(readyAfter)
+        local veh = makeVehicle(flat[1] + 30, flat[2] + 30, 0, "Folding tractor")
+        g_currentMission.vehicleSystem = {vehicles = {veh}}
+        assert(veh:guidanceGenerate())
+        local t = 0
+        function veh:getIsAIReadyToDrive() return readyAfter ~= nil and t >= readyAfter, self end
+        function veh:getIsAIPreparingToDrive() return readyAfter ~= nil end
+        function veh:raiseAIEvent() end
+        function veh:raiseStateChange() end
+        local measured = 0
+        local realGet = GuidanceVehicleInfo.get
+        GuidanceVehicleInfo.get = function(...) measured = measured + 1 return realGet(...) end
+        local d = GuidanceFieldworkDriver.new(veh, veh:getGuidanceCourse(), 1)
+        local before = measured
+        STOP_MESSAGE = nil
+        local movedEarly, state = false, nil
+        for _ = 1, 400 do
+            local _, _, _, speed = d:getDriveData(100)
+            if readyAfter and t < readyAfter and (speed or 0) > 0 then movedEarly = true end
+            t = t + 100
+            g_time = (g_time or 0) + 100
+            state = d.state
+            if d.state == GuidanceFieldworkDriver.STATE_DRIVING or d.state == GuidanceFieldworkDriver.STATE_DONE then break end
+        end
+        GuidanceVehicleInfo.get = realGet
+        return movedEarly, state, measured > before, t, d
+    end
+    local early, state, remeasured, t = prepareRun(3000)
+    r.prepareWait = not early and state == GuidanceFieldworkDriver.STATE_DRIVING and remeasured and t >= 3000 and t < 4000
+    local _, state2, _, t2, d2 = prepareRun(nil)
+    r.prepareGiveUp = state2 ~= GuidanceFieldworkDriver.STATE_DRIVING and t2 > GuidanceFieldworkDriver.PREPARE_TIMEOUT
+        and t2 < GuidanceFieldworkDriver.PREPARE_TIMEOUT + 2000
+    PREPARE_INFO = string.format("unfolding: waited %.1f s, then driving %s, measured again %s; never ready: gave up after %.1f s",
+        t / 1000, tostring(state == GuidanceFieldworkDriver.STATE_DRIVING), tostring(remeasured), t2 / 1000)
+    g_currentMission.vehicleSystem = {vehicles = {v}}
+
+    -- rain: a combine waits where it is while harvesting would lose yield, goes on when it's dry; not if told not to
+    local function rainRun(wait)
+        local c = makeVehicle(flat[1] + 30, flat[2] + 30, 0, "Combine")
+        c.spec_combine = {fillUnitIndex = 1}
+        c.spec_pipe = {numStates = 2, currentState = 1}
+        function c:getFillUnitCapacity() return 10000 end
+        function c:getFillUnitFillLevel() return 0 end
+        function c:getIsPipeStateChangeAllowed() return true end
+        function c:setPipeState(st) self.spec_pipe.currentState = st end
+        RAINING = false
+        function c:getIsThreshingDuringRain() return RAINING end
+        function c:raiseAIEvent() end
+        function c:raiseStateChange() end
+        function c:getCanAIFieldWorkerContinueWork() return true end
+        g_currentMission.vehicleSystem = {vehicles = {c}}
+        assert(c:guidanceGenerate())
+        c:getGuidanceSettings().rainWait = wait
+        c:getGuidancePlan().rainWait = wait
+        local d = GuidanceFieldworkDriver.new(c, c:getGuidanceCourse(), 1)
+        local function speedNow()
+            local sp = 0
+            for _ = 1, 5 do
+                local _, _, _, s2 = d:getDriveData(100)
+                sp = s2 or 0
+                g_time = (g_time or 0) + 100
+            end
+            return sp
+        end
+        local dry = speedNow()
+        RAINING = true
+        local wet = speedNow()
+        local shown = c.spec_guidance.infoTexts.WAITING_RAIN == true
+        RAINING = false
+        local after = speedNow()
+        local cleared = c.spec_guidance.infoTexts.WAITING_RAIN == nil
+        g_currentMission.vehicleSystem = {vehicles = {v}}
+        return dry, wet, shown, after, cleared
+    end
+    local dry, wet, shown, after, cleared = rainRun(true)
+    local _, wet2 = rainRun(false)
+    r.rainWait = dry > 0 and wet == 0 and shown and after > 0 and cleared and wet2 > 0
+    RAIN_INFO = string.format("dry %.0f km/h, raining %.0f (status shown %s), dry again %.0f (cleared %s); told to carry on: %.0f in the rain",
+        dry, wet, tostring(shown), after, tostring(cleared), wet2)
+
+    -- refilling at the field edge: a seeder runs empty, a seed pallet stands 20 m off the field: its opening into
+    -- the pallet's trigger, filled up, back to where it stopped, the course on from there
+    do
+        FillType = FillType or {}
+        FillType.SEEDS = FillType.SEEDS or 51
+        g_currentMission.missionInfo = g_currentMission.missionInfo or {}
+        g_currentMission.missionInfo.helperBuySeeds = false
+        local tr = makeVehicle(flat[1] + 30, flat[2] + 30, 0, "Seeder tractor")
+        local opening = {lx = 0, lz = -4, x = 0, z = 0}
+        local seeder = {level = 0, capacity = 1000, spec_sowingMachine = {fillUnitIndex = 1},
+                        spec_fillUnit = {fillTrigger = {triggers = {}, isFilling = false}}, rootNode = opening}
+        function seeder:getFillUnitCapacity() return self.capacity end
+        function seeder:getFillUnitFillLevel() return self.level end
+        function seeder:getFillUnitSupportsFillType(ix, ft) return ft == FillType.SEEDS end
+        function seeder:getFillUnitExactFillRootNode() return opening end
+        function seeder:setFillUnitIsFilling(on) self.spec_fillUnit.fillTrigger.isFilling = on end
+        tr.children = {tr, seeder}
+        function tr:raiseAIEvent() end
+        function tr:raiseStateChange() end
+        function tr:getCanAIFieldWorkerContinueWork() return true end
+        function tr:getSpeedLimit() return 12, true end
+        -- the pallet: 20 m west of the field's westmost point
+        local wx, wz = math.huge, 0
+        for i = 1, #flat - 1, 2 do if flat[i] < wx then wx, wz = flat[i], flat[i + 1] end end
+        local trigNode = {x = wx - 20, z = wz, lx = 0, lz = 0}
+        local pallet = {rootNode = trigNode, level = 2000,
+                        spec_fillTriggerVehicle = {fillUnitIndex = 1, fillTrigger = {triggerNode = trigNode}}}
+        local trigger = {getIsActivatable = function() return true end}
+        function pallet:getFillUnitFillType() return FillType.SEEDS end
+        function pallet:getFillUnitFillLevel() return self.level end
+        g_currentMission.vehicleSystem = {vehicles = {tr, pallet}}
+        tr:getGuidanceSettings().refillEdge = true
+        assert(tr:guidanceGenerate())
+        local d = GuidanceFieldworkDriver.new(tr, tr:getGuidanceCourse(), 1)
+        tr.spec_aiFieldWorker = tr.spec_aiFieldWorker or {}
+        local startX, startZ = tr.rootNode.x, tr.rootNode.z
+        local reached, filled, resumeAt, backDist, phases = false, false, nil, math.huge, {}
+        for step = 1, 30000 do
+            local n = tr.rootNode
+            opening.x = n.x + math.cos(n.h) * opening.lz
+            opening.z = n.z + math.sin(n.h) * opening.lz
+            -- the game: the opening in the pallet's trigger (2 m) puts the trigger in the seeder's list; filling at
+            -- 200 l/s while it is on, stopping when full
+            local inside = math.sqrt((opening.x - trigNode.x) ^ 2 + (opening.z - trigNode.z) ^ 2) < 2
+            seeder.spec_fillUnit.fillTrigger.triggers = inside and {trigger} or {}
+            if inside then reached = true end
+            local ft = seeder.spec_fillUnit.fillTrigger
+            if ft.isFilling and inside then
+                local q = math.min(20, seeder.capacity - seeder.level, pallet.level)
+                seeder.level, pallet.level = seeder.level + q, pallet.level - q
+                if seeder.level >= seeder.capacity then ft.isFilling = false end
+            end
+            if d.refill then
+                phases[d.refill.phase] = true
+                resumeAt = d.refill.resume
+            end
+            local tx, tz, fwd, speed = d:getDriveData(100)
+            if tx then
+                local lx, _, lz = worldToLocal(n, tx, 0, tz)
+                AIVehicleUtil.driveToPoint(tr, 100, 1, (speed or 0) > 0, fwd ~= false, lx, lz, speed or 0)
+            end
+            g_time = (g_time or 0) + 100
+            if seeder.level >= 975 then filled = true end
+            if filled and d.refill == nil then
+                backDist = math.sqrt((n.x - resumeAt.x) ^ 2 + (n.z - resumeAt.z) ^ 2)
+                break
+            end
+            if d.state == GuidanceFieldworkDriver.STATE_DONE then break end
+        end
+        local list = {}
+        for k in pairs(phases) do list[#list + 1] = k end
+        table.sort(list)
+        r.edgeRefill = reached and filled and backDist < 3 and pallet.level < 1100 and d.state == GuidanceFieldworkDriver.STATE_DRIVING
+        EDGE_INFO = string.format("into the pallet's trigger %s, filled to %d l (pallet down to %d l), back %.1f m from where it stopped, then: state %d (%s)",
+            tostring(reached), seeder.level, pallet.level, backDist, d.state, table.concat(list, " "))
+        g_currentMission.vehicleSystem = {vehicles = {v}}
+    end
+
     -- the grass chain: a baler follows the rake's course (its passes are where the windrows lie)
     local rakeT = makeVehicle(flat[1] + 30, flat[2] + 30, 0, "Rake tractor")
     rakeT.children = {rakeT, {spec_windrower = {}}}
@@ -165,8 +325,11 @@ def main():
     r = lua.globals().checkSupport(lua.table_from(flat))
     ok = True
     print(lua.globals().WINDROW_INFO)
+    print(lua.globals().PREPARE_INFO)
+    print(lua.globals().RAIN_INFO)
+    print(lua.globals().EDGE_INFO)
     for name in ("movedThere", "neighbours", "streamed", "dropped", "newCourse", "report", "written", "overlay",
-                 "windrowFound", "windrowFollow", "startSetting"):
+                 "windrowFound", "windrowFollow", "startSetting", "prepareWait", "prepareGiveUp", "rainWait", "edgeRefill"):
         good = bool(r[name])
         ok = ok and good
         print(f"{name}: {'OK' if good else 'FAILED'}")

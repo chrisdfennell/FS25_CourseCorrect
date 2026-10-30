@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Czeka na prasę"/>
         <text name="guidance_orchard_name" text="Sad %d"/>
         <text name="guidance_warn_convoyNarrow" text="Za wąskie na kolumnę %d: około %d%% zostanie nieobrobione. Spróbuj Następny wolny rząd lub Pasy."/>
+        <text name="guidance_info_WAITING_RAIN" text="Czeka, aż przestanie padać (koszenie teraz obniża plon)"/>
+        <text name="guidance_set_rainWait" text="W deszczu"/>
+        <text name="guidance_rain_wait" text="Czekaj"/>
+        <text name="guidance_rain_go" text="Pracuj dalej"/>
+        <text name="guidance_refill_edge" text="Zapas na skraju pola"/>
+        <text name="guidance_import_courseplay" text="Courseplay: %s"/>
+        <text name="guidance_set_edgeObstacles" text="Przeszkody przy brzegu"/>
+        <text name="guidance_edge_over" text="Przejeżdżaj"/>
+        <text name="guidance_edge_round" text="Omijaj"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Importuj plik trasy"/>
         <text name="guidance_import_title" text="Pliki tras: %d"/>
         <text name="guidance_import_refresh" text="Odśwież"/>
-        <text name="guidance_import_hint" text="Pliki tras z folderu modSettings/FS25_CourseCorrect/courses (Eksport zapisuje je tam; skopiuj tam pliki znajomego)."/>
+        <text name="guidance_import_hint" text="Pliki kursów z folderu modSettings/FS25_CourseCorrect/courses (Eksport je tam zapisuje; skopiuj tam pliki znajomego) oraz zapisane kursy Courseplay tej mapy: ich pole, szerokość, uwrocia i kierunek rzędów, z nawrotami CourseCorrect."/>
         <text name="guidance_import_none" text="Brak plików tras"/>
         <text name="guidance_import_one" text="Importuj"/>
         <text name="guidance_import_done" text="Zaimportowano %s do zapisanych tras"/>

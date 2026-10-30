@@ -55,7 +55,7 @@ def read_fields(i3d_path):
 
 def load_lua():
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
-    lua.execute("Guidance = Guidance or {debug = function() end, info = function() end}")
+    lua.execute("Guidance = Guidance or {debug = function() end, info = function() end}; Guidance.try = Guidance.try or pcall")
     for rel in LUA_FILES:
         lua.execute((ROOT / rel).read_text(encoding="utf-8"))
     return lua

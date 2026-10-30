@@ -192,6 +192,46 @@ def main():
     warned = zoned2 is not None and (zoned2.stats.islandsIgnored or 0) >= 1
     check("skip area too big", warned, f"warned {(zoned2.stats.islandsIgnored or 0) if zoned2 else '?'} obstacle(s)")
 
+    # an obstacle near the edge (a 4 m box 8 m in from the longest edge, in the headland band): driven over as before
+    # (warned), or with "work round" notched into the edge: no piece of the course within 3 m of it (half the 6 m
+    # implement), the course still on the field
+    k = max(range(len(pts)), key=lambda i: math.dist(pts[i], pts[(i + 1) % len(pts)]))
+    a, b = pts[k], pts[(k + 1) % len(pts)]
+    mx, mz = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+    ex, ez = b[0] - a[0], b[1] - a[1]
+    el = math.hypot(ex, ez)
+    nx, nz = -ez / el, ex / el
+    gx, gz = sum(x for x, _ in pts) / len(pts), sum(z for _, z in pts) / len(pts)
+    if (gx - mx) * nx + (gz - mz) * nz < 0:
+        nx, nz = -nx, -nz
+    ox, oz = mx + nx * 8, mz + nz * 8
+    box = (ox - 2, oz - 2, ox + 2, oz + 2)
+
+    def through(course, grow):
+        hits = 0
+        wl = waypoints(course) if course else []
+        for p1, p2 in zip(wl, wl[1:]):
+            n2 = max(1, int(math.hypot(p2["x"] - p1["x"], p2["z"] - p1["z"]) * 2))
+            for j in range(n2 + 1):
+                x = p1["x"] + (p2["x"] - p1["x"]) * j / n2
+                z = p1["z"] + (p2["z"] - p1["z"]) * j / n2
+                if box[0] - grow < x < box[2] + grow and box[1] - grow < z < box[3] + grow:
+                    hits += 1
+                    break
+        return hits
+    over = G.makeCourse(F, T({"skipZones": "%.1f %.1f %.1f %.1f" % box}))
+    roundc = G.makeCourse(F, T({"skipZones": "%.1f %.1f %.1f %.1f" % box, "edgeObstacles": 1}))
+    over_hits = through(over, 0)
+    round_hits = through(roundc, 3 - 0.05)
+    notched = (roundc.stats.notched or 0) if roundc else 0
+    off = off_field(roundc, pts) if roundc else 99
+    check("edge obstacle, driven over (switch off)", over is not None and (over.stats.islandsIgnored or 0) >= 1
+          and over_hits > 0, f"{over_hits} pieces through it, warned {(over.stats.islandsIgnored or 0) if over else '?'}")
+    check("edge obstacle, worked round (switch on)", roundc is not None and notched == 1 and round_hits == 0
+          and (roundc.stats.islandsIgnored or 0) == 0 and off < 0.6,
+          f"notched {notched}, {round_hits} pieces within 3 m of it, worst {off:.2f} m off the field, "
+          f"{roundc.stats.headlands if roundc else '?'} headland passes, {roundc.stats.rows if roundc else '?'} rows")
+
     # driven: lands, spiral, curved rows to the end by the test tractor
     drive = smoke_test.DRIVE
     a = drive.index("    local vt = {events")

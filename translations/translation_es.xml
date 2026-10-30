@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Esperando a la empacadora"/>
         <text name="guidance_orchard_name" text="Huerto %d"/>
         <text name="guidance_warn_convoyNarrow" text="Demasiado estrecho para un convoy de %d: queda un %d%% sin trabajar. Prueba Siguiente surco libre o Franjas."/>
+        <text name="guidance_info_WAITING_RAIN" text="Esperando a que pare la lluvia (cosechar ahora reduce el rendimiento)"/>
+        <text name="guidance_set_rainWait" text="Con lluvia"/>
+        <text name="guidance_rain_wait" text="Esperar"/>
+        <text name="guidance_rain_go" text="Seguir"/>
+        <text name="guidance_refill_edge" text="Suministro en el borde del campo"/>
+        <text name="guidance_import_courseplay" text="Courseplay: %s"/>
+        <text name="guidance_set_edgeObstacles" text="Obstáculos junto al borde"/>
+        <text name="guidance_edge_over" text="Pasar por encima"/>
+        <text name="guidance_edge_round" text="Rodear"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Importar archivo de ruta"/>
         <text name="guidance_import_title" text="%d archivos de ruta"/>
         <text name="guidance_import_refresh" text="Buscar de nuevo"/>
-        <text name="guidance_import_hint" text="Archivos de ruta de tu carpeta modSettings/FS25_CourseCorrect/courses (Exportar los deja ahí; copia ahí los de un amigo)."/>
+        <text name="guidance_import_hint" text="Archivos de recorrido de tu carpeta modSettings/FS25_CourseCorrect/courses (Exportar los guarda allí; copia los de un amigo) y los recorridos guardados de Courseplay de este mapa: su campo, anchura, cabeceras y dirección de las filas, con los giros propios de CourseCorrect."/>
         <text name="guidance_import_none" text="Aún no hay archivos de ruta"/>
         <text name="guidance_import_one" text="Importar"/>
         <text name="guidance_import_done" text="%s importada a las rutas guardadas"/>

@@ -90,6 +90,13 @@ function GuidancePlan.new()
     self.unloadMode = 0
     -- vineyards: 0 automatic (on the rows with a grape harvester / pre-pruner, else between), 1 on, 2 between
     self.vineMode = 0
+    -- a harvester stops while harvesting would lose yield in the rain (the game's rule), on again after
+    self.rainWait = true
+    -- empty: refill from a supply at the field edge (pallets, big bags, a tanker) before a trip to a station
+    self.refillEdge = false
+    -- obstacles near the field edge (within the headland passes): 0 driven over, 1 worked round (notched into the
+    -- edge, every pass bending round them)
+    self.edgeObstacles = 0
     -- (the vehicle had a tool for on the rows when the course was made)
     self.vineTool = false
     -- the editor's moved points: "ix x z;ix x z" (the course's waypoint ix moved there; its neighbours along the
@@ -143,6 +150,7 @@ function GuidancePlan:getGeneratorSettings()
         rowPhase = self.tramlines and (self.rowSpacing or 0) > 0 and self.rowPhase or nil,
         rowSpacing = self.tramlines and self.rowSpacing or 0,
         skipRows = self:getSkipRows(),
+        edgeObstacles = self.edgeObstacles == 1,
         towLength = self.towLength,
     }
 end
@@ -202,6 +210,9 @@ function GuidancePlan:writeStream(streamId)
     streamWriteUInt8(streamId, self.unloadFull or 97)
     streamWriteUInt8(streamId, self.unloadMode or 0)
     streamWriteUInt8(streamId, self.vineMode or 0)
+    streamWriteBool(streamId, self.rainWait ~= false)
+    streamWriteBool(streamId, self.refillEdge == true)
+    streamWriteUInt8(streamId, self.edgeObstacles or 0)
     streamWriteBool(streamId, self.vineTool == true)
 end
 
@@ -261,6 +272,9 @@ function GuidancePlan.readStream(streamId)
     self.unloadFull = streamReadUInt8(streamId)
     self.unloadMode = streamReadUInt8(streamId)
     self.vineMode = streamReadUInt8(streamId)
+    self.rainWait = streamReadBool(streamId)
+    self.refillEdge = streamReadBool(streamId)
+    self.edgeObstacles = streamReadUInt8(streamId)
     self.vineTool = streamReadBool(streamId)
     return self
 end
@@ -376,7 +390,9 @@ GuidancePlan.XML_FIELDS = {
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"rowsPerLand", "INT"}, {"rowShape", "INT"}, {"tramlines", "BOOL"},
     {"rowPhase", "FLOAT"}, {"rowSpacing", "FLOAT"}, {"skipRows", "STRING"}, {"skipZones", "STRING"},
     {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"}, {"moves", "STRING"},
-    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"}, {"unloadMode", "INT"}, {"vineMode", "INT"}, {"vineTool", "BOOL"},
+    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"},
+    {"unloadMode", "INT"}, {"vineMode", "INT"}, {"vineTool", "BOOL"}, {"rainWait", "BOOL"}, {"refillEdge", "BOOL"},
+    {"edgeObstacles", "INT"},
 }
 
 function GuidancePlan.registerXMLPaths(schema, basePath)
@@ -508,7 +524,7 @@ function GuidanceCourse.findIslands(fieldId, outline)
         for iy = 0, math.floor((maxY - minY) / step) do
             local p = {x = minX + (ix + 0.5) * step, y = minY + (iy + 0.5) * step}
             if index:isInside(p) and index:closest(p, margin) == nil then
-                local ok, isOnField = pcall(isField, p.x, p.y)
+                local ok, isOnField = Guidance.try(isField, p.x, p.y)
                 if ok and not isOnField then
                     cells[ix * 100003 + iy] = {ix = ix, iy = iy, x = p.x, y = p.y}
                 end
@@ -596,7 +612,7 @@ function GuidanceCourse.fieldForCourse(x, z, farmId)
                 orchard = vineyard.fruit ~= nil and vineyard.fruit ~= "GRAPE"}
         mapId = nil
     elseif GuidanceFieldScan and GuidanceFieldScan.isAvailable() then
-        local ok, result = pcall(GuidanceFieldScan.scan, x, z, mapId)
+        local ok, result = Guidance.try(GuidanceFieldScan.scan, x, z, mapId)
         scan = ok and result or nil
         if not ok then Guidance.info("field scan failed: %s", tostring(result)) end
     end

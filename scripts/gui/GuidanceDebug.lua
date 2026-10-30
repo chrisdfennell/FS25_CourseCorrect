@@ -79,7 +79,7 @@ function Debug.draw()
                 and g_localPlayer:getCurrentVehicle())) then
             local x, _, z = getWorldTranslation(v.rootNode)
             if cx == nil or (x - cx) ^ 2 + (z - cz) ^ 2 < Debug.RANGE ^ 2 then
-                pcall(Debug.drawVehicle, v, spec, x, z)
+                Guidance.try(Debug.drawVehicle, v, spec, x, z)
             end
         end
     end
@@ -195,7 +195,7 @@ function Debug.writeReport(vehicle)
     if path == nil or createFile == nil then return nil end
     createFolder(getUserProfileAppPath() .. "modSettings/")
     createFolder(getUserProfileAppPath() .. "modSettings/FS25_CourseCorrect/")
-    local ok, file = pcall(createFile, path, FileAccess and FileAccess.WRITE or 1)
+    local ok, file = Guidance.try(createFile, path, FileAccess and FileAccess.WRITE or 1)
     if not ok or file == nil or file == 0 then return nil end
     fileWrite(file, Debug.reportText(vehicle))
     delete(file)

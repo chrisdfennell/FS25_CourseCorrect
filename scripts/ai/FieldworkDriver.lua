@@ -22,6 +22,7 @@ Driver.TURN_SPEED = 10 -- km/h, turns and connections
 Driver.REVERSE_SPEED = 5
 Driver.LATERAL_ACCEL = 1.2 -- m/s², limits speed in curves
 Driver.STUCK_TIME = 20000 -- ms without progress while we want to move
+Driver.PREPARE_TIMEOUT = 20000 -- ms not ready to drive and nothing getting it ready (an implement that can't unfold)
 Driver.LOST_DISTANCE = 15 -- m off the course
 Driver.LOST_TIME = 5000
 Driver.REJOIN_AHEAD = 30 -- m along the course a lost helper comes back on (past what threw it off)
@@ -94,7 +95,7 @@ function Driver.new(vehicle, course, startIx, startPoint)
         Driver.setCallUnloaderLevel(vehicle, self.harvester, course.plan.callUnloaderAt or 80)
     end
     -- standing crop on the field, to keep out of it on the way to the course and on connections
-    local ok, probe = pcall(GuidanceFruitProbe.new, course.outline or {})
+    local ok, probe = Guidance.try(GuidanceFruitProbe.new, course.outline or {})
     self.probe = ok and probe or nil
     self.fruitTimer = 0
     if rowsFirst then
@@ -332,6 +333,13 @@ end
 function Driver:getDriveData(dt, vX, vY, vZ)
     local vehicle = self.vehicle
     local x, z, h = vehiclePose(vehicle)
+    -- refilling at the field edge: its own way there and back (the course's path waits where we left it)
+    if self.refill and self.state == Driver.STATE_DRIVING then
+        local tx, tz, fwd, speed, toStop = self:updateRefill(dt, x, z, h)
+        self:updateLights(dt)
+        self.debugTarget = {tx, tz, speed}
+        return tx, tz, fwd, speed, toStop
+    end
     self:updateSideOffset(dt)
     -- a convoy member at the start of its lane: from here on it drives beside the course
     if self.convoy and not self.onLane then
@@ -352,7 +360,29 @@ function Driver:getDriveData(dt, vX, vY, vZ)
         vehicle:raiseAIEvent("onAIFieldWorkerPrepareForWork", "onAIImplementPrepareForWork")
         self.state = Driver.STATE_PREPARE
     elseif self.state == Driver.STATE_PREPARE then
-        self.state = Driver.STATE_DRIVING
+        -- the implements unfolding (and the like): the game says when it can go, as for its own helper. Measured
+        -- again then: folded, the work area isn't where it will be.
+        local ready, blocking = true, nil
+        if vehicle.getIsAIReadyToDrive then ready, blocking = vehicle:getIsAIReadyToDrive() end
+        if ready then
+            self.info = GuidanceVehicleInfo.get(vehicle)
+            self.state = Driver.STATE_DRIVING
+            if (self.prepareTime or 0) > 0 then
+                Guidance.debug("%s: ready to drive after %.1f s, front %.1f, back %.1f",
+                    Guidance.vehicleName(vehicle), self.prepareTime / 1000, self.info.frontOffset, self.info.backOffset)
+            end
+        else
+            self.prepareTime = (self.prepareTime or 0) + dt
+            local preparing = vehicle.getIsAIPreparingToDrive and vehicle:getIsAIPreparingToDrive()
+            self.prepareStall = preparing and 0 or (self.prepareStall or 0) + dt
+            if self.prepareStall > Driver.PREPARE_TIMEOUT then
+                Guidance.info("%s: not ready to drive (%s), giving up", Guidance.vehicleName(vehicle),
+                    Guidance.vehicleName(blocking or vehicle))
+                local message = AIMessageErrorCouldNotPrepare and AIMessageErrorCouldNotPrepare.new(blocking or vehicle)
+                    or AIMessageErrorBlockedByObject.new()
+                self:stop(message, "IS_STUCK")
+            end
+        end
     elseif self.state == Driver.STATE_WAIT_LOWER then
         self.lowerTimer = self.lowerTimer + dt
         -- right after we start lowering it may still say yes, so wait at least a moment
@@ -475,7 +505,7 @@ function Driver:getImplementCenter()
     for _, implement in pairs(self.vehicle:getAttachedAIImplements()) do
         local obj = implement.object
         if obj and obj.getAIMarkers then
-            local ok, left, right = pcall(obj.getAIMarkers, obj)
+            local ok, left, right = Guidance.try(obj.getAIMarkers, obj)
             if ok and left and right then
                 local lx, _, lz = getWorldTranslation(left)
                 local rx, _, rz = getWorldTranslation(right)
@@ -616,6 +646,11 @@ function Driver:updateDriving(dt)
     if g_time ~= nil and g_time < self.holdUntil then
         return 0
     end
+    -- harvesting in the rain loses yield (the game's rule, till a while after it stops): stand where we are, on again
+    -- when the game would harvest at full yield (not in the middle of a turn)
+    if self:isRaining() then
+        return 0
+    end
     -- the implements can't go on right now (a forage harvester with nothing under its pipe, a baler wrapping)
     if self.lowered and not self.vehicle:getCanAIFieldWorkerContinueWork() then
         return 0
@@ -675,7 +710,7 @@ function Driver.playersOnFoot()
     for _, player in pairs(players or {}) do
         local inVehicle = player.getCurrentVehicle and player:getCurrentVehicle() ~= nil
         if not inVehicle then
-            local ok, x, _, z = pcall(function()
+            local ok, x, _, z = Guidance.try(function()
                 if player.getPosition then return player:getPosition() end
                 return getWorldTranslation(player.rootNode)
             end)
@@ -1074,15 +1109,15 @@ function Driver:updateLights(dt)
         -- how they were, to put them back
         self.lightsBefore = {mask = v.getLightsTypesMask and v:getLightsTypesMask() or 0,
                              beacons = v.spec_lights and v.spec_lights.beaconLightsActive or false}
-        if v.setBeaconLightsVisibility then pcall(v.setBeaconLightsVisibility, v, true) end
+        if v.setBeaconLightsVisibility then Guidance.try(v.setBeaconLightsVisibility, v, true) end
     end
     local env = g_currentMission and g_currentMission.environment
     local night = env ~= nil and env.isSunOn == false
     if v.updateAutomaticLights then
-        pcall(v.updateAutomaticLights, v, night, true)
+        Guidance.try(v.updateAutomaticLights, v, night, true)
     elseif v.setLightsTypesMask then
         -- main and work lights (front and back)
-        pcall(v.setLightsTypesMask, v, night and 7 or self.lightsBefore.mask)
+        Guidance.try(v.setLightsTypesMask, v, night and 7 or self.lightsBefore.mask)
     end
 end
 
@@ -1092,8 +1127,8 @@ function Driver:restoreLights()
         return
     end
     self.lightsBefore = nil
-    if v.setLightsTypesMask then pcall(v.setLightsTypesMask, v, before.mask) end
-    if v.setBeaconLightsVisibility then pcall(v.setBeaconLightsVisibility, v, before.beacons) end
+    if v.setLightsTypesMask then Guidance.try(v.setLightsTypesMask, v, before.mask) end
+    if v.setBeaconLightsVisibility then Guidance.try(v.setBeaconLightsVisibility, v, before.beacons) end
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -1224,6 +1259,20 @@ function Driver:isWaitingForUnload()
     return self.state == Driver.STATE_WAIT_UNLOAD
 end
 
+--- A harvester that would lose yield now (rain), and its player wants it to wait for that: true. Shows the status.
+function Driver:isRaining()
+    local h = self.harvester
+    local wait = h ~= nil and self.course.plan.rainWait ~= false and h.getIsThreshingDuringRain ~= nil
+        and h:getIsThreshingDuringRain() and not self:isManeuvering()
+    if wait ~= (self.rainWaiting or false) then
+        self.rainWaiting = wait
+        self.vehicle:guidanceSetInfoText("WAITING_RAIN", wait)
+        Guidance.info("%s: %s", Guidance.vehicleName(self.vehicle), wait and "rain, waiting (harvesting now loses yield)"
+            or "the crop is dry again, going on")
+    end
+    return wait
+end
+
 --- Stand still for ms (AutoDrive calls this every frame while its unloader gets into place)
 function Driver:hold(ms)
     if g_time ~= nil then
@@ -1266,7 +1315,7 @@ function Driver.setCallUnloaderLevel(vehicle, harvester, percent)
     -- (the vehicle itself, and a harvester attached to it if that's another one)
     for _, v in ipairs(harvester ~= vehicle and {vehicle, harvester} or {vehicle}) do
         if v.ad and v.ad.settings and v.ad.settings.preCallLevel then
-            pcall(ad.setSettingState, "preCallLevel", best, v)
+            Guidance.try(ad.setSettingState, "preCallLevel", best, v)
         end
     end
     Guidance.debug("%s: AutoDrive calls the unloader at %d%%", Guidance.vehicleName(vehicle), math.floor(values[best] * 100 + 0.5))
@@ -1294,7 +1343,7 @@ function Driver:hasAutoDriveUnloaders()
     if manager == nil or manager.hasHarvesterPotentialUnloaders == nil then
         return false
     end
-    local ok, result = pcall(manager.hasHarvesterPotentialUnloaders, manager, self.harvester)
+    local ok, result = Guidance.try(manager.hasHarvesterPotentialUnloaders, manager, self.harvester)
     return ok and result == true
 end
 
@@ -1341,7 +1390,7 @@ function Driver:updatePipe(dt)
     if GuidanceUnloadDriver and GuidanceUnloadDriver.isChopper(harvester) then
         setPipe(harvester, true)
         if spec then spec.automaticDischarge = true end
-        local ok, node = pcall(function() return harvester:getDischargeNodeByIndex(harvester:getPipeDischargeNodeIndex()) end)
+        local ok, node = Guidance.try(function() return harvester:getDischargeNodeByIndex(harvester:getPipeDischargeNodeIndex()) end)
         local target = ok and node and (node.dischargeObject
             or (harvester.getDischargeTargetObject and harvester:getDischargeTargetObject(node)))
         local waiting = target == nil and self.lowered and not self:isManeuvering()
@@ -1527,6 +1576,8 @@ function Driver:updateFillLevels(dt)
     local fuelLow, isFull, isEmpty = false, false, false
     -- what ran out (for a refill trip)
     local emptyTypes = {}
+    -- (and which implement, which fill unit: to refill it at the field edge)
+    local needer, needIx
     for _, v in pairs(allVehicles(self.vehicle)) do
         -- harvested goods: combine tank, forage wagon
         local collector = (v.spec_combine and v.spec_combine.fillUnitIndex)
@@ -1540,14 +1591,16 @@ function Driver:updateFillLevels(dt)
             local seed = fillPercentage(v, v.spec_sowingMachine.fillUnitIndex)
             if seed and seed <= 0 then
                 isEmpty = true
+                needer, needIx = v, v.spec_sowingMachine.fillUnitIndex
                 if FillType and FillType.SEEDS then table.insert(emptyTypes, FillType.SEEDS) end
             end
         end
         if v.getSprayerFillUnitIndex and not missionInfo.helperBuyFertilizer and v.spec_sowingMachine == nil then
-            local ok, ix = pcall(v.getSprayerFillUnitIndex, v)
+            local ok, ix = Guidance.try(v.getSprayerFillUnitIndex, v)
             local sprayLevel = ok and fillPercentage(v, ix)
             if sprayLevel and sprayLevel <= 0 then
                 isEmpty = true
+                needer, needIx = needer or v, needIx or ix
                 -- what it was spraying, else what it takes
                 local ft = v.spec_fillUnit and v.spec_fillUnit.fillUnits and v.spec_fillUnit.fillUnits[ix]
                     and v.spec_fillUnit.fillUnits[ix].lastValidFillType
@@ -1584,6 +1637,10 @@ function Driver:updateFillLevels(dt)
             self:stop(AIMessageGuidanceIsFull.new(), "NEEDS_UNLOADING")
         end
     elseif isEmpty then
+        -- from a supply at the field edge (if the player wants that and there is one)
+        if self.course.plan.refillEdge and self.refill == nil and self:startEdgeRefill(needer, needIx, emptyTypes) then
+            return
+        end
         -- a refill trip (the plan names a station), else stop for AutoDrive or the player
         local job = self.task and self.task.job
         if job and job.startRefillTrip and job:startRefillTrip(self, emptyTypes) then
@@ -1593,4 +1650,199 @@ function Driver:updateFillLevels(dt)
         end
         self:stop(AIMessageErrorOutOfFill.new(), "NEEDS_FILLING")
     end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- Refilling at the field edge: from a supply standing there (seed / fertiliser pallets and big bags, a water or
+-- liquid tanker: anything the game fills vehicles from, a FillTriggerVehicle), instead of a trip on the roads. The
+-- implement's opening is driven into the supply's trigger, filled up, and the course goes on where it stopped.
+-----------------------------------------------------------------------------------------------------------------------
+
+Driver.SUPPLY_REACH = 30 -- m off the field a supply may stand
+Driver.REFILL_SPEED = 8 -- km/h to the supply and back
+Driver.REFILL_CREEP = 2 -- km/h the last metres into its trigger
+Driver.REFILL_CREEP_MAX = 8 -- m it creeps before it gives that supply up
+Driver.REFILL_FULL = 0.98
+Driver.REFILL_STALL = 4000 -- ms filling without getting fuller: the supply is empty (or doesn't fit)
+
+local function isOurs(self, v)
+    for _, c in pairs(allVehicles(self.vehicle)) do
+        if c == v then return true end
+    end
+    return false
+end
+
+--- On our field or within SUPPLY_REACH m of it
+function Driver:isNearField(x, z)
+    local field = self.course.area and self.course.area.field
+    if field == nil then return true end
+    self.fieldIndexForSupply = self.fieldIndexForSupply or GuidanceGeo.outlineIndex(field, 10)
+    if self.fieldIndexForSupply:isInside({x = x, y = z}) then return true end
+    return self.fieldIndexForSupply:closest({x = x, y = z}, Driver.SUPPLY_REACH) ~= nil
+end
+
+--- The nearest supply that has one of the fill types and something in it: vehicle, its trigger node; or nil
+function Driver:findSupply(needer, needIx, types)
+    local wanted = {}
+    for _, t in ipairs(types) do wanted[t] = true end
+    local x, z = vehiclePose(self.vehicle)
+    local vehicles = g_currentMission.vehicleSystem and g_currentMission.vehicleSystem.vehicles or {}
+    local best, bestNode, bestD
+    for _, v in pairs(vehicles) do
+        local spec = v.spec_fillTriggerVehicle
+        local trigger = spec and spec.fillTrigger
+        local node = trigger and trigger.triggerNode
+        if node and not isOurs(self, v) and not (self.emptySupplies and self.emptySupplies[v]) then
+            local ix = spec.fillUnitIndex or 1
+            local ft = v:getFillUnitFillType(ix)
+            local takes = needer.getFillUnitSupportsFillType == nil or needer:getFillUnitSupportsFillType(needIx, ft)
+            if wanted[ft] and takes and v:getFillUnitFillLevel(ix) > 1 then
+                local tx, _, tz = getWorldTranslation(node)
+                local d = math.sqrt((tx - x) ^ 2 + (tz - z) ^ 2)
+                if self:isNearField(tx, tz) and (bestD == nil or d < bestD) then best, bestNode, bestD = v, node, d end
+            end
+        end
+    end
+    return best, bestNode
+end
+
+--- Out of seed / fertiliser / spray: to a supply at the field edge, if there is one. True when on the way.
+function Driver:startEdgeRefill(needer, needIx, types)
+    if needer == nil or needer.setFillUnitIsFilling == nil then return false end
+    local supply, node = self:findSupply(needer, needIx, types)
+    if supply == nil then
+        Guidance.info("%s: empty, no supply at the field edge", Guidance.vehicleName(self.vehicle))
+        return false
+    end
+    local x, z, h = vehiclePose(self.vehicle)
+    -- where we are now: back here after (the course's own path stays as it was)
+    self.refill = self.refill or {resume = {x = x, z = z, h = h}, follower = self.follower, turns = self.turns,
+                                  keepGaps = self.keepGaps}
+    local refill = self.refill
+    refill.supply, refill.node, refill.needer, refill.needIx, refill.types = supply, node, needer, needIx, types
+    refill.phase = "to"
+    refill.creep, refill.stall, refill.timer = 0, 0, 0
+    self:raiseImplements()
+    -- the implement's opening into the trigger: our guidance point that far back (and aside) of it, coming straight in
+    local open = needer.getFillUnitExactFillRootNode and needer:getFillUnitExactFillRootNode(needIx) or needer.rootNode
+    local left, _, ahead = localToLocal(open, self.vehicle:getAIDirectionNode(), 0, 0, 0)
+    local tx, _, tz = getWorldTranslation(node)
+    local th = math.atan2(tz - z, tx - x)
+    local lx, lz = leftOf(th)
+    -- stop REFILL_CREEP_MAX / 2 short, the rest crept
+    local short = Driver.REFILL_CREEP_MAX / 2
+    local gx = tx - math.cos(th) * (ahead + short) - lx * left
+    local gz = tz - math.sin(th) * (ahead + short) - lz * left
+    refill.creepH = th
+    refill.path = self:refillPath(x, z, h, gx, gz, th)
+    Guidance.info("%s: empty, refilling from %s at the field edge", Guidance.vehicleName(self.vehicle),
+        Guidance.vehicleName(supply))
+    return true
+end
+
+--- A way from (x, z, h) to (gx, gz) facing gh, on the field round the crop: a path follower
+function Driver:refillPath(x, z, h, gx, gz, gh)
+    local runIn = math.max(self.info.runOut, 3)
+    local settings = self.course.plan:getGeneratorSettings()
+    local pts = GuidanceCourseGenerator.planApproach(self.course.area, settings, {x = x, y = z, h = h},
+        {x = gx - math.cos(gh) * runIn, y = gz - math.sin(gh) * runIn, h = gh})
+    local list = {{x = x, z = z, t = "C", work = false}}
+    for _, p in ipairs(pts) do list[#list + 1] = {x = p.x, z = p.y, t = "C", work = false} end
+    list[#list + 1] = {x = gx, z = gz, t = "C", work = false}
+    return GuidancePathFollower.new(list)
+end
+
+--- Driving data while refilling (getDriveData): to the supply, into its trigger, filling, back to where we stopped
+function Driver:updateRefill(dt, x, z, h)
+    local r = self.refill
+    r.timer = r.timer + dt
+    local function follow(f)
+        f:update(x, z, h)
+        if f:getDistanceToCusp() < 0.5 then f:passCusp() end
+        if f:isFinished() then return nil end
+        local reversing = f:isReversing()
+        local gx, gz = f:getGoal(reversing and 3 or 5)
+        local speed = math.min(Driver.REFILL_SPEED, 3.6 * math.sqrt(2 * 0.8 * f:getRemaining()) + 1)
+        speed = self:giveWay(dt, speed, x, z, h, reversing)
+        return gx, gz, not reversing, speed, f:getRemaining()
+    end
+    if r.phase == "to" then
+        local gx, gz, fwd, speed, toStop = follow(r.path)
+        if gx then return gx, gz, fwd, speed, toStop end
+        r.phase, r.creepFrom = "creep", {x = x, z = z}
+    end
+    local needer = r.needer
+    local fillSpec = needer.spec_fillUnit
+    local level = fillPercentage(needer, r.needIx) or 0
+    if r.phase == "creep" then
+        -- in until the game says the opening is in the supply's trigger
+        local triggers = fillSpec and fillSpec.fillTrigger and fillSpec.fillTrigger.triggers or {}
+        local inside = false
+        for _, trigger in ipairs(triggers) do
+            if trigger.getIsActivatable == nil or trigger:getIsActivatable(needer) then inside = true end
+        end
+        if inside then
+            needer:setFillUnitIsFilling(true)
+            r.phase, r.lastLevel, r.stall = "fill", level, 0
+            return x + math.cos(h), z + math.sin(h), true, 0, 0
+        end
+        local crept = math.sqrt((x - r.creepFrom.x) ^ 2 + (z - r.creepFrom.z) ^ 2)
+        if crept > Driver.REFILL_CREEP_MAX then
+            -- didn't get in: another supply, or stop for the player
+            Guidance.info("%s: couldn't reach the supply's filling point", Guidance.vehicleName(self.vehicle))
+            self.emptySupplies = self.emptySupplies or {}
+            self.emptySupplies[r.supply] = true
+            if not self:startEdgeRefill(needer, r.needIx, r.types) then
+                self.refill = nil
+                self:stop(AIMessageErrorOutOfFill.new(), "NEEDS_FILLING")
+            end
+            return x + math.cos(h), z + math.sin(h), true, 0, 0
+        end
+        return x + math.cos(r.creepH) * 5, z + math.sin(r.creepH) * 5, true, Driver.REFILL_CREEP, 5
+    elseif r.phase == "fill" then
+        local filling = fillSpec and fillSpec.fillTrigger and fillSpec.fillTrigger.isFilling
+        if level >= Driver.REFILL_FULL then
+            if filling then needer:setFillUnitIsFilling(false) end
+            self:refillBack(x, z, h)
+        elseif level > r.lastLevel + 0.001 then
+            r.lastLevel, r.stall = level, 0
+        else
+            r.stall = r.stall + dt
+            if r.stall > Driver.REFILL_STALL then
+                -- not getting fuller: that supply is empty; enough to go on with, or the next one
+                if filling then needer:setFillUnitIsFilling(false) end
+                self.emptySupplies = self.emptySupplies or {}
+                self.emptySupplies[r.supply] = true
+                if level > 0.2 or not self:startEdgeRefill(needer, r.needIx, r.types) then
+                    if level > 0.02 then
+                        self:refillBack(x, z, h)
+                    else
+                        self.refill = nil
+                        self:stop(AIMessageErrorOutOfFill.new(), "NEEDS_FILLING")
+                    end
+                end
+            elseif not filling then
+                -- (the game stops filling when the supply runs dry or the trigger changes: start it again once)
+                needer:setFillUnitIsFilling(true)
+            end
+        end
+        return x + math.cos(h), z + math.sin(h), true, 0, 0
+    elseif r.phase == "back" then
+        local gx, gz, fwd, speed, toStop = follow(r.path)
+        if gx then return gx, gz, fwd, speed, toStop end
+        -- where we stopped: the course on from there
+        self.follower, self.turns, self.keepGaps = r.follower, r.turns, r.keepGaps
+        self.turnIx = nil
+        self.refill = nil
+        self.lastS = nil
+        Guidance.info("%s: refilled, going on", Guidance.vehicleName(self.vehicle))
+        return x + math.cos(h), z + math.sin(h), true, 0, 0
+    end
+    return x + math.cos(h), z + math.sin(h), true, 0, 0
+end
+
+function Driver:refillBack(x, z, h)
+    local r = self.refill
+    r.phase = "back"
+    r.path = self:refillPath(x, z, h, r.resume.x, r.resume.z, r.resume.h)
 end

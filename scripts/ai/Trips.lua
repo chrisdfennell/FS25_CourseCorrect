@@ -12,12 +12,12 @@ Trips.FILL_TIMEOUT = 90000 -- ms at a load trigger without filling before giving
 function Trips.targetOf(station)
     if station == nil then return nil end
     if station.getAITargetPositionAndDirection then
-        local ok, x, z, dx, dz = pcall(station.getAITargetPositionAndDirection, station, FillType and FillType.UNKNOWN)
+        local ok, x, z, dx, dz = Guidance.try(station.getAITargetPositionAndDirection, station, FillType and FillType.UNKNOWN)
         if ok and x then return x, z, dx or 0, dz or 1 end
     end
     local trigger = station.unloadTriggers and station.unloadTriggers[1]
     if trigger and trigger.supportsAIUnloading and trigger.getAITargetPositionAndDirection then
-        local ok, x, z, dx, dz = pcall(trigger.getAITargetPositionAndDirection, trigger)
+        local ok, x, z, dx, dz = Guidance.try(trigger.getAITargetPositionAndDirection, trigger)
         if ok and x then return x, z, dx or 0, dz or 1 end
     end
     local node = (trigger and trigger.exactFillRootNode) or (station.loadTriggers and station.loadTriggers[1]
@@ -33,7 +33,7 @@ end
 function Trips.nameOf(station)
     local placeable = station and station.owningPlaceable
     if placeable and placeable.getName then
-        local ok, name = pcall(placeable.getName, placeable)
+        local ok, name = Guidance.try(placeable.getName, placeable)
         if ok and name and name ~= "" then return name end
     end
     return station and station.getName and station:getName() or "?"
@@ -224,7 +224,7 @@ function GuidanceFillTask:update(dt)
             if triggerReaches(trigger, w.object, w.fillUnitIndex) and trigger.onFillTypeSelection then
                 trigger.autoStart = true
                 trigger.selectedFillType = w.fillType
-                local ok = pcall(trigger.onFillTypeSelection, trigger, w.fillType)
+                local ok = Guidance.try(trigger.onFillTypeSelection, trigger, w.fillType)
                 if ok and trigger.isLoading then
                     trigger.autoStart = false
                     self.loading = {trigger = trigger, object = w.object, fillUnitIndex = w.fillUnitIndex}
@@ -249,7 +249,7 @@ function Trips.refillTypes(vehicle)
     for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {vehicle}) do
         if v.spec_sowingMachine and FillType and FillType.SEEDS then add(FillType.SEEDS) end
         if v.getSprayerFillUnitIndex then
-            local ok, ix = pcall(v.getSprayerFillUnitIndex, v)
+            local ok, ix = Guidance.try(v.getSprayerFillUnitIndex, v)
             if ok and ix and v.getFillUnitSupportedFillTypes then
                 for ft, yes in pairs(v:getFillUnitSupportedFillTypes(ix) or {}) do
                     if yes then add(ft) end

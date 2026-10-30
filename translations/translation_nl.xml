@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Wacht op de pers"/>
         <text name="guidance_orchard_name" text="Boomgaard %d"/>
         <text name="guidance_warn_convoyNarrow" text="Te smal voor een konvooi van %d: ongeveer %d%% blijft onbewerkt. Probeer Volgende vrije rij of Stroken."/>
+        <text name="guidance_info_WAITING_RAIN" text="Wacht tot de regen stopt (nu oogsten kost opbrengst)"/>
+        <text name="guidance_set_rainWait" text="Bij regen"/>
+        <text name="guidance_rain_wait" text="Wachten"/>
+        <text name="guidance_rain_go" text="Doorgaan"/>
+        <text name="guidance_refill_edge" text="Voorraad aan de veldrand"/>
+        <text name="guidance_import_courseplay" text="Courseplay: %s"/>
+        <text name="guidance_set_edgeObstacles" text="Obstakels bij de rand"/>
+        <text name="guidance_edge_over" text="Overheen rijden"/>
+        <text name="guidance_edge_round" text="Omheen werken"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Routebestand importeren"/>
         <text name="guidance_import_title" text="%d routebestanden"/>
         <text name="guidance_import_refresh" text="Opnieuw zoeken"/>
-        <text name="guidance_import_hint" text="Routebestanden uit je map modSettings/FS25_CourseCorrect/courses (Exporteren zet ze daar; kopieer die van een vriend erheen)."/>
+        <text name="guidance_import_hint" text="Routebestanden uit je map modSettings/FS25_CourseCorrect/courses (Exporteren zet ze daar; kopieer die van een vriend erin), en de opgeslagen Courseplay-routes van deze kaart: hun veld, breedte, kopakkers en rijrichting, met de eigen keringen van CourseCorrect."/>
         <text name="guidance_import_none" text="Nog geen routebestanden daar"/>
         <text name="guidance_import_one" text="Importeren"/>
         <text name="guidance_import_done" text="%s geïmporteerd in de opgeslagen routes"/>

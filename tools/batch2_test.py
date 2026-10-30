@@ -40,6 +40,83 @@ local function get(h, k) return handles[h].v[k] end
 setXMLInt, setXMLFloat, setXMLBool, setXMLString = set, set, set, set
 getXMLInt, getXMLFloat, getXMLBool, getXMLString = get, get, get, get
 
+
+--- A Courseplay course file (its format: rows as start and end only, no turns) of one of our courses on the field:
+--- read back, the plan has its settings; imported, the course made from it has its rows' direction
+function checkCourseplay(flat)
+    local r = {}
+    local plan = GuidancePlan.new()
+    plan.fieldId = 7
+    plan.workWidth, plan.autoWidth, plan.turnRadius, plan.headlands, plan.rowAngle = 9, false, 7, 2, 30
+    plan.clockwise, plan.headlandsFirst = false, true
+    local course = assert(GuidanceCourse.generate(plan))
+    g_currentMission.missionInfo = g_currentMission.missionInfo or {}
+    g_currentMission.missionInfo.mapId = "TestMap.SampleMap"
+    local path = "profile/modSettings/FS25_Courseplay/Courses/TestMap.SampleMap/Singleplayer/Field 7/Harvest"
+    local v = {}
+    local key = "Courses.Course(0)"
+    v[key .. "#name"] = "Harvest"
+    v[key .. "#workWidth"] = 9
+    v[key .. "#numHeadlands"] = 2
+    v[key .. "#headlandClockwise"] = false
+    local n = 0
+    for _, w in ipairs(course.waypoints) do
+        local wk = string.format("%s.wp(%d)", key, n)
+        local keep = false
+        if w.t == "H" and w.pass then
+            v[wk .. "#headlandPassNumber"] = w.pass
+            v[wk .. "#boundaryId"] = "F"
+            keep = true
+        elseif w.rs and w.t == "R" then
+            v[wk .. "#rowStart"] = true
+            keep = true
+        elseif w.re and w.t == "R" then
+            v[wk .. "#rowEnd"] = true
+            keep = true
+        end
+        if keep then
+            v[wk .. "#position"] = string.format("%.2f 100.00 %.2f", w.x, w.z)
+            n = n + 1
+        end
+    end
+    FILES[path] = v
+    local list = GuidanceCourseplayImport.list()
+    r.cpListed = #list == 1 and list[1].path == path
+    local name, p2, outline = GuidanceCourseplayImport.read(path)
+    r.cpRead = name == "Harvest" and p2 ~= nil and p2.workWidth == 9 and p2.headlands == 2 and p2.clockwise == false
+        and p2.headlandsFirst == true and math.abs((p2.rowAngle or -1) - 30) < 0.5 and p2.fieldId == 7 and outline == nil
+    -- imported: a saved course, its course the same rows' direction and passes
+    local before = #GuidanceLibrary.entries
+    GuidanceLibrary.importCourse(name, 1, p2, outline)
+    local entry = GuidanceLibrary.entries[#GuidanceLibrary.entries]
+    local c2 = entry and GuidanceCourse.generate(entry.plan)
+    r.cpImported = #GuidanceLibrary.entries == before + 1 and c2 ~= nil
+        and math.abs(c2.stats.rowAngle - course.stats.rowAngle) < 0.5 and c2.stats.headlands == 2
+        and c2.stats.rows == course.stats.rows
+    -- a field the map doesn't have: its outline round the outermost headland pass
+    local realGet = GuidanceCourse.getMapFieldIdAt
+    GuidanceCourse.getMapFieldIdAt = function() return nil end
+    local _, p3, outline3 = GuidanceCourseplayImport.read(path)
+    GuidanceCourse.getMapFieldIdAt = realGet
+    local function area(pts)
+        local a = 0
+        for i = 1, #pts do
+            local q, w = pts[i], pts[i % #pts + 1]
+            a = a + q.x * w.z - w.x * q.z
+        end
+        return math.abs(a) / 2
+    end
+    local fieldPts = {}
+    for i = 1, #flat - 1, 2 do fieldPts[#fieldPts + 1] = {x = flat[i], z = flat[i + 1]} end
+    local ratio = outline3 and area(outline3) / area(fieldPts) or 0
+    r.cpOwnField = p3 ~= nil and outline3 ~= nil and ratio > 0.9 and ratio < 1.1
+    CP_INFO = string.format("%d waypoints written; read back: width %s, headlands %s, clockwise %s, first %s, rows at %.1f deg (made at %.1f); own field: outline %.0f%% of the field's area",
+        n, tostring(p2 and p2.workWidth), tostring(p2 and p2.headlands), tostring(p2 and p2.clockwise),
+        tostring(p2 and p2.headlandsFirst), p2 and p2.rowAngle or -1, course.stats.rowAngle, ratio * 100)
+    FILES[path] = nil
+    return r
+end
+
 local function outlineOf(flat)
     local pts = {}
     for i = 1, #flat - 1, 2 do pts[#pts + 1] = {x = flat[i], z = flat[i + 1]} end
@@ -200,8 +277,12 @@ def main():
     print("drive:", G.DRIVE)
     for name, value in G.checkExport(vehicle).items():
         results[name] = value
+    for name, value in G.checkCourseplay(lua.table_from(flat)).items():
+        results[name] = value
+    print("courseplay:", G.CP_INFO)
     for name in ("headlandsOnly", "rowsOnly", "rowRange", "turnSpeed", "workSpeed", "lightsOn", "lightsBack", "logEntry",
-                 "logStream", "exportFile", "importSameField", "importNewField"):
+                 "logStream", "exportFile", "importSameField", "importNewField", "cpListed", "cpRead", "cpImported",
+                 "cpOwnField"):
         good = bool(results.get(name))
         ok = ok and good
         print(f"{name}: {'OK' if good else 'FAILED'}")

@@ -7,12 +7,35 @@ Guidance = {
     MOD_NAME = g_currentModName,
     MOD_DIR = g_currentModDirectory,
     SPEC_NAME = g_currentModName .. ".guidance",
-    VERSION = "0.7.2.0",
+    VERSION = "1.0.0.0",
     -- the name players see
     TITLE = "CourseCorrect",
     -- the mod's name before 0.5: its data is read once, and it must not be loaded as well
     OLD_MOD_NAME = "FS25_Guidance",
 }
+
+-- errors in calls that may fail (other mods' functions, the game's for an odd implement, a frame of our own): written
+-- to the log (each one once, at most ERRORS of them), and the caller carries on
+Guidance.ERRORS = 50
+Guidance.errorsSeen, Guidance.errorCount = {}, 0
+
+function Guidance.onError(err)
+    local text = tostring(err)
+    if not Guidance.errorsSeen[text] and Guidance.errorCount < Guidance.ERRORS then
+        Guidance.errorsSeen[text] = true
+        Guidance.errorCount = Guidance.errorCount + 1
+        print("CourseCorrect: error (carried on): " .. text)
+        if GuidanceDebug then GuidanceDebug.remember("error: " .. text) end
+    end
+    return err
+end
+
+--- Calls fn(...); an error in it is logged (see onError) instead of stopping us. Returns true and fn's results, or
+--- false and the error
+function Guidance.try(fn, ...)
+    local n, args = select("#", ...), {...}
+    return xpcall(function() return fn(unpack(args, 1, n)) end, Guidance.onError)
+end
 
 function Guidance.info(fmt, ...)
     local line = string.format(fmt, ...)
@@ -22,7 +45,7 @@ end
 
 function Guidance.debug(fmt, ...)
     -- (kept for a problem report even when not printed)
-    local ok, line = pcall(string.format, fmt, ...)
+    local ok, line = Guidance.try(string.format, fmt, ...)
     if not ok then return end
     if GuidanceDebug then GuidanceDebug.remember(line) end
     if Guidance.debugEnabled then
@@ -49,6 +72,7 @@ Guidance.NOTIFY = {
     NEEDS_FILLING = "INGAME_NOTIFICATION_INFO",
     FUEL_IS_LOW = "INGAME_NOTIFICATION_INFO",
     NEXT_FIELD_WAITING = "INGAME_NOTIFICATION_INFO",
+    WAITING_RAIN = "INGAME_NOTIFICATION_INFO",
 }
 
 --- Tells the player (if it is their farm's vehicle) that a helper got a status: finished, full, stuck...
@@ -62,7 +86,7 @@ function Guidance.notify(vehicle, name)
     end
     -- and a sound (if the player wants that): the game's error sound for trouble, its notification sound else
     if GuidancePrefs == nil or GuidancePrefs.soundAlerts ~= false then
-        pcall(function()
+        Guidance.try(function()
             local samples = GuiSoundPlayer and GuiSoundPlayer.SOUND_SAMPLES
             if samples and g_gui and g_gui.soundPlayer then
                 local critical = Guidance.NOTIFY[name] == "INGAME_NOTIFICATION_CRITICAL"
@@ -206,7 +230,7 @@ end
 
 function Guidance:draw()
     if GuidancePrefs and GuidancePrefs.debugOverlay and GuidanceDebug and not g_gui:getIsGuiVisible() then
-        local ok, err = pcall(GuidanceDebug.draw)
+        local ok, err = Guidance.try(GuidanceDebug.draw)
         if not ok and not self.overlayFailed then
             self.overlayFailed = true
             Guidance.info("overlay: %s", tostring(err))
@@ -214,7 +238,7 @@ function Guidance:draw()
     end
     if self.hud and not g_gui:getIsGuiVisible() and not g_noHudModeEnabled then
         -- the alerts (a broken one must not take the panel with it)
-        local ok, err = pcall(self.hud.drawAlerts, self.hud)
+        local ok, err = Guidance.try(self.hud.drawAlerts, self.hud)
         if not ok and not self.alertsFailed then
             self.alertsFailed = true
             Guidance.info("alerts: %s", tostring(err))

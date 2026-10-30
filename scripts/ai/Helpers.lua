@@ -50,7 +50,7 @@ function Base.init(self, vehicle)
         for i, p in ipairs(outline) do poly[i] = {x = p.x, y = p.z} end
         self.field = GuidanceGeo.ensureCCW(poly)
         self.area = {field = self.field}
-        local ok, probe = pcall(GuidanceFruitProbe.new, outline)
+        local ok, probe = Guidance.try(GuidanceFruitProbe.new, outline)
         self.probe = ok and probe or nil
     end
 end
@@ -317,7 +317,7 @@ function Unload:pipePoint(combine)
     end
     local spec = harvester and harvester.spec_pipe
     if spec and spec.currentState == 2 and harvester.getPipeDischargeNodeIndex and harvester.getDischargeNodeByIndex then
-        local ok, node = pcall(function()
+        local ok, node = Guidance.try(function()
             return harvester:getDischargeNodeByIndex(harvester:getPipeDischargeNodeIndex())
         end)
         if ok and node and node.node then
@@ -1066,7 +1066,7 @@ function Silo.new(vehicle, job)
     self.state = "drive"
     -- a compacter roller: down
     for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {}) do
-        if v.spec_bunkerSiloCompacter and v.aiImplementStartLine then pcall(v.aiImplementStartLine, v) end
+        if v.spec_bunkerSiloCompacter and v.aiImplementStartLine then Guidance.try(v.aiImplementStartLine, v) end
     end
     return self
 end

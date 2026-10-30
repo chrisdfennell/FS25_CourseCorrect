@@ -838,7 +838,7 @@ function Builder:route(to, t, allowOutside)
     end
     -- still off the field (between parts of a field split at a notch): a way on the field found on a grid
     if bestOutside > 0 and not allowOutside and GuidancePathfinder and self.field then
-        local ok, pts = pcall(GuidancePathfinder.find, {field = self.field, fieldIndex = self.fieldIndex},
+        local ok, pts = Guidance.try(GuidancePathfinder.find, {field = self.field, fieldIndex = self.fieldIndex},
             {workWidth = self.s.workWidth, turnRadius = self.s.turnRadius}, from, to, nil)
         if ok and pts and #pts > 0 then
             local list = {}
@@ -1818,9 +1818,141 @@ function CG.rowsOf(wps)
     return rows
 end
 
+--- Obstacles near the field edge (within the headland passes' reach), when the player wants them worked round: each
+--- one is notched into the field's outline, so every headland pass bends round it. The strip between it and the
+--- edge (too narrow to work anyway) stays unworked. The others stay islands (worked round where they fit).
+CG.NOTCH_CLEARANCE = 1 -- m between the obstacle and the implement's edge
+CG.NOTCH_EXTRA = 1 -- m the notch reaches past the obstacle along the edge
+
+local function toXY(pts)
+    local out = {}
+    for i, p in ipairs(pts) do out[i] = {x = p.x, y = p.z or p.y} end
+    return out
+end
+
+local function sameXY(a, b) return math.abs(a.x - b.x) < 1e-6 and math.abs(a.y - b.y) < 1e-6 end
+
+--- The closest point on the outline to p and the index of its edge (poly[i] -> poly[i + 1])
+local function closestOnOutline(p, poly)
+    local best, bestD, bestI = nil, math.huge, nil
+    local n = #poly
+    for i = 1, n do
+        local a, b = poly[i], poly[i % n + 1]
+        local dx, dy = b.x - a.x, b.y - a.y
+        local l2 = dx * dx + dy * dy
+        local t = l2 > 0 and math.max(0, math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) or 0
+        local q = {x = a.x + dx * t, y = a.y + dy * t}
+        local d = Geo.dist(p, q)
+        if d < bestD then best, bestD, bestI = q, d, i end
+    end
+    return best, bestI
+end
+
+--- The outline (CCW) with a notch round the obstacle (CCW, grown by the clearance), or nil when that doesn't work out
+local function notchInto(poly, grown)
+    local n = #poly
+    local c = Geo.center(grown)
+    local q, i = closestOnOutline(c, poly)
+    local a, b = poly[i], poly[i % n + 1]
+    local len = Geo.dist(a, b)
+    if len < 1e-6 then return nil end
+    local dx, dy = (b.x - a.x) / len, (b.y - a.y) / len
+    -- the obstacle's reach along the edge there, a bit more
+    local tmin, tmax = math.huge, -math.huge
+    for _, p in ipairs(grown) do
+        local t = (p.x - q.x) * dx + (p.y - q.y) * dy
+        tmin, tmax = math.min(tmin, t), math.max(tmax, t)
+    end
+    local A = {x = q.x + dx * (tmin - CG.NOTCH_EXTRA), y = q.y + dy * (tmin - CG.NOTCH_EXTRA)}
+    local B = {x = q.x + dx * (tmax + CG.NOTCH_EXTRA), y = q.y + dy * (tmax + CG.NOTCH_EXTRA)}
+    local Ap, iA = closestOnOutline(A, poly)
+    local Bp, iB = closestOnOutline(B, poly)
+    -- the way round it: the far side of the hull of the obstacle and the two points on the edge (the obstacle on
+    -- its right, outside the field, as the outline goes CCW)
+    local pts = {Ap, Bp}
+    for _, p in ipairs(grown) do pts[#pts + 1] = p end
+    local hull = Geo.convexHull(pts)
+    local hA, hB
+    for k, p in ipairs(hull) do
+        if sameXY(p, Ap) then hA = k end
+        if sameXY(p, Bp) then hB = k end
+    end
+    if hA == nil or hB == nil then return nil end
+    local m = #hull
+    local chain, k = {}, hA
+    repeat
+        k = (k - 2) % m + 1
+        if k ~= hB then chain[#chain + 1] = hull[k] end
+    until k == hB or #chain > m
+    if #chain == 0 or #chain > m then return nil end
+    -- the outline from Bp round to Ap (the rest of the field), then the way round the obstacle back to Bp
+    local out = {Bp}
+    local j = iB % n + 1
+    for _ = 1, n do
+        out[#out + 1] = poly[j]
+        if j == iA then break end
+        j = j % n + 1
+    end
+    out[#out + 1] = Ap
+    for _, p in ipairs(chain) do out[#out + 1] = p end
+    out = Geo.removeDuplicates(out, 0.05)
+    -- still a field: most of it left, and the notch not crossing the outline
+    if #out < 3 or Geo.signedArea(out) < 0.5 * Geo.signedArea(poly) then return nil end
+    local first = #out - #chain - 1
+    for s = math.max(1, first), #out do
+        local p1, p2 = out[s], out[s % #out + 1]
+        for t = 1, #out do
+            local q1, q2 = out[t], out[t % #out + 1]
+            local adjacent = t == s or t % #out + 1 == s or s % #out + 1 == t
+            if not adjacent and Geo.segmentIntersection(p1, p2, q1, q2) then return nil end
+        end
+    end
+    return out
+end
+
+--- boundary (list of {x, z}), islands (convex polygons {x, z}), band: how far in from the edge an obstacle is "near
+--- the edge". Returns the boundary with those notched in, the islands left, how many were notched.
+function CG.notchEdgeIslands(boundary, islands, band)
+    local poly = Geo.ensureCCW(toXY(boundary))
+    local keep, notched = {}, 0
+    for _, island in ipairs(islands or {}) do
+        local done = false
+        local ob = Geo.convexHull(toXY(island))
+        if #ob >= 3 and Geo.pointInPolygon(Geo.center(ob), poly) then
+            local near = math.huge
+            for _, p in ipairs(ob) do near = math.min(near, Geo.distToPolygon(p, poly)) end
+            if near < band then
+                local grown = Geo.offsetOutward(Geo.ensureCCW(ob), CG.NOTCH_CLEARANCE)
+                local new = grown and notchInto(poly, grown)
+                if new then
+                    poly, done, notched = new, true, notched + 1
+                end
+            end
+        end
+        if not done then keep[#keep + 1] = island end
+    end
+    local out = {}
+    for i, p in ipairs(poly) do out[i] = {x = p.x, z = p.y} end
+    return out, keep, notched
+end
+
 --- Generates a course for the field outline (list of {x, z} or {x, y} world points).
 --- Returns course {waypoints, stats, settings, boundary, area} or nil, error text
 function CG.generate(boundary, settings)
+    -- obstacles near the edge worked round (if the player wants that): notched into the outline first
+    if settings.edgeObstacles and settings.islands and #settings.islands > 0 then
+        local s0 = withDefaults(settings)
+        local spacing = spacingOf(s0)
+        local passes = s0.headlands >= 0 and s0.headlands or CG.autoHeadlands(s0, CG.PATTERN_ADJACENT)
+        local notched
+        local copy = {}
+        for k, v in pairs(settings) do copy[k] = v end
+        boundary, copy.islands, notched = CG.notchEdgeIslands(boundary, settings.islands, (passes + 1) * spacing)
+        copy.edgeObstacles = false
+        local course, err = CG.generate(boundary, copy)
+        if course then course.stats.notched = notched end
+        return course, err
+    end
     local s = withDefaults(settings)
     if s.workWidth <= 0.5 then
         return nil, "work width too small"

@@ -51,7 +51,7 @@ g_fruitTypeManager = {getFruitTypeByIndex = function() return {seedUsagePerSqm =
 RenderText = {ALIGN_LEFT = 0, ALIGN_CENTER = 1, ALIGN_RIGHT = 2}
 Input = {MOUSE_BUTTON_LEFT = 1}
 Utils = {getFilename = function(f, dir) return dir .. f end}
-Guidance = {MOD_DIR = "", TITLE = "CourseCorrect", debug = function() end, info = function() end,
+Guidance = {MOD_DIR = "", TITLE = "CourseCorrect", debug = function() end, info = function() end, try = pcall,
             vehicleName = function(v) return v:getName() end}
 function getWorldTranslation(n) return n.x, 0, n.z end
 function localDirectionToWorld(n) return math.cos(n.h), 0, math.sin(n.h) end

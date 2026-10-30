@@ -323,7 +323,7 @@ function Probe.new(outline)
                 for j = 0, parts - 1 do
                     if not present then
                         local x0, z0 = minX + i * w, minY + j * hgt
-                        local ok, value = pcall(FSDensityMapUtil.getFruitArea, fruitType.index, x0, z0, x0 + w, z0,
+                        local ok, value = Guidance.try(FSDensityMapUtil.getFruitArea, fruitType.index, x0, z0, x0 + w, z0,
                             x0, z0 + hgt, true, true)
                         present = ok and value ~= nil and value > 0
                     end
@@ -344,7 +344,7 @@ function Probe:hasFruit(x, z, size)
     end
     local s = (size or 3) / 2
     for _, index in ipairs(self.fruitIndexes) do
-        local ok, value = pcall(FSDensityMapUtil.getFruitArea, index, x - s, z - s, x + s, z - s, x - s, z + s, true, true)
+        local ok, value = Guidance.try(FSDensityMapUtil.getFruitArea, index, x - s, z - s, x + s, z - s, x - s, z + s, true, true)
         if ok and value ~= nil and value > 0 then
             return true
         end

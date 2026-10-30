@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Attend la presse"/>
         <text name="guidance_orchard_name" text="Verger %d"/>
         <text name="guidance_warn_convoyNarrow" text="Trop étroit pour un convoi de %d : environ %d%% restent non travaillés. Essayez Prochain rang libre ou Bandes."/>
+        <text name="guidance_info_WAITING_RAIN" text="Attend la fin de la pluie (récolter maintenant réduit le rendement)"/>
+        <text name="guidance_set_rainWait" text="Sous la pluie"/>
+        <text name="guidance_rain_wait" text="Attendre"/>
+        <text name="guidance_rain_go" text="Continuer"/>
+        <text name="guidance_refill_edge" text="Réserve en bordure du champ"/>
+        <text name="guidance_import_courseplay" text="Courseplay : %s"/>
+        <text name="guidance_set_edgeObstacles" text="Obstacles près du bord"/>
+        <text name="guidance_edge_over" text="Passer dessus"/>
+        <text name="guidance_edge_round" text="Contourner"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
         <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Importer un fichier de parcours"/>
         <text name="guidance_import_title" text="%d fichiers de parcours"/>
         <text name="guidance_import_refresh" text="Actualiser"/>
-        <text name="guidance_import_hint" text="Fichiers de parcours de votre dossier modSettings/FS25_CourseCorrect/courses (Exporter les y place ; copiez-y ceux d'un ami)."/>
+        <text name="guidance_import_hint" text="Fichiers de parcours de votre dossier modSettings/FS25_CourseCorrect/courses (Exporter les y place ; copiez-y ceux d'un ami), et les parcours Courseplay enregistrés de cette carte : leur champ, largeur, tournières et sens des rangs, avec les demi-tours de CourseCorrect."/>
         <text name="guidance_import_none" text="Aucun fichier de parcours pour l'instant"/>
         <text name="guidance_import_one" text="Importer"/>
         <text name="guidance_import_done" text="%s importé dans les parcours enregistrés"/>

@@ -1,4 +1,5 @@
-"""Draws the mod icon and writes it as a 256x256 DXT5 .dds (the format the game reads for mod icons).
+"""Draws the mod icon and writes it as a 512x512 DXT1 .dds (what GIANTS' TestRunner wants for a mod icon: opaque,
+no alpha channel).
 
 Usage:
     python make_icon.py <out.dds> [preview.png]
@@ -92,7 +93,7 @@ def draw_icon():
             font = ImageFont.load_default(size=size)
     w = d.textlength(text, font=font)
     d.text(((S - w) / 2, S - 215), text, font=font, fill=(240, 246, 242, 255))
-    return img.resize((256, 256), Image.LANCZOS)
+    return img.resize((512, 512), Image.LANCZOS)
 
 
 def rgb565(c):
@@ -105,19 +106,7 @@ def from565(v):
 
 
 def encode_block(block):
-    """block: 16x4 uint8 RGBA -> 16 bytes DXT5"""
-    alpha = block[:, 3].astype(int)
-    a0, a1 = alpha.max(), alpha.min()
-    if a0 == a1:
-        a_idx = [0] * 16
-    else:
-        pal = [a0, a1] + [((7 - i) * a0 + i * a1) / 7 for i in range(1, 7)]
-        a_idx = [int(np.argmin([abs(a - p) for p in pal])) for a in alpha]
-    bits = 0
-    for i, ix in enumerate(a_idx):
-        bits |= ix << (3 * i)
-    alpha_bytes = bytes([a0, a1]) + bits.to_bytes(6, "little")
-
+    """block: 16x4 uint8 RGBA -> 8 bytes DXT1 (four colour mode: the icon is opaque)"""
     rgb = block[:, :3].astype(float)
     lum = rgb @ np.array([0.299, 0.587, 0.114])
     c0, c1 = rgb[lum.argmax()], rgb[lum.argmin()]
@@ -133,8 +122,7 @@ def encode_block(block):
     bits = 0
     for i, ix in enumerate(idx):
         bits |= ix << (2 * i)
-    color_bytes = struct.pack("<HH", v0, v1) + bits.to_bytes(4, "little")
-    return alpha_bytes + color_bytes
+    return struct.pack("<HH", v0, v1) + bits.to_bytes(4, "little")
 
 
 def write_dds(img, path):
@@ -145,7 +133,7 @@ def write_dds(img, path):
         for bx in range(0, w, 4):
             data += encode_block(a[by:by + 4, bx:bx + 4].reshape(16, 4))
     header = struct.pack("<4s7I44x", b"DDS ", 124, 0x81007, h, w, len(data), 0, 0)
-    pixel_format = struct.pack("<2I4s5I", 32, 0x4, b"DXT5", 0, 0, 0, 0, 0)
+    pixel_format = struct.pack("<2I4s5I", 32, 0x4, b"DXT1", 0, 0, 0, 0, 0)
     caps = struct.pack("<5I", 0x1000, 0, 0, 0, 0)
     with open(path, "wb") as f:
         f.write(header + pixel_format + caps + bytes(data))

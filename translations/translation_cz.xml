@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Čeká na lis"/>
         <text name="guidance_orchard_name" text="Sad %d"/>
         <text name="guidance_warn_convoyNarrow" text="Příliš úzké pro kolonu %d: asi %d%% zůstane nezpracováno. Zkuste Další volná řada nebo Pásy."/>
+        <text name="guidance_info_WAITING_RAIN" text="Čeká, až přestane pršet (sklízet teď snižuje výnos)"/>
+        <text name="guidance_set_rainWait" text="V dešti"/>
+        <text name="guidance_rain_wait" text="Čekat"/>
+        <text name="guidance_rain_go" text="Pokračovat"/>
+        <text name="guidance_refill_edge" text="Zásoby na kraji pole"/>
+        <text name="guidance_import_courseplay" text="Courseplay: %s"/>
+        <text name="guidance_set_edgeObstacles" text="Překážky u okraje"/>
+        <text name="guidance_edge_over" text="Přejíždět"/>
+        <text name="guidance_edge_round" text="Objíždět"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Importovat soubor trasy"/>
         <text name="guidance_import_title" text="%d souborů tras"/>
         <text name="guidance_import_refresh" text="Hledat znovu"/>
-        <text name="guidance_import_hint" text="Soubory tras ze složky modSettings/FS25_CourseCorrect/courses (Export je ukládá tam; kopírujte sem i soubory od přátel)."/>
+        <text name="guidance_import_hint" text="Soubory tras ze složky modSettings/FS25_CourseCorrect/courses (Export je tam ukládá; zkopírujte tam soubory kamaráda) a uložené trasy Courseplay této mapy: jejich pole, šířka, souvratě a směr řádků, s vlastními otočkami CourseCorrect."/>
         <text name="guidance_import_none" text="Zatím tam nejsou žádné soubory tras"/>
         <text name="guidance_import_one" text="Importovat"/>
         <text name="guidance_import_done" text="%s importována do uložených tras"/>

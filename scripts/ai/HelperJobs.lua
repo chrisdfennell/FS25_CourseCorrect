@@ -45,7 +45,7 @@ function GuidanceHelperTask:stop(wasJobStopped)
         self.vehicle.spec_guidance.helperDriver = nil
         -- stand still
         if WheelsUtil and WheelsUtil.updateWheelsPhysics then
-            pcall(WheelsUtil.updateWheelsPhysics, self.vehicle, 0, 0, 0, true, true)
+            Guidance.try(WheelsUtil.updateWheelsPhysics, self.vehicle, 0, 0, 0, true, true)
         end
         if self.vehicle.stopVehicle then self.vehicle:stopVehicle() end
     end
@@ -221,7 +221,7 @@ function GuidanceHelperJob:getNextTaskIndex(isSkipTask)
     end
     if cur == task or cur == self.dischargeTask.taskIndex then
         -- the game's deliver logic: the next tipping point and where to drive for it
-        local ok, ix = pcall(AIJobDeliver.getNextTaskIndex, self, isSkipTask)
+        local ok, ix = Guidance.try(AIJobDeliver.getNextTaskIndex, self, isSkipTask)
         if cur == task then
             if ok and ix == self.driveToUnloadingTask.taskIndex and self.driveToUnloadingTask.x ~= nil then
                 return ix
@@ -248,7 +248,7 @@ end
 function GuidanceHelperJob:canContinueWork()
     if self.kind == "unload" and self.driveToUnloadingTask and (self.currentTaskIndex == self.driveToUnloadingTask.taskIndex
             or self.currentTaskIndex == self.dischargeTask.taskIndex) and self.unloadingStationParameter then
-        local ok, can, message = pcall(AIJobDeliver.canContinueWork, self)
+        local ok, can, message = Guidance.try(AIJobDeliver.canContinueWork, self)
         if ok and can == false then return false, message end
     end
     return true, nil

@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 SETUP = r"""
 Guidance = Guidance or {debug = function() end, info = function() end}
+Guidance.try = Guidance.try or pcall
 -- crop everywhere on the field except the outermost headland pass (6 m) and the western third
 function makeProbe(field, harvestedUpTo)
     local index = GuidanceGeo.outlineIndex(field, 10)

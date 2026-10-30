@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Wartet auf die Ballenpresse"/>
         <text name="guidance_orchard_name" text="Obstplantage %d"/>
         <text name="guidance_warn_convoyNarrow" text="Zu schmal für eine Kolonne aus %d: etwa %d%% bleiben unbearbeitet. Besser Nächste freie Bahn oder Streifen."/>
+        <text name="guidance_info_WAITING_RAIN" text="Wartet, bis der Regen aufhört (jetzt dreschen kostet Ertrag)"/>
+        <text name="guidance_set_rainWait" text="Bei Regen"/>
+        <text name="guidance_rain_wait" text="Warten"/>
+        <text name="guidance_rain_go" text="Weiterarbeiten"/>
+        <text name="guidance_refill_edge" text="Vorrat am Feldrand"/>
+        <text name="guidance_import_courseplay" text="Courseplay: %s"/>
+        <text name="guidance_set_edgeObstacles" text="Hindernisse am Rand"/>
+        <text name="guidance_edge_over" text="Überfahren"/>
+        <text name="guidance_edge_round" text="Umfahren"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: Starten"/>
         <text name="guidance_action_stop" text="CourseCorrect: Stoppen"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Kursdatei importieren"/>
         <text name="guidance_import_title" text="%d Kursdateien"/>
         <text name="guidance_import_refresh" text="Neu suchen"/>
-        <text name="guidance_import_hint" text="Kursdateien aus deinem Ordner modSettings/FS25_CourseCorrect/courses (Export legt sie dort ab)."/>
+        <text name="guidance_import_hint" text="Kursdateien aus deinem Ordner modSettings/FS25_CourseCorrect/courses (Export legt sie dort ab; die eines Freundes hineinkopieren) und die gespeicherten Courseplay-Kurse dieser Karte: Feld, Breite, Vorgewende und Bahnrichtung, mit den eigenen Wenden von CourseCorrect."/>
         <text name="guidance_import_none" text="Dort sind noch keine Kursdateien"/>
         <text name="guidance_import_one" text="Import"/>
         <text name="guidance_import_done" text="%s in die gespeicherten Kurse importiert"/>

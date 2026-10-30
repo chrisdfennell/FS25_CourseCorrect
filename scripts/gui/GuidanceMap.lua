@@ -76,7 +76,7 @@ function Map.draw()
     if Map.disabled or not mapOpen() then
         return
     end
-    local ok, err = pcall(function()
+    local ok, err = Guidance.try(function()
         for _, v in ipairs(Map.getFarmVehicles()) do
             local course = v:getGuidanceCourse()
             if course then

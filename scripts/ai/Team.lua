@@ -164,7 +164,7 @@ end
 local function nearestOrder(members, outline, base)
     local angle = base.rowAngle
     if angle == nil or angle < 0 then
-        local ok, course = pcall(GuidanceCourseGenerator.generate, outline, base:getGeneratorSettings())
+        local ok, course = Guidance.try(GuidanceCourseGenerator.generate, outline, base:getGeneratorSettings())
         angle = ok and course and course.stats.rowAngle or 0
     end
     local a = math.rad(angle)

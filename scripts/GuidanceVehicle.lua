@@ -11,7 +11,7 @@ GuidanceVehicle.OLD_SAVE_KEY = "vehicles.vehicle(?).FS25_Guidance.guidance"
 -- status texts; the names are the ones AutoDrive's ticker knows from Courseplay
 -- (sent as bits: only add at the end)
 GuidanceVehicle.INFO_TEXTS = {"NEEDS_UNLOADING", "NEEDS_FILLING", "FUEL_IS_LOW", "FUEL_IS_EMPTY", "IS_STUCK", "FINISHED",
-                              "NEXT_FIELD_WAITING", "GIVING_WAY"}
+                              "NEXT_FIELD_WAITING", "GIVING_WAY", "WAITING_RAIN"}
 
 -- the next field of the queue: closer than this the helper drives there itself, else AutoDrive takes it
 GuidanceVehicle.QUEUE_NEAR = 150
@@ -454,7 +454,7 @@ function GuidanceVehicle.pipeSide(self)
     end
     local x
     if harvester.getCurrentDischargeNode then
-        local ok, node = pcall(harvester.getCurrentDischargeNode, harvester)
+        local ok, node = Guidance.try(harvester.getCurrentDischargeNode, harvester)
         if ok and node and node.node then
             x = localToLocal(node.node, self.rootNode, 0, 0, 0)
         end
@@ -519,7 +519,7 @@ end
 
 -- settings only for starting the helper: changing them doesn't make the course again
 GuidanceVehicle.START_SETTINGS = {startMode = true, refillX = true, refillZ = true, unloadX = true, unloadZ = true,
-                                  unloadFull = true, unloadMode = true}
+                                  unloadFull = true, unloadMode = true, rainWait = true, refillEdge = true}
 
 --- A setting only for starting: kept in the settings and the course's plan (the course stays as it is, and where it
 --- got to), sent to the server and the other players
@@ -845,7 +845,7 @@ GuidanceVehicle.TIME_RATIO_MIN = 0.6
 GuidanceVehicle.TIME_RATIO_MAX = 2.5
 -- waiting for these isn't driving the course
 GuidanceVehicle.WAITING_TEXTS = {"NEEDS_UNLOADING", "NEEDS_FILLING", "FUEL_IS_EMPTY", "IS_STUCK", "FINISHED",
-                                 "NEXT_FIELD_WAITING", "GIVING_WAY"}
+                                 "NEXT_FIELD_WAITING", "GIVING_WAY", "WAITING_RAIN"}
 
 --- km/h the helper works at (the implements' limit)
 function GuidanceVehicle:getGuidanceWorkSpeed()
@@ -994,7 +994,7 @@ end
 local function nearestMarker(x, z)
     local ad = autoDrive()
     if ad == nil or ad.GetAvailableDestinations == nil then return nil end
-    local ok, destinations = pcall(ad.GetAvailableDestinations, ad)
+    local ok, destinations = Guidance.try(ad.GetAvailableDestinations, ad)
     if not ok or destinations == nil then return nil end
     local best, bestD
     for id, d in pairs(destinations) do
@@ -1046,7 +1046,7 @@ function GuidanceVehicle.updateQueue(self)
     local marker, markerDistance = nearestMarker(first.x, first.z)
     local ad = autoDrive()
     if marker and markerDistance <= GuidanceVehicle.QUEUE_MARKER_RANGE and self.ad and self.ad.stateModule then
-        local ok = pcall(function()
+        local ok = Guidance.try(function()
             self.ad.stateModule:setMode(ad.MODE_DRIVETO)
             ad:StartDriving(self, marker, marker)
         end)
@@ -1132,7 +1132,7 @@ local function writeInfoBits(spec, streamId)
     for i, name in ipairs(GuidanceVehicle.INFO_TEXTS) do
         if spec.infoTexts[name] then bits = bits + 2 ^ (i - 1) end
     end
-    streamWriteUInt8(streamId, bits)
+    streamWriteUInt16(streamId, bits)
     streamWriteBool(streamId, spec.paused == true)
     -- what a helper without a course is doing (GuidanceVehicle.HELPER_PHASES, 0 nothing)
     streamWriteUInt8(streamId, spec.helperPhase or 0)
@@ -1140,7 +1140,7 @@ end
 
 --- notify: tell the player about statuses that just came on (not when joining a game)
 local function readInfoBits(vehicle, spec, streamId, notify)
-    local bits = streamReadUInt8(streamId)
+    local bits = streamReadUInt16(streamId)
     local before = spec.infoTexts or {}
     spec.infoTexts = {}
     for i, name in ipairs(GuidanceVehicle.INFO_TEXTS) do
@@ -1290,7 +1290,7 @@ function GuidanceVehicle:onUpdate(dt)
     end
     driver:update(dt)
     SpecializationUtil.raiseEvent(self, "onAIFieldWorkerActive")
-    local ok, tx, tz, forwards, maxSpeed = pcall(driver.getDriveData, driver, dt)
+    local ok, tx, tz, forwards, maxSpeed = Guidance.try(driver.getDriveData, driver, dt)
     if not ok then
         Guidance.info("%s: helper stopped: %s", Guidance.vehicleName(self), tostring(tx))
         spec.helperDriver = nil

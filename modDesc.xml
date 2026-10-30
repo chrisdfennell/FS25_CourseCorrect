@@ -1,37 +1,32 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
-<modDesc descVersion="105">
+<modDesc descVersion="115">
     <author>Chris Fennell</author>
-    <version>0.7.2.0</version>
+    <version>1.0.0.0</version>
     <title>
         <en>CourseCorrect</en>
-        <de>CourseCorrect</de>
-        <fr>CourseCorrect</fr>
-        <pl>CourseCorrect</pl>
-        <nl>CourseCorrect</nl>
-        <es>CourseCorrect</es>
-        <it>CourseCorrect</it>
-        <cz>CourseCorrect</cz>
     </title>
     <description>
-        <en><![CDATA[CourseCorrect (formerly Guidance): hired helpers that work your fields along a planned course, and helpers for the jobs around it.
+        <en><![CDATA[CourseCorrect: hired helpers that work your fields along a planned course, and helpers for the jobs around it.
 
-- Stand on a field, see the course right away, press Start. Headlands (at least 40 m), rows, smooth turns sized for your vehicle; every row, racetrack, lands, spiral or curved rows; work round islands.
-- Course editor on the map: turn the rows, pick the start, leave rows or areas out.
-- Fields painted with the landscaping tools are read from the ground.
-- Several tractors on one field: strips, lands, convoy or next free row.
-- Unloader: catches a combine's grain under its pipe and takes it to a station on the game's roads. Bale collector, silo compacter, refill trips for seeders and sprayers.
-- Seed, fertiliser and fuel planner (with Precision Farming), alerts on the screen, fleet, work log, saved courses.
+- Stand on a field, see the course right away, press Start. Headlands, rows, smooth turns sized for your vehicle; every row, racetrack, lands, spiral or curved rows; islands worked round.
+- Course editor on the map: turn the rows, pick the start, leave rows or areas out, move points.
+- Fields painted with the landscaping tools are read from the ground. Vineyards and orchards.
+- Several tractors on one field: strips, lands, convoy or next free row; they make room for each other.
+- Unloader for combines and forage harvesters: to a station on the game's roads, into a truck at the field edge, or onto a heap. Bale collector and wrapper, silo compacter, loader (wheel loader, front loader).
+- Refills at a station or from supplies at the field edge; waits out the rain; balers follow the rake's course.
+- Planner for seed, fertiliser and fuel (with Precision Farming), alerts, fleet, work log, saved courses, import of Courseplay courses.
 - Works with AutoDrive. Multiplayer and dedicated servers.
 
 Open the panel: Ctrl+J. Start/stop the helper: Alt+J.]]></en>
-        <de><![CDATA[CourseCorrect (früher Guidance): Helfer, die deine Felder entlang eines geplanten Kurses bearbeiten, und Helfer für die Arbeit drumherum.
+        <de><![CDATA[CourseCorrect: Helfer, die deine Felder entlang eines geplanten Kurses bearbeiten, und Helfer für die Arbeit drumherum.
 
-- Auf ein Feld stellen, Kurs sofort sehen, Start drücken. Vorgewende (mindestens 40 m), Bahnen, weiche Wenden passend zum Fahrzeug; jede Bahn, Rennbahn, Beete, Spirale oder gebogene Bahnen; Inseln werden umfahren.
-- Kurseditor auf der Karte: Bahnen drehen, Start wählen, Bahnen oder Flächen auslassen.
-- Mit den Landschaftswerkzeugen gemalte Felder werden vom Boden gelesen.
-- Mehrere Traktoren auf einem Feld: Streifen, Beete, Kolonne oder nächste freie Bahn.
-- Überlader: nimmt das Korn eines Dreschers unter dem Rohr auf und bringt es auf den Straßen des Spiels zur Station. Ballensammler, Siloverdichter, Nachfüllfahrten für Sämaschinen und Spritzen.
-- Planer für Saatgut, Dünger und Kraftstoff (mit Precision Farming), Hinweise auf dem Bildschirm, Fuhrpark, Arbeitsbuch, gespeicherte Kurse.
+- Auf ein Feld stellen, Kurs sofort sehen, Start drücken. Vorgewende, Bahnen, weiche Wenden passend zum Fahrzeug; jede Bahn, Rennbahn, Beete, Spirale oder gebogene Bahnen; Inseln werden umfahren.
+- Kurseditor auf der Karte: Bahnen drehen, Start wählen, Bahnen oder Flächen auslassen, Punkte verschieben.
+- Mit den Landschaftswerkzeugen gemalte Felder werden vom Boden gelesen. Weinberge und Obstplantagen.
+- Mehrere Traktoren auf einem Feld: Streifen, Beete, Kolonne oder nächste freie Bahn; sie machen einander Platz.
+- Überlader für Drescher und Häcksler: auf den Straßen des Spiels zur Station, in einen LKW am Feldrand oder auf einen Haufen. Ballensammler und -wickler, Siloverdichter, Lader (Radlader, Frontlader).
+- Nachfüllen an einer Station oder aus Vorräten am Feldrand; wartet Regen ab; Pressen folgen dem Kurs des Schwaders.
+- Planer für Saatgut, Dünger und Kraftstoff (mit Precision Farming), Hinweise, Fuhrpark, Arbeitsbuch, gespeicherte Kurse, Import von Courseplay-Kursen.
 - Arbeitet mit AutoDrive. Mehrspieler und dedizierte Server.
 
 Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
@@ -50,6 +45,7 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
         <sourceFile filename="scripts/course/Vines.lua"/>
         <sourceFile filename="scripts/course/Course.lua"/>
         <sourceFile filename="scripts/course/Library.lua"/>
+        <sourceFile filename="scripts/course/CourseplayImport.lua"/>
         <sourceFile filename="scripts/ai/PathFollower.lua"/>
         <sourceFile filename="scripts/ai/VehicleInfo.lua"/>
         <sourceFile filename="scripts/ai/Pathfinder.lua"/>

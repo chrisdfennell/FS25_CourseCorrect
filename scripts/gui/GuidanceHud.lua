@@ -451,6 +451,15 @@ function Hud:getSettingRows(vehicle, scope, all)
         inc = change("workWidth", math.min(60, s.workWidth + 0.5)),
         click = (not s.autoWidth) and change("autoWidth", true) or nil,
     })
+    -- obstacles near the field edge: driven over (the warning says so) or worked round
+    local edge = s.edgeObstacles or 0
+    local edgeNext = edge == 1 and 0 or 1
+    add("edgeObstacles", {
+        label = t("guidance_set_edgeObstacles"),
+        value = t(edge == 1 and "guidance_edge_round" or "guidance_edge_over")
+            .. ((stats and (stats.notched or 0) > 0) and string.format(" · %d", stats.notched) or ""),
+        dec = change("edgeObstacles", edgeNext), inc = change("edgeObstacles", edgeNext),
+    })
     -- a vineyard: on the rows or between them (automatic: on them with a grape harvester / pre-pruner)
     if stats and stats.pattern == "vines" then
         local mode = s.vineMode or 0
@@ -693,26 +702,46 @@ function Hud:getSettingRows(vehicle, scope, all)
                 dec = change("callUnloaderAt", math.max(10, at - 5)),
                 inc = change("callUnloaderAt", math.min(100, at + 5)),
             })
+            -- in the rain: wait (no yield lost) or carry on
+            local rainWait = s.rainWait ~= false
+            add("rainWait", {
+                label = t("guidance_set_rainWait"),
+                value = rainWait and t("guidance_rain_wait") or t("guidance_rain_go"),
+                dec = change("rainWait", not rainWait), inc = change("rainWait", not rainWait),
+            })
         end
         -- a seeder / sprayer: where it refills on its own when empty (the game's roads), unless the helper buys
         if GuidanceTrips and #GuidanceTrips.refillTypes(vehicle) > 0 then
             local list = GuidanceTrips.refillStations(vehicle)
-            local station = GuidanceTrips.find(list, s.refillX, s.refillZ)
-            local value
-            if station then
-                value = GuidanceTrips.nameOf(station)
-            elseif g_currentMission and g_currentMission.missionInfo and g_currentMission.missionInfo.helperBuySeeds then
-                value = t("guidance_refill_bought")
+            -- off, from supplies at the field edge, or a trip to one of the stations
+            local offText
+            if g_currentMission and g_currentMission.missionInfo and g_currentMission.missionInfo.helperBuySeeds then
+                offText = t("guidance_refill_bought")
             else
-                value = #list > 0 and t("guidance_refill_off") or t("guidance_refill_none")
+                offText = #list > 0 and t("guidance_refill_off") or t("guidance_refill_none")
             end
+            local choices = {{edge = false, x = 0, z = 0, label = offText},
+                             {edge = true, x = 0, z = 0, label = t("guidance_refill_edge")}}
+            for _, st in ipairs(list) do
+                local sx, sz = GuidanceTrips.targetOf(st)
+                choices[#choices + 1] = {edge = false, x = sx, z = sz, label = GuidanceTrips.nameOf(st)}
+            end
+            local cur = 1
+            if s.refillEdge then
+                cur = 2
+            elseif GuidanceTrips.find(list, s.refillX, s.refillZ) then
+                for i = 3, #choices do
+                    if math.abs(choices[i].x - s.refillX) < 1 and math.abs(choices[i].z - s.refillZ) < 1 then cur = i end
+                end
+            end
+            local value = choices[cur].label
             local function pick(step)
                 return function()
-                    local x, z = GuidanceTrips.cycle(list, s.refillX, s.refillZ, step)
+                    local c = choices[(cur - 1 + step) % #choices + 1]
                     if scope then
-                        scope.set("refillX", x); scope.set("refillZ", z)
+                        scope.set("refillEdge", c.edge); scope.set("refillX", c.x); scope.set("refillZ", c.z)
                     else
-                        vehicle:guidanceApplySettings({refillX = x, refillZ = z})
+                        vehicle:guidanceApplySettings({refillEdge = c.edge, refillX = c.x, refillZ = c.z})
                     end
                 end
             end
@@ -965,7 +994,7 @@ function Hud:getFieldHere(vehicle)
     local now = g_time or 0
     if self.fieldHereVehicle ~= vehicle or now - (self.fieldHereTime or -1e9) > 1000 then
         local x, _, z = getWorldTranslation(vehicle.rootNode)
-        local ok, id = pcall(GuidanceCourse.getFieldIdAt, x, z)
+        local ok, id = Guidance.try(GuidanceCourse.getFieldIdAt, x, z)
         self.fieldHere = ok and id or nil
         self.fieldHereVehicle, self.fieldHereTime = vehicle, now
     end
@@ -1360,7 +1389,7 @@ function Hud:helperKinds(vehicle)
     local c = self.helperKindCache[vehicle]
     local now = g_time or 0
     if c == nil or now - c.time > 1000 then
-        local ok, kinds = pcall(vehicle.getGuidanceHelperKinds, vehicle)
+        local ok, kinds = Guidance.try(vehicle.getGuidanceHelperKinds, vehicle)
         local info = GuidanceVehicleInfo and GuidanceVehicleInfo.get(vehicle)
         c = {time = now, kinds = ok and kinds or {}, fieldWork = info == nil or info.hasImplement}
         self.helperKindCache[vehicle] = c
@@ -1528,7 +1557,7 @@ function Hud:renameCourse(entry)
     if TextInputDialog == nil or TextInputDialog.show == nil then
         return
     end
-    pcall(TextInputDialog.show, function(_, text, clickOk)
+    Guidance.try(TextInputDialog.show, function(_, text, clickOk)
         if clickOk and text ~= nil and text ~= "" then
             GuidanceLibrary.rename(entry.id, text)
         end
@@ -1612,7 +1641,7 @@ function Hud:drawLibrary()
         local bw, bh = self:w(150), self:h(26)
         self:button(x + pad, cy + (folderH - bh) / 2, bw, bh, t("guidance_saved_import"), C.chip, C.hover, C.text,
             function()
-                self.view, self.importFiles, self.importPage = "import", GuidanceLibrary.listExports(), 1
+                self.view, self.importFiles, self.importPage = "import", Hud.importList(), 1
             end, m.smallSize)
     end
     -- in a folder: back to all fields
@@ -1911,7 +1940,7 @@ end
 Hud.SETTINGS_PAGE_ONLY = {refillX = true, tramlines = true, minHeadlandWidth = true, teamMode = true, teamSize = true, teamIndex = true, autoResume = true,
                           rowFrom = true, rowTo = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true,
                           lights = true,
-                          lowerLate = true, raiseLate = true, callUnloaderAt = true, toolOffsetX = true}
+                          lowerLate = true, raiseLate = true, callUnloaderAt = true, toolOffsetX = true, rainWait = true}
 Hud.FIELD_ROWS = {headlands = true, rowAngle = true, clockwise = true, headlandsFirst = true, pattern = true,
                   roundedPasses = true}
 Hud.USER_ROWS = {minHeadlandWidth = true, roundedPasses = true, keepLowered = true, lowerLate = true, raiseLate = true,
@@ -2007,7 +2036,7 @@ function Hud:getScopeContent(vehicle, scope, editable)
             end or nil},
             -- a text file for a GitHub issue: version, vehicle, settings, what the helper did, the last log lines
             {t("guidance_report_btn"), function()
-                local ok, path = pcall(GuidanceDebug.writeReport, vehicle)
+                local ok, path = Guidance.try(GuidanceDebug.writeReport, vehicle)
                 if ok and path then
                     -- (the whole path, on as many lines as it takes, long enough to read)
                     self:showMessage(t("guidance_report_written", path), false, 20)
@@ -2039,9 +2068,11 @@ end
 Hud.TRACTOR_SECTIONS = {
     course = {workWidth = true, headlands = true, rowAngle = true, turnRadius = true, clockwise = true,
               headlandsFirst = true, pattern = true, roundedPasses = true, minHeadlandWidth = true, workPart = true,
-              rowFrom = true, rowTo = true, rowsPerLand = true, landsSide = true, rowShape = true, tramlines = true},
+              rowFrom = true, rowTo = true, rowsPerLand = true, landsSide = true, rowShape = true, tramlines = true,
+              edgeObstacles = true},
     driving = {refillX = true, keepLowered = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
-               callUnloaderAt = true, toolOffsetX = true, autoResume = true, lowerLate = true, raiseLate = true},
+               callUnloaderAt = true, rainWait = true, toolOffsetX = true, autoResume = true, lowerLate = true,
+               raiseLate = true},
     team = {teamMode = true, teamSize = true, teamIndex = true},
 }
 
@@ -2185,7 +2216,7 @@ function Hud:teamWidth(vehicle)
         local s = vehicle:getGuidanceSettings()
         local w = s.workWidth
         if s.autoWidth and GuidanceVehicleInfo then
-            local ok, info = pcall(GuidanceVehicleInfo.get, vehicle)
+            local ok, info = Guidance.try(GuidanceVehicleInfo.get, vehicle)
             if ok and info then w = info.workWidth end
         end
         cached = {w = w, time = now}
@@ -2459,6 +2490,15 @@ end
 
 Hud.IMPORT_PAGE = 7
 
+--- What there is to import: CourseCorrect's course files, then Courseplay's courses of this map
+function Hud.importList()
+    local list = GuidanceLibrary.listExports()
+    if GuidanceCourseplayImport then
+        for _, item in ipairs(GuidanceCourseplayImport.list()) do list[#list + 1] = item end
+    end
+    return list
+end
+
 function Hud:drawImport()
     local vehicle = self.vehicle
     local C = Hud.C
@@ -2479,7 +2519,7 @@ function Hud:drawImport()
     self:button(x + pad, cy + (headH - bh) / 2, bw, bh, t("guidance_folder_back"), C.chip, C.hover, C.text,
         function() self.view = "library" end, m.smallSize)
     self:button(x + width - pad - bw, cy + (headH - bh) / 2, bw, bh, t("guidance_import_refresh"), C.chip, C.hover, C.text,
-        function() self.importFiles = GuidanceLibrary.listExports() end, m.smallSize)
+        function() self.importFiles = Hud.importList() end, m.smallSize)
     cy = cy - hintH
     self:textLines(x + pad, cy, hintH, m.smallSize, t("guidance_import_hint"), width - 2 * pad, C.muted)
     if #files == 0 then
@@ -2488,14 +2528,22 @@ function Hud:drawImport()
     end
     for i = first, first + shown - 1 do
         local name = files[i]
+        -- (a Courseplay course: {path, label})
+        local cp = type(name) == "table" and name or nil
+        local shownName = cp and t("guidance_import_courseplay", cp.label) or string.gsub(name, "%.xml$", "")
         cy = cy - rowH
         if i > first then Draw.rect(x + pad, cy + rowH, width - 2 * pad, self:h(1), C.line) end
         local iw = self:w(70)
-        self:textIn(x + pad, cy, rowH, m.textSize, fit(string.gsub(name, "%.xml$", ""), m.textSize, width - 2 * pad - iw - self:w(8)),
-            C.text)
+        self:textIn(x + pad, cy, rowH, m.textSize, fit(shownName, m.textSize, width - 2 * pad - iw - self:w(8)), C.text)
         self:button(x + width - pad - iw, cy + (rowH - bh) / 2, iw, bh, t("guidance_import_one"), C.accent, C.accentHover,
             {1, 1, 1, 1}, function()
-                local title, plan, outline = GuidanceLibrary.readExport(name)
+                local title, plan, outline
+                if cp then
+                    title, plan, outline = GuidanceCourseplayImport.read(cp.path)
+                else
+                    title, plan, outline = GuidanceLibrary.readExport(name)
+                end
+                name = cp and cp.label or name
                 if plan then
                     GuidanceLibrary.importCourse(title, vehicle:getOwnerFarmId(), plan, outline)
                     self:showMessage(t("guidance_import_done", title), false)
@@ -2534,7 +2582,7 @@ Hud.ALERT_WIDTH = 290
 Hud.ALERT_KINDS = {
     IS_STUCK = {1, "danger"}, FUEL_IS_EMPTY = {1, "danger"},
     NEEDS_UNLOADING = {2, "warn"}, NEEDS_FILLING = {2, "warn"}, NEXT_FIELD_WAITING = {2, "warn"},
-    GIVING_WAY = {3, "warn"}, FUEL_IS_LOW = {3, "warn"},
+    GIVING_WAY = {3, "warn"}, FUEL_IS_LOW = {3, "warn"}, WAITING_RAIN = {3, "warn"},
     FINISHED = {4, "accent"},
 }
 Hud.GIVING_WAY_ALERT = 15000 -- ms a helper gives way before it is worth an alert

@@ -77,6 +77,15 @@
         <text name="guidance_phase_balesWaitBaler" text="Waiting for the baler"/>
         <text name="guidance_orchard_name" text="Orchard %d"/>
         <text name="guidance_warn_convoyNarrow" text="Too narrow for a convoy of %d: about %d%% stays unworked. Try Next free row or Strips."/>
+        <text name="guidance_info_WAITING_RAIN" text="Waiting for the rain to stop (harvesting now loses yield)"/>
+        <text name="guidance_set_rainWait" text="In the rain"/>
+        <text name="guidance_rain_wait" text="Wait"/>
+        <text name="guidance_rain_go" text="Carry on"/>
+        <text name="guidance_refill_edge" text="Supplies at the field edge"/>
+        <text name="guidance_import_courseplay" text="Courseplay: %s"/>
+        <text name="guidance_set_edgeObstacles" text="Obstacles near the edge"/>
+        <text name="guidance_edge_over" text="Drive over"/>
+        <text name="guidance_edge_round" text="Work round"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -311,7 +320,7 @@
         <text name="guidance_saved_import" text="Import a course file"/>
         <text name="guidance_import_title" text="%d course files"/>
         <text name="guidance_import_refresh" text="Look again"/>
-        <text name="guidance_import_hint" text="Course files from your modSettings/FS25_CourseCorrect/courses folder (Export puts them there; copy a friend's in)."/>
+        <text name="guidance_import_hint" text="Course files from your modSettings/FS25_CourseCorrect/courses folder (Export puts them there; copy a friend's in), and Courseplay's saved courses of this map: their field, width, headlands and row direction, with CourseCorrect's own turns."/>
         <text name="guidance_import_none" text="No course files there yet"/>
         <text name="guidance_import_one" text="Import"/>
         <text name="guidance_import_done" text="%s imported into the saved courses"/>

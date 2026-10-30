@@ -16,7 +16,7 @@ VI.MIN_RADIUS, VI.MAX_RADIUS = 3, 20
 
 local function try(fn, ...)
     if fn == nil then return false end
-    local ok, a, b, c, d, e = pcall(fn, ...)
+    local ok, a, b, c, d, e = Guidance.try(fn, ...)
     if not ok then
         Guidance.debug("VehicleInfo: %s", tostring(a))
         return false

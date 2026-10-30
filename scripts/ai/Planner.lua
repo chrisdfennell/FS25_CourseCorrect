@@ -44,7 +44,7 @@ end
 
 --- Precision Farming's own object (its maps), or nil
 function PF.instance()
-    local ok, inst = pcall(function()
+    local ok, inst = Guidance.try(function()
         if type(g_precisionFarming) == "table" then return g_precisionFarming end
         if type(FS25_precisionFarming) == "table" and type(FS25_precisionFarming.g_precisionFarming) == "table" then
             return FS25_precisionFarming.g_precisionFarming
@@ -264,7 +264,7 @@ function Planner.compute(vehicle, course, seconds, remaining)
         local sowing = v.spec_sowingMachine
         local seedFruit
         if sowing and sowing.fillUnitIndex then
-            local ok, needed, pf = pcall(function()
+            local ok, needed, pf = Guidance.try(function()
                 local fruitIndex = sowing.seeds and sowing.seeds[sowing.currentSeed]
                 local fruit = fruitIndex and g_fruitTypeManager:getFruitTypeByIndex(fruitIndex)
                 seedFruit = fruitIndex
@@ -282,7 +282,7 @@ function Planner.compute(vehicle, course, seconds, remaining)
         -- fertiliser, lime, spray, manure (a sowing machine's fertiliser too)
         local sprayer = v.spec_sprayer
         if sprayer and v.getSprayerFillUnitIndex then
-            local ok, needed, have, fillType, pf = pcall(function()
+            local ok, needed, have, fillType, pf = Guidance.try(function()
                 local ix = v:getSprayerFillUnitIndex()
                 if ix == nil or (sowing and ix == sowing.fillUnitIndex) then return nil end
                 local fillType = v:getFillUnitFillType(ix)
@@ -294,7 +294,7 @@ function Planner.compute(vehicle, course, seconds, remaining)
                     end
                 end
                 if pfOn then
-                    local ok2, lph = pcall(pfLitersPerHa, v, fillType, seedFruit or fieldFruit(course), course, remaining)
+                    local ok2, lph = Guidance.try(pfLitersPerHa, v, fillType, seedFruit or fieldFruit(course), course, remaining)
                     if ok2 and lph then
                         return lph * area / 10000, level(v, ix), fillType, true
                     end

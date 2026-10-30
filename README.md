@@ -13,10 +13,10 @@ show what this build does; in the game it looks the same, on the game's own pict
 
 | | |
 |---|---|
-| Version | **0.7.2.0** (called *Guidance* up to 0.4.4.0) |
+| Version | **1.0.0.0** (called *Guidance* up to 0.4.4.0) |
 | Author | Chris Fennell |
-| Zip | `FS25_CourseCorrect.zip`: 41 files, 249,726 bytes |
-| SHA-256 | `62e8b0e3f6d14fd3faf566acfe39e166c8dba98b0a646a025621c46e37e561c0` |
+| Zip | `FS25_CourseCorrect.zip`: 42 files, 268,880 bytes |
+| SHA-256 | `bc91b5f517dbba4dc1dddb6f3be339b566ec7b04bafcbb3fe0921df298456b6f` |
 | Status | Pre-release: tested offline (see Testing), not yet in the game. Download the zip from the Releases page. |
 | Multiplayer | Yes, including dedicated servers |
 | Languages | English, German, French, Polish, Dutch, Spanish, Italian, Czech |
@@ -165,6 +165,13 @@ Five tabs: **Course**, **Team**, **Saved**, **Fleet** and **Settings**.
 
 **Export** (each course) writes it to a file in your `modSettings/FS25_CourseCorrect/courses` folder, with its field's
 outline. **Import a course file** (all-fields view) lists the files there; *Import* puts one into the saved courses.
+The same list has **Courseplay's saved courses of this map** (its files in `modSettings/FS25_Courseplay/Courses`,
+read as data), marked *Courseplay:*. Courseplay keeps no turns in its files and CourseCorrect makes its courses from
+a plan, so what comes over is the plan: the field (the map's, or one recorded round Courseplay's outermost
+headland pass for a field of its own), the work width, the headland passes, their direction, headlands first or
+last, the row direction measured from its rows. The rows come out at the same angle, with CourseCorrect's own
+turns. A course Courseplay made for several vehicles comes over as one course with the same layout (set up the
+team on the Team tab).
 On the same map it goes to its own field again; on another map or server (a friend's file) the outline is recorded
 as a field of its own, so the course works there too.
 
@@ -363,6 +370,10 @@ unload*...), with *Pause* and *Stop*.
   game's helper doesn't buy), it drives to the loading station you picked on the game's roads, fills there (each
   fill unit that takes what the station has), drives back to where it stopped, and goes on with the course from
   there. *Off*: it stops when empty, as before.
+- **Supplies at the field edge** (the same setting, *Refill at*): it refills from what stands on the field or within
+  30 m of it instead: seed or fertiliser pallets, big bags, a water or liquid tanker (anything the game fills
+  vehicles from). It drives the implement's opening into the supply's filling point, fills up (an empty supply: the
+  next one), drives back to where it stopped and goes on. No supply there: it stops for you.
 
 ## Several tractors on one field (Team tab)
 
@@ -420,6 +431,11 @@ are in their lanes (their spacing keeps them apart).
 
 ## Driving
 
+- **At the start** it waits until the implements are unfolded and ready (as the game's own helper does), and
+  measures them then; one that can't get ready stops the helper with the game's *could not prepare* message.
+- **Rain** (harvesters, Settings tab, *Driving*: **In the rain**): harvesting in the rain loses yield (the game's
+  rule, until about 20 minutes after it stops). *Wait* (the default): the harvester stands where it is, showing
+  *Waiting for the rain to stop*, and goes on by itself when the crop is dry. *Carry on*: it harvests anyway.
 - **Getting to the course**: a planned approach. With crop standing in the way, a pathfinder goes around it.
   Long connections are checked about 40 m ahead while working, because crop changes as you go.
 - **Lowering and raising** happens where the implement's front and back reach the worked stretch. The helper
@@ -583,21 +599,22 @@ hand out finished rows again.
 | `tools/smoke_test.py` | implements down 3 m early / up 3 m late, and the other way round: same number of lowerings, at the shifted places | ±3.0 m, OK |
 | `tools/scopes_test.py` | field settings over the network and in the savegame, a course taking the field's settings, *Remember per field*, *Use for this tractor*, minimum headland 30 m / 60 m, a save loaded with a leftover helper flag, a job started by the game with *Start at: Continue*, stopping the game's own helper from the panel; the old name: Guidance's server file, a tractor's settings saved under it and your old defaults read, switched off beside the old mod | **13/13 OK** |
 | `tools/team_test.py` | 5 fields × teams of 2/3 at 6/12/24 m, strips and lands: every row and headland pass worked by exactly one tractor, together the whole field, no turn off the field; giving way: slows, stops, ignores helpers beside or behind, never both waiting | **all OK** |
-| `tools/batch2_test.py` | headlands only / rows only / rows 5-10, turn and work speeds kept in a drive, lights on at night and back after, the work log entry (and over the network), export and import (same map: its field; other map: recorded) | **12/12 OK** |
-| `tools/batch3_test.py` | lands (6-row lands, middle out, every row once; worked side left / right: in every land the rows done before always on that side, 75 looks each, none wrong), spiral (passes to the middle, no rows), curved rows along the edge, tramlines (an 18 m sprayer on a 6 m sowing course: every row on a sowing pass, the middle of each 3), rows left out (gone, listed for the editor), an area worked round (no waypoint in it); each on the field (worst 0.52 m) and lands / spiral / curved driven to the end (pinned to 30 m headlands: with 40 m field 9's inside no longer reaches its bent edge) | **14/14 OK** |
+| `tools/batch2_test.py` | headlands only / rows only / rows 5-10, turn and work speeds kept in a drive, lights on at night and back after, the work log entry (and over the network), export and import (same map: its field; other map: recorded); a Courseplay course file (its format, rows as start and end only) listed, read back (width, headlands, direction, first, rows at 30.0 degrees as made), imported, its course the same; a field the map doesn't have: recorded round its outermost pass (99 % of the field's area). Also read: all 68 real Courseplay courses of the author's, two-vehicle ones too | **16/16 OK** |
+| `tools/batch3_test.py` | lands (6-row lands, middle out, every row once; worked side left / right: in every land the rows done before always on that side, 75 looks each, none wrong), spiral (passes to the middle, no rows), curved rows along the edge, tramlines (an 18 m sprayer on a 6 m sowing course: every row on a sowing pass, the middle of each 3), rows left out (gone, listed for the editor), an area worked round (no waypoint in it); each on the field (worst 0.52 m) and lands / spiral / curved driven to the end (pinned to 30 m headlands: with 40 m field 9's inside no longer reaches its bent edge) ; an obstacle 8 m in from the edge: driven over with the switch off (warned), notched in with it on (nothing within 3 m of it, 0.51 m worst off the field) | **17/17 OK** |
 | `tools/fieldscan_test.py` | painted field ground: the map's field as it is (map outline kept, scan 0.05 s), painted on (80 m strip: its own field, area right within 3 %, rows over 96 % of the new part), the same again (no new field), painted more (same field, bigger), painted away (area right, no waypoint there), a spot inside not field (island, no waypoint on it), a field painted where the map has none, no field ground (map field as before), a player on a server (the field goes to the server first, the course follows) | **9/9 OK** |
 | `tools/planner_test.py` | seed and the seeder's fertiliser by the game's rates; everything that runs out, the first first; with Precision Farming (its real PrecisionFarming.xml, stand-in maps): seed rate set high, seed by soil, fertiliser by need and set, lime by need, switched off in My defaults (the plain amounts), the part still to do, worked out at most every 2 s | **11/11 OK** |
 | `tools/helpers_test.py` | the helpers without a course, through the mod's own drive loop: unloader (a combine harvesting field 9's rows, turning at each end; grain only flows under the pipe): comes, follows under the pipe, takes a full load, back to where it started, stops full; forage harvester (no tank, it holds while nothing is under its spout): beside it, and behind it with crop on both sides (the tractor never nearer than 8.9 m), the trailer filled; auger wagon into a truck 8 m off the field edge (pipe over the opening within 0.4 m, emptied, pipe in, waiting again); heap (two loads, the second going on 0.5 m from where the first ended, rear tip side); bale collector: all 6 bales with a 4-bale loader, the stacks unloaded where it started; bale wrapper: every hay bale wrapped, the straw bale left, that shown when done; bale wrapper behind a baler still at work: each bale wrapped as it is dropped, waiting for the next (59 s), finished only once the baler is switched off (closest 7 m centre to centre); silo compacter: every lane of a 12 m silo, never over the walls, waits when compacted, finishes when closed; refill trip: to the station, filled at the trigger, back, the course on; loader (arm and bucket wired the other way round, it has to learn them): a 16.2 t heap into a 20 t trailer, all of it in 9 min, nothing spilled, done when the heap is gone; a 6 t trailer filled, then stops | **12/12 OK** (unloader: 19.4 t, under the pipe 85 % of its following; forage harvester held 34 % of the time, mostly while the trailer came round after its turns) |
-| `tools/support_test.py` | the editor's moved points (there, neighbours following less, over the network, dropped by another change, not on a new course), the problem report (version, vehicle, settings, the mod's last log lines; written through the game's file functions), the debug overlay (a helper's way, target and text); the grass chain (a baler with a 9 m turning radius on a 6 m rake's course: the same 5 rows, row ends 0.00 m apart, the same headland passes); *Start at* sent to the server without making the course again or losing where it got to, kept through a later course change | **11/11 OK** |
+| `tools/support_test.py` | the editor's moved points (there, neighbours following less, over the network, dropped by another change, not on a new course), the problem report (version, vehicle, settings, the mod's last log lines; written through the game's file functions), the debug overlay (a helper's way, target and text); the grass chain (a baler with a 9 m turning radius on a 6 m rake's course: the same rows, row ends 0.00 m apart, the same headland passes); *Start at* sent to the server without making the course again or losing where it got to, kept through a later course change; implements unfolding at the start (waited 3.1 s, no speed before, measured again; one never ready: stopped after 20 s); rain (a combine stands while it rains, goes on when dry; *Carry on*: it doesn't wait); refilling at the field edge (a seeder empty, a seed pallet 20 m off the field: its opening into the pallet's trigger, filled to 98 %, back within 0.4 m of where it stopped) | **15/15 OK** |
 | `tools/vines_test.py` | an olive orchard read like a vineyard and named an orchard; a made-up vineyard (14 rows 2.8 m apart in two plots, one in pieces; another vineyard apart): read as 14 rows, made into a field; a grape harvester drives every row once, on it, 2 m past the vines, never off the vineyard, never into the row beside (all turns round); a 5.6 m sprayer between the rows, every other gap, every row sprayed; the vine tool unfolded, lowered, on, then up and off | **6/6 OK** |
-| `tools/check_translations.py` | every language (8) has exactly English's 350 texts, the same placeholders, the names kept | **OK** |
+| `tools/check_translations.py` | every language (8) has exactly English's 359 texts, the same placeholders, the names kept | **OK** |
 | `tools/team_drive_test.py` | a whole team driving at the same time, every mode, against one tractor alone: the small field 9 (6 rows) × 3 tractors, field 12 × 3, field 27 × 4; what each did when two came closest and why one stopped is printed | field 9 × 3: every mode finishes, next free row 17 min against 34 alone, closest 5.9 m (before 0.7.2.0: 0.2 m, two met head-on); convoy finishes but its 18 m passes leave 14 % (the panel warns). Field 12 × 3: all modes, 99.6 %, closest 5.6 m. Field 27 × 4: strips, lands, next free row finish, 99.5 %, closest 5.6 m (before: 0.0 m in next free row, 1.3 m in lands); convoy × 4 there works 96.7 % (outer lanes in the corners), 0.8 points short of the bar, as before |
 | `tools/pathfinder_test.py` | ways around standing crop, then driven, 8 fields (with 40 m headlands field 2's way came in along its row from the far end and turned back on the spot, 13 m off when driven: now a proper turn into the row, 0.4 m) | **8/8 OK** |
 | `tools/envelope_test.py` | every turn and connection stays on the field (the work area's corners and both front corners of the tractor): 36 fields × 6/12/24/45 m × mounted/towed (288 courses), plus the Lizard plows (22 m / 26 m) | **360/360**, worst 0.55 m |
 | `tools/hud_preview.py` | renders every panel view to PNG to check the layout | checked |
 | `tools/readme_images.py` | draws this README's pictures (`docs/images`): every panel view, the patterns, a team's shares, a painted field, the icon | drawn for 0.5.0.0 |
 
-**Not yet tested in the game:** making room and coming back onto the path, orchards (0.7.2.0); waiting for the baler (0.7.1.0); the loader, vineyards, balers following the rake, *Start at* in multiplayer (0.7.0.0);
+**Not yet tested in the game:** waiting out the rain, refilling at the field edge, the Courseplay import, obstacles
+notched into the edge (1.0.0.0); making room and coming back onto the path, orchards (0.7.2.0); waiting for the baler (0.7.1.0); the loader, vineyards, balers following the rake, *Start at* in multiplayer (0.7.0.0);
 forage harvester chasing, overloading into a truck, tipping a heap, the bale
 wrapper, moving points in the editor, the debug overlay, the problem report and the Precision Farming switch
 (0.6.1.0); the unloader, bale collector, silo compacter, refill trips, the implement check and the new languages
@@ -613,9 +630,11 @@ These are offline-tested only.
   type) and the vine harvester's fruit type is set per machine, so olive rows are read like vines; a real olive
   orchard's files (packed in the game) weren't looked at, and it isn't tested in the game
 - the loader doesn't load into a mixer wagon or a belt / conveyor, and doesn't push a heap together
-- obstacles inside the headland band (a tree or pole within the headland passes' reach of the edge) aren't worked
-  round: the passes go over them; the Course tab warns "*N obstacle(s) near the edge*". Islands further in are
-  worked round.
+- obstacles inside the headland band (a tree or pole within the headland passes' reach of the edge) are driven over
+  unless you switch **Obstacles near the edge** to *Work round* (Settings tab, *Course*; off by default): then each
+  is notched into the field edge, every headland pass bends round it (1 m clear of the implement) and the strip
+  between it and the edge stays unworked. The Course tab warns "*N obstacle(s) near the edge*" while they're driven
+  over.
 - a convoy on a field too narrow for its combined width works only its headland passes there (the Course tab says
   *Too narrow for a convoy*); next free row or strips work such a field fully
 
@@ -637,6 +656,11 @@ These are offline-tested only.
 - **Build**: `python tools/build.py` writes `dist/FS25_CourseCorrect.zip` and checks the GIANTS rules: at most 128
   files, Lua files at most 0.5 MB, only known file types. `README.md`, `docs/`, `tools/` and `dist/` are not
   packed.
+- **GIANTS TestRunner** (the ModHub checker, from the GIANTS Developer Network; not in the repo):
+  `python tools/testrunner.py` runs it on the built zip and prints what it found. 1.0.0.0: everything passes but
+  one finding, the single `xpcall` in `Guidance.try`: calls that may fail (other mods' functions, the game's for
+  an odd implement, a helper's frame) go through it, and an error there is **written to the log** (each one once)
+  instead of stopping the helper, so nothing is hidden, which is what the check is about.
 - **README pictures**: `python tools/readme_images.py ../FS25_SFCF_Plains/map/map.i3d` draws them again into
   `docs/images` (not packed into the mod).
 - **Tests**: see the table above. Run them with the map's `map.i3d` path, for example:
