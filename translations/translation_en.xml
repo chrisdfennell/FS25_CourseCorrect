@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<l10n>
+    <texts>
+        <text name="input_GUIDANCE_TOGGLE_HUD" text="CourseCorrect: panel"/>
+        <text name="input_GUIDANCE_START_STOP" text="CourseCorrect: start / stop"/>
+        <text name="guidance_oldModLoaded" text="FS25_Guidance.zip (CourseCorrect's old name) is loaded too: CourseCorrect is off. Remove FS25_Guidance.zip from the mods."/>
+        <text name="guidance_jobTitle" text="CourseCorrect"/>
+        <text name="guidance_action_start" text="CourseCorrect: start"/>
+        <text name="guidance_action_stop" text="CourseCorrect: stop"/>
+        <text name="guidance_msg_isFull" text="is full"/>
+        <text name="guidance_msg_noCourse" text="has no CourseCorrect course"/>
+        <text name="guidance_err_noField" text="Could not read the outline of this field"/>
+        <text name="guidance_err_notOnField" text="Drive onto a field first"/>
+        <text name="guidance_err_generic" text="Could not make a course here"/>
+        <text name="guidance_info_NEEDS_UNLOADING" text="Full, needs unloading"/>
+        <text name="guidance_info_NEEDS_FILLING" text="Empty, needs filling"/>
+        <text name="guidance_info_FUEL_IS_LOW" text="Fuel is low"/>
+        <text name="guidance_info_FUEL_IS_EMPTY" text="Out of fuel"/>
+        <text name="guidance_info_IS_STUCK" text="Stuck, stopped"/>
+        <text name="guidance_status_working" text="Working · %.0f%%"/>
+        <text name="guidance_status_otherHelper" text="Other helper active"/>
+        <text name="guidance_status_ready" text="Ready"/>
+        <text name="guidance_status_noCourse" text="No course"/>
+        <text name="guidance_summary" text="%.1f ha · %d headlands · %d rows · about %s"/>
+        <text name="guidance_hint_noCourse" text="Drive onto a field and press %s"/>
+        <text name="guidance_set_width" text="Work width"/>
+        <text name="guidance_set_headlands" text="Headlands"/>
+        <text name="guidance_set_rowAngle" text="Row direction"/>
+        <text name="guidance_set_radius" text="Turning radius"/>
+        <text name="guidance_set_direction" text="Headland direction"/>
+        <text name="guidance_set_headlandOrder" text="Headland order"/>
+        <text name="guidance_set_pattern" text="Rows"/>
+        <text name="guidance_auto" text="auto"/>
+        <text name="guidance_clockwise" text="Clockwise"/>
+        <text name="guidance_counterClockwise" text="Counterclockwise"/>
+        <text name="guidance_first" text="First"/>
+        <text name="guidance_last" text="Last"/>
+        <text name="guidance_pattern_adjacent" text="Every row"/>
+        <text name="guidance_pattern_racetrack" text="Racetrack"/>
+        <text name="guidance_pattern_auto" text="Auto"/>
+        <text name="guidance_headlandWidth" text="%d m (%d)"/>
+        <text name="guidance_set_corners" text="Headland corners"/>
+        <text name="guidance_corners_square" text="Square"/>
+        <text name="guidance_corners_round" text="Round"/>
+        <text name="guidance_corners_needsReverse" text="Round (towed)"/>
+        <text name="guidance_warn_offField" text="%d turns would leave the field: add a headland"/>
+        <text name="guidance_warn_offField1" text="1 turn would leave the field: add a headland"/>
+        <text name="guidance_summary_islands" text="%d islands"/>
+        <text name="guidance_set_turns" text="In turns"/>
+        <text name="guidance_turns_lift" text="Lift"/>
+        <text name="guidance_turns_keep" text="Keep down"/>
+        <text name="guidance_moreSettings" text="More settings"/>
+        <text name="guidance_lessSettings" text="Fewer settings"/>
+        <text name="guidance_btn_makeCourse" text="Make course"/>
+        <text name="guidance_btn_newCourse" text="New course"/>
+        <text name="guidance_btn_start" text="Start"/>
+        <text name="guidance_btn_stop" text="Stop"/>
+        <text name="guidance_status_paused" text="Paused · %.0f%%"/>
+        <text name="guidance_btn_pause" text="Pause"/>
+        <text name="guidance_btn_resume" text="Resume"/>
+        <text name="guidance_set_startAt" text="Start at"/>
+        <text name="guidance_start_continue" text="Continue"/>
+        <text name="guidance_start_nearest" text="Nearest"/>
+        <text name="guidance_start_first" text="First"/>
+        <text name="guidance_info_FINISHED" text="Course finished"/>
+        <text name="guidance_fleet_title" text="Fleet"/>
+        <text name="guidance_fleet_count" text="%d vehicles · %d with a course"/>
+        <text name="guidance_fleet_back" text="Back"/>
+        <text name="guidance_fleet_button" text="Fleet"/>
+        <text name="guidance_fleet_empty" text="No vehicle of your farm has a CourseCorrect course yet"/>
+        <text name="guidance_set_roundedCorners" text="Rounded corners"/>
+        <text name="guidance_corners_count" text="Inner %d of %d"/>
+        <text name="guidance_corners_allRound" text="All passes"/>
+        <text name="guidance_corners_allSharp" text="None, all sharp"/>
+        <text name="guidance_tab_course" text="Course"/>
+        <text name="guidance_tab_saved" text="Saved"/>
+        <text name="guidance_tab_fleet" text="Fleet"/>
+        <text name="guidance_detail_area" text="Area"/>
+        <text name="guidance_detail_length" text="Length"/>
+        <text name="guidance_detail_working" text="Working"/>
+        <text name="guidance_detail_time" text="Time"/>
+        <text name="guidance_detail_left" text="Time left"/>
+        <text name="guidance_detail_headlands" text="Headlands"/>
+        <text name="guidance_detail_rows" text="Rows"/>
+        <text name="guidance_detail_turns" text="Turns"/>
+        <text name="guidance_detail_reverse" text="Backing up"/>
+        <text name="guidance_detail_islands" text="Islands"/>
+        <text name="guidance_offer_saved" text="Load a saved course (%d)"/>
+        <text name="guidance_saved_subtitle" text="%d saved courses"/>
+        <text name="guidance_saved_save" text="Save this course"/>
+        <text name="guidance_saved_nothing" text="Make a course to save it"/>
+        <text name="guidance_saved_empty" text="No saved courses yet"/>
+        <text name="guidance_saved_name" text="%s · %.1f m"/>
+        <text name="guidance_saved_done" text="Saved: %s"/>
+        <text name="guidance_saved_loaded" text="Loaded: %s"/>
+        <text name="guidance_saved_load" text="Load"/>
+        <text name="guidance_saved_rename" text="Rename"/>
+        <text name="guidance_saved_delete" text="Delete"/>
+        <text name="guidance_saved_sure" text="Sure?"/>
+        <text name="guidance_saved_renamePrompt" text="Name of the course"/>
+        <text name="guidance_saved_line" text="Field %d · %.1f ha · %s"/>
+        <text name="guidance_folder_title" text="Field %d"/>
+        <text name="guidance_folder_back" text="< All fields"/>
+        <text name="guidance_folder_count" text="%d courses"/>
+        <text name="guidance_folder_one" text="1 course"/>
+        <text name="guidance_folder_here" text="you are here"/>
+        <text name="guidance_folder_open" text="Open"/>
+        <text name="guidance_saved_info" text="%.1f ha · %s · %.1f m"/>
+        <text name="guidance_record_start" text="Record field"/>
+        <text name="guidance_record_status" text="Recording the outline: %.0f m. Drive round the field."/>
+        <text name="guidance_record_cancel" text="Cancel"/>
+        <text name="guidance_record_finish" text="Finish field"/>
+        <text name="guidance_record_tooSmall" text="Too small for a field: drive all the way round it"/>
+        <text name="guidance_record_name" text="My field %d"/>
+        <text name="guidance_record_done" text="Saved %s (%.2f ha). Make a course on it now."/>
+        <text name="guidance_scan_name" text="Field %d (as on the ground)"/>
+        <text name="guidance_scan_nameNew" text="Painted field %d"/>
+        <text name="guidance_scan_reading" text="Reading %s from the ground..."/>
+        <text name="guidance_scan_done" text="Course on %s (%.2f ha), the field as it is on the ground"/>
+        <text name="guidance_record_delete" text="Delete field"/>
+        <text name="guidance_record_folder" text="recorded"/>
+        <text name="guidance_plan_seed" text="Seed"/>
+        <text name="guidance_plan_spray" text="Spray"/>
+        <text name="guidance_plan_fuel" text="Fuel"/>
+        <text name="guidance_plan_fertilizer" text="Fertiliser"/>
+        <text name="guidance_plan_pf" text="%s (Precision Farming)"/>
+        <text name="guidance_plan_runsOutToo" text="%s at %d%%"/>
+        <text name="guidance_plan_bought" text="bought by the helper"/>
+        <text name="guidance_plan_runsOut" text="%s runs out at about %d%% of the course"/>
+        <text name="guidance_queue_next" text="Next: %s"/>
+        <text name="guidance_queue_more" text="(+%d more)"/>
+        <text name="guidance_queue_clear" text="Clear"/>
+        <text name="guidance_saved_queue" text="Queue"/>
+        <text name="guidance_queue_added" text="%s queued (%d in the queue)"/>
+        <text name="guidance_info_NEXT_FIELD_WAITING" text="Next field waiting: drive it there"/>
+        <text name="guidance_progress_left" text="%s left"/>
+        <text name="guidance_tab_settings" text="Settings"/>
+        <text name="guidance_scope_tractor" text="This tractor"/>
+        <text name="guidance_scope_field" text="This field"/>
+        <text name="guidance_scope_user" text="My defaults"/>
+        <text name="guidance_scope_tractorNote" text="%s: saved with the tractor"/>
+        <text name="guidance_scope_fieldNote" text="%s: used by anyone making a course here"/>
+        <text name="guidance_scope_fieldUnset" text="%s: nothing saved yet, shows the tractor's"/>
+        <text name="guidance_scope_noField" text="Drive onto a field to set up its settings"/>
+        <text name="guidance_scope_userNote" text="Yours, on this PC: for tractors not set up yet"/>
+        <text name="guidance_scope_saveDefaults" text="Make these my defaults"/>
+        <text name="guidance_scope_savedDefaults" text="Saved as your defaults"/>
+        <text name="guidance_scope_useTractor" text="Take the tractor's"/>
+        <text name="guidance_scope_forget" text="Forget"/>
+        <text name="guidance_scope_fieldSaved" text="Settings saved for %s"/>
+        <text name="guidance_scope_fieldForgotten" text="%s forgets its settings"/>
+        <text name="guidance_scope_applyTractor" text="Use for this tractor"/>
+        <text name="guidance_scope_applied" text="Your defaults are set on this tractor"/>
+        <text name="guidance_set_minHeadland" text="Min. headland"/>
+        <text name="guidance_set_rememberFields" text="Remember per field"/>
+        <text name="guidance_set_notifications" text="Notifications"/>
+        <text name="guidance_on" text="On"/>
+        <text name="guidance_off" text="Off"/>
+        <text name="guidance_status_workingShort" text="Working"/>
+        <text name="guidance_status_pausedShort" text="Paused"/>
+        <text name="guidance_btn_stopHelper" text="Stop helper"/>
+        <text name="guidance_set_lowerLate" text="Lower implement"/>
+        <text name="guidance_set_raiseLate" text="Raise implement"/>
+        <text name="guidance_timing_onTime" text="On time"/>
+        <text name="guidance_timing_early" text="%.1f m early"/>
+        <text name="guidance_timing_late" text="%.1f m late"/>
+        <text name="guidance_set_teamMode" text="Team on this field"/>
+        <text name="guidance_team_alone" text="Alone"/>
+        <text name="guidance_team_strips" text="Strips"/>
+        <text name="guidance_set_teamSize" text="Tractors in the team"/>
+        <text name="guidance_team_size" text="%d tractors"/>
+        <text name="guidance_set_teamIndex" text="This tractor"/>
+        <text name="guidance_team_index" text="%d of %d"/>
+        <text name="guidance_info_GIVING_WAY" text="Giving way to another helper"/>
+        <text name="guidance_detail_team" text="Team"/>
+        <text name="guidance_detail_teamValue" text="strip %d of %d"/>
+        <text name="guidance_status_givingWay" text="Giving way"/>
+        <text name="guidance_set_callUnloaderAt" text="Call unloader at"/>
+        <text name="guidance_set_toolOffset" text="Tool offset"/>
+        <text name="guidance_offset_centre" text="On centre"/>
+        <text name="guidance_offset_right" text="%.1f m right"/>
+        <text name="guidance_offset_left" text="%.1f m left"/>
+        <text name="guidance_btn_goTo" text="Go to"/>
+        <text name="guidance_tab_team" text="Team"/>
+        <text name="guidance_team_convoy" text="Convoy"/>
+        <text name="guidance_team_nextRow" text="Next free row"/>
+        <text name="guidance_team_field" text="%s"/>
+        <text name="guidance_team_noField" text="Drive onto a field to work it as a team"/>
+        <text name="guidance_teamAbout_strips" text="Each tractor works its own strip of rows; the headland passes are shared out."/>
+        <text name="guidance_teamAbout_convoy" text="Side by side on one wide course, one after another through the turns."/>
+        <text name="guidance_team_lands" text="Lands"/>
+        <text name="guidance_teamAbout_lands" text="Each works its own part in lands, from the middle out: worked ground on the pipe side, carts never on crop."/>
+        <text name="guidance_set_landsSide" text="Worked side"/>
+        <text name="guidance_side_left" text="Left"/>
+        <text name="guidance_side_right" text="Right"/>
+        <text name="guidance_side_any" text="either"/>
+        <text name="guidance_side_auto" text="Auto (%s)"/>
+        <text name="guidance_teamAbout_nextRow" text="Each takes the next free row when it finishes one: all finish together."/>
+        <text name="guidance_team_pick" text="Tractors in the team: %d (tick them; the first one leads)"/>
+        <text name="guidance_team_lead" text="lead"/>
+        <text name="guidance_team_full" text="At most %d tractors in a team"/>
+        <text name="guidance_team_widths" text="%s: other work width than the lead's (%.1f m); the team works with that"/>
+        <text name="guidance_team_make" text="Make courses"/>
+        <text name="guidance_team_startAll" text="Start all (%d)"/>
+        <text name="guidance_team_stopAll" text="Stop all"/>
+        <text name="guidance_team_made" text="Courses made for %d tractors on %s"/>
+        <text name="guidance_teamRole_strips" text="Strip %d of %d"/>
+        <text name="guidance_teamRole_convoy" text="Lane %d of %d"/>
+        <text name="guidance_teamRole_nextRow" text="Shares rows (%d of %d)"/>
+        <text name="guidance_teamRole_alone" text="Alone"/>
+        <text name="guidance_teamRole_lands" text="Lands, part %d of %d"/>
+        <text name="input_GUIDANCE_UI_NEXT" text="CourseCorrect: panel, next button"/>
+        <text name="input_GUIDANCE_UI_PREV" text="CourseCorrect: panel, previous button"/>
+        <text name="input_GUIDANCE_UI_PRESS" text="CourseCorrect: panel, press button"/>
+        <text name="guidance_set_autoResume" text="After loading"/>
+        <text name="guidance_resume_carryOn" text="Carry on"/>
+        <text name="guidance_resume_wait" text="Wait"/>
+        <text name="guidance_set_panelScale" text="Panel size"/>
+        <text name="guidance_set_workPart" text="Work"/>
+        <text name="guidance_workPart_whole" text="Whole field"/>
+        <text name="guidance_workPart_headlands" text="Headlands only"/>
+        <text name="guidance_workPart_rows" text="Rows only"/>
+        <text name="guidance_set_rowFrom" text="First row"/>
+        <text name="guidance_set_rowTo" text="Last row"/>
+        <text name="guidance_rows_first" text="The first"/>
+        <text name="guidance_rows_last" text="The last"/>
+        <text name="guidance_set_workSpeed" text="Work speed"/>
+        <text name="guidance_speed_implement" text="Implement's"/>
+        <text name="guidance_set_turnSpeed" text="Turn speed"/>
+        <text name="guidance_set_reverseSpeed" text="Reverse speed"/>
+        <text name="guidance_set_lights" text="Lights"/>
+        <text name="guidance_lights_auto" text="Auto"/>
+        <text name="guidance_lights_off" text="Leave them"/>
+        <text name="guidance_set_soundAlerts" text="Sound alerts"/>
+        <text name="guidance_saved_export" text="Export"/>
+        <text name="guidance_saved_exported" text="Exported to %s"/>
+        <text name="guidance_saved_import" text="Import a course file"/>
+        <text name="guidance_import_title" text="%d course files"/>
+        <text name="guidance_import_refresh" text="Look again"/>
+        <text name="guidance_import_hint" text="Course files from your modSettings/FS25_CourseCorrect/courses folder (Export puts them there; copy a friend's in)."/>
+        <text name="guidance_import_none" text="No course files there yet"/>
+        <text name="guidance_import_one" text="Import"/>
+        <text name="guidance_import_done" text="%s imported into the saved courses"/>
+        <text name="guidance_import_bad" text="%s is not a course file"/>
+        <text name="guidance_fleet_vehicles" text="Vehicles"/>
+        <text name="guidance_fleet_log" text="Work log"/>
+        <text name="guidance_log_count" text="%d jobs"/>
+        <text name="guidance_log_total" text="All together"/>
+        <text name="guidance_log_empty" text="Nothing done by a helper yet"/>
+        <text name="guidance_log_when" text="day %d, %02d:%02d"/>
+        <text name="guidance_section_course" text="Course"/>
+        <text name="guidance_section_driving" text="Driving"/>
+        <text name="guidance_section_team" text="Team"/>
+        <text name="guidance_alert_need" text="%d need you"/>
+        <text name="guidance_alert_working" text="%d working"/>
+        <text name="guidance_alert_now" text="just now"/>
+        <text name="guidance_alert_more" text="and %d more"/>
+        <text name="guidance_set_alertsOnScreen" text="Alerts on screen"/>
+        <text name="guidance_pattern_lands" text="Lands"/>
+        <text name="guidance_pattern_spiral" text="Spiral"/>
+        <text name="guidance_set_rowsPerLand" text="Rows per land"/>
+        <text name="guidance_set_rowShape" text="Row shape"/>
+        <text name="guidance_rowShape_straight" text="Straight"/>
+        <text name="guidance_rowShape_edge" text="Along the edge"/>
+        <text name="guidance_set_tramlines" text="Tramlines"/>
+        <text name="guidance_tramlines_off" text="Off"/>
+        <text name="guidance_tramlines_on" text="On %s"/>
+        <text name="guidance_tramlines_none" text="No sowing course"/>
+        <text name="guidance_edit" text="Edit"/>
+        <text name="guidance_edit_done" text="Done"/>
+        <text name="guidance_edit_clear" text="Take back all"/>
+        <text name="guidance_tool_direction" text="Direction"/>
+        <text name="guidance_tool_start" text="Start"/>
+        <text name="guidance_tool_skipRow" text="Skip rows"/>
+        <text name="guidance_tool_zone" text="Skip area"/>
+        <text name="guidance_toolHint_direction" text="Drag to turn the rows"/>
+        <text name="guidance_toolHint_start" text="Click where to start"/>
+        <text name="guidance_toolHint_skipRow" text="Click a row: leave out / take back"/>
+        <text name="guidance_toolHint_zone" text="Drag a box to work round"/>
+    </texts>
+</l10n>

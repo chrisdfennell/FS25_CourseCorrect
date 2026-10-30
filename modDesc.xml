@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="105">
+    <author>Chris Fennell</author>
+    <version>0.5.0.0</version>
+    <title>
+        <en>CourseCorrect</en>
+        <de>CourseCorrect</de>
+    </title>
+    <description>
+        <en><![CDATA[CourseCorrect (formerly Guidance): a helper that works your fields along a planned course.
+
+- Pick the field you stand on, see the course right away, press Start.
+- Headlands, straight rows across the inside, smooth turns sized for your vehicle.
+- Row direction chosen automatically for the fewest turns, or set by you.
+- Works with AutoDrive: AutoDrive drives to the field and starts CourseCorrect, takes over when the trailer is full or the hopper empty and brings the vehicle back.
+- Multiplayer and dedicated servers.
+
+Open the panel: Ctrl+J. Start/stop the helper: Alt+J.]]></en>
+        <de><![CDATA[CourseCorrect (früher Guidance): ein Helfer, der deine Felder entlang eines geplanten Kurses bearbeitet.
+
+- Feld wählen, Kurs sofort sehen, Start drücken.
+- Vorgewende, gerade Bahnen im Inneren, weiche Wenden passend zum Fahrzeug.
+- Bahnrichtung automatisch mit den wenigsten Wenden, oder selbst eingestellt.
+- Arbeitet mit AutoDrive: AutoDrive fährt zum Feld und startet CourseCorrect, übernimmt wenn der Anhänger voll oder der Tank leer ist und bringt das Fahrzeug zurück.
+- Mehrspieler und dedizierte Server.
+
+Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
+    </description>
+    <iconFilename>icon_courseCorrect.dds</iconFilename>
+    <multiplayer supported="true"/>
+    <l10n filenamePrefix="translations/translation"/>
+
+    <extraSourceFiles>
+        <sourceFile filename="scripts/Guidance.lua"/>
+        <sourceFile filename="scripts/Prefs.lua"/>
+        <sourceFile filename="scripts/geometry/Geo.lua"/>
+        <sourceFile filename="scripts/geometry/Dubins.lua"/>
+        <sourceFile filename="scripts/course/CourseGenerator.lua"/>
+        <sourceFile filename="scripts/course/FieldScan.lua"/>
+        <sourceFile filename="scripts/course/Course.lua"/>
+        <sourceFile filename="scripts/course/Library.lua"/>
+        <sourceFile filename="scripts/ai/PathFollower.lua"/>
+        <sourceFile filename="scripts/ai/VehicleInfo.lua"/>
+        <sourceFile filename="scripts/ai/Pathfinder.lua"/>
+        <sourceFile filename="scripts/ai/Planner.lua"/>
+        <sourceFile filename="scripts/ai/Team.lua"/>
+        <sourceFile filename="scripts/ai/FieldworkDriver.lua"/>
+        <sourceFile filename="scripts/ai/GuidanceJob.lua"/>
+        <sourceFile filename="scripts/events/GuidanceCourseEvent.lua"/>
+        <sourceFile filename="scripts/events/GuidancePauseEvent.lua"/>
+        <sourceFile filename="scripts/events/GuidanceLibraryEvent.lua"/>
+        <sourceFile filename="scripts/events/GuidanceQueueEvent.lua"/>
+        <sourceFile filename="scripts/gui/GuidanceDraw.lua"/>
+        <sourceFile filename="scripts/gui/GuidanceMap.lua"/>
+        <sourceFile filename="scripts/gui/GuidanceHud.lua"/>
+    </extraSourceFiles>
+
+    <specializations>
+        <specialization name="guidance" className="GuidanceVehicle" filename="scripts/GuidanceVehicle.lua"/>
+    </specializations>
+
+    <actions>
+        <action name="GUIDANCE_TOGGLE_HUD"/>
+        <action name="GUIDANCE_START_STOP"/>
+        <action name="GUIDANCE_UI_NEXT"/>
+        <action name="GUIDANCE_UI_PREV"/>
+        <action name="GUIDANCE_UI_PRESS"/>
+    </actions>
+    <inputBinding>
+        <actionBinding action="GUIDANCE_TOGGLE_HUD">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_j"/>
+        </actionBinding>
+        <actionBinding action="GUIDANCE_START_STOP">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_j"/>
+        </actionBinding>
+    </inputBinding>
+</modDesc>
