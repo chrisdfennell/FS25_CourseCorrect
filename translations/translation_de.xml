@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (installiert)"/>
         <text name="guidance_pf_autoMissing" text="Auto (nicht installiert)"/>
         <text name="guidance_pf_off" text="Aus"/>
+        <text name="guidance_windrows_of" text="Schwaden: %s hat hier geschwadet"/>
+        <text name="guidance_windrows_follow" text="Folgen"/>
+        <text name="guidance_vines_name" text="Weinberg %d"/>
+        <text name="guidance_pattern_vines" text="Rebzeilen"/>
+        <text name="guidance_set_vineMode" text="Weinberg"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Auf den Zeilen"/>
+        <text name="guidance_vine_between" text="Zwischen den Zeilen"/>
+        <text name="guidance_helper_shovel" text="Lader"/>
+        <text name="guidance_helper_noShovel" text="Schaufel anbauen (Radlader, Teleskoplader oder Frontlader) und vor dem Haufen parken"/>
+        <text name="guidance_helperAbout_shovel" text="Lädt den Haufen vor ihm in die Anhänger, die in der Nähe stehen (bis 80 m): Schaufel flach in den Haufen bis sie voll ist, zurück, quer an die Anhängerseite, darüber angehoben, ausgekippt. Eine Schaufelbreite nach der anderen; hält, wenn der Haufen weg ist oder kein Anhänger mehr Platz hat."/>
+        <text name="guidance_helperReady_shovel" text="Vor dem Haufen starten"/>
+        <text name="guidance_phase_shovelLoad" text="Füllt die Schaufel"/>
+        <text name="guidance_phase_shovelToTrailer" text="Fährt zum Anhänger"/>
+        <text name="guidance_phase_shovelTip" text="Kippt in den Anhänger"/>
+        <text name="guidance_phase_shovelBack" text="Zurück zum Haufen"/>
+        <text name="guidance_phase_shovelEmpty" text="Fertig: der Haufen ist weg"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Gestoppt: kein Anhänger mit Platz beim Haufen"/>
+        <text name="guidance_phase_shovelNoHeap" text="Gestoppt: kein Haufen voraus (davor parken)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: Starten"/>
         <text name="guidance_action_stop" text="CourseCorrect: Stoppen"/>

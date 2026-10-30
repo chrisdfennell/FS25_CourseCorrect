@@ -60,6 +60,8 @@ function GuidanceVehicle.registerFunctions(vehicleType)
     f("getGuidanceError", GuidanceVehicle.getGuidanceError)
     f("getGuidanceProgress", GuidanceVehicle.getGuidanceProgress)
     f("guidanceSetPlan", GuidanceVehicle.guidanceSetPlan)
+    f("guidanceFollowCourseOf", GuidanceVehicle.guidanceFollowCourseOf)
+    f("guidanceFollowsCourseOf", GuidanceVehicle.guidanceFollowsCourseOf)
     f("guidanceGenerate", GuidanceVehicle.guidanceGenerate)
     f("guidanceChangeSetting", GuidanceVehicle.guidanceChangeSetting)
     f("guidanceApplySettings", GuidanceVehicle.guidanceApplySettings)
@@ -75,6 +77,7 @@ function GuidanceVehicle.registerFunctions(vehicleType)
     f("guidanceClearInfoTexts", GuidanceVehicle.guidanceClearInfoTexts)
     f("getGuidanceInfoTexts", GuidanceVehicle.getGuidanceInfoTexts)
     f("guidanceSetPaused", GuidanceVehicle.guidanceSetPaused)
+    f("guidanceSetStartSetting", GuidanceVehicle.guidanceSetStartSetting)
     f("getIsGuidancePaused", GuidanceVehicle.getIsGuidancePaused)
     f("guidanceGetStart", GuidanceVehicle.guidanceGetStart)
     f("getGuidanceQueue", GuidanceVehicle.getGuidanceQueue)
@@ -260,6 +263,7 @@ function GuidanceVehicle:guidanceGenerate(team)
         plan.landsSide = spec.settings.landsSide or 0
         plan.landsPipe = GuidanceVehicle.pipeSide(self)
         plan.toolSig = GuidanceVehicle.toolSignature(self)
+        plan.vineTool = GuidanceVines.hasRowTool(self)
         plan.fieldId = team.fieldId
         plan.startX, plan.startZ = team.startX or x, team.startZ or z
         spec.settings.teamMode, spec.settings.teamSize, spec.settings.teamIndex = team.mode, team.size, team.index
@@ -313,6 +317,7 @@ function GuidanceVehicle:guidanceGenerate(team)
     plan.moves, spec.settings.moves = "", ""
     plan.landsPipe = GuidanceVehicle.pipeSide(self)
     plan.toolSig = GuidanceVehicle.toolSignature(self)
+    plan.vineTool = GuidanceVines.hasRowTool(self)
     GuidanceVehicle.applyTramlines(self, plan)
     self:guidanceSetPlan(plan)
     if spec.course == nil then
@@ -321,6 +326,96 @@ function GuidanceVehicle:guidanceGenerate(team)
     if scanned then
         return true, nil, string.format(g_i18n:getText("guidance_scan_done"), scanned.name,
             GuidanceFieldScan.areaOf(scanned.outline) / 10000)
+    end
+    return true
+end
+
+--- The grass chain: a baler / loader wagon follows the rake's course, its passes are where the windrows lie
+local function hasSpec(self, test)
+    for _, v in ipairs(self.getChildVehicles and self:getChildVehicles() or {}) do
+        if test(v) then return true end
+    end
+    return false
+end
+
+--- Picks up from windrows (baler, loader / forage wagon, pickup header)
+function GuidanceVehicle.hasPickup(self)
+    return hasSpec(self, function(v) return v.spec_baler ~= nil or v.spec_forageWagon ~= nil or v.spec_pickup ~= nil end)
+end
+
+--- Makes windrows (rake, merger)
+function GuidanceVehicle.hasRake(self)
+    return hasSpec(self, function(v) return v.spec_windrower ~= nil end)
+end
+
+--- The rake whose windrows lie on the field we're on: one of the farm's with a rake and a course there; or nil
+function GuidanceVehicle.windrowSource(self)
+    local x, _, z = getWorldTranslation(self.rootNode)
+    local farmVehicles = GuidanceMap and GuidanceMap.getFarmVehicles and GuidanceMap.getFarmVehicles() or {}
+    for _, v in ipairs(farmVehicles) do
+        local plan = v ~= self and v.getGuidancePlan and v:getGuidancePlan()
+        local course = plan and v:getGuidanceCourse()
+        if course and GuidanceVehicle.hasRake(v) then
+            local outline = GuidanceCourse.getFieldOutline(plan.fieldId)
+            if outline and #outline >= 3 then
+                local poly = {}
+                for i, p in ipairs(outline) do poly[i] = {x = p.x, y = p.z} end
+                if GuidanceGeo.pointInPolygon({x = x, y = z}, poly) then return v end
+            end
+        end
+    end
+    return nil
+end
+
+-- what makes the passes where they are (the rest stays ours: speeds, timing, turning)
+GuidanceVehicle.WINDROW_KEYS = {"fieldId", "workWidth", "overlap", "clockwise", "headlandsFirst", "squareCorners",
+                                "roundedPasses", "minHeadlandWidth", "rowShape", "rowsPerLand", "workPart", "rowFrom",
+                                "rowTo", "skipRows", "skipZones", "headlandRev"}
+
+--- Is our course the other's passes already (made by guidanceFollowCourseOf)?
+function GuidanceVehicle:guidanceFollowsCourseOf(other)
+    local plan, op, oc = self:getGuidancePlan(), other:getGuidancePlan(), other:getGuidanceCourse()
+    if plan == nil or op == nil or oc == nil or self:getGuidanceCourse() == nil then return false end
+    return plan.fieldId == op.fieldId and math.abs(plan.workWidth - op.workWidth) < 0.01
+        and plan.headlands == GuidanceVehicle.headlandsOf(oc) and math.abs((plan.rowAngle or -1) - oc.stats.rowAngle) < 0.01
+end
+
+function GuidanceVehicle.headlandsOf(course)
+    return course.stats.team and course.stats.team.wholeHeadlands or course.stats.headlands
+end
+
+--- A course on the other's passes (a baler on the rake's windrows): its layout, the headland passes, row angle and
+--- pattern its course got (so its own turning doesn't change them), the whole field (not a team member's share);
+--- our own turning, speeds and timing. Returns ok, error text
+function GuidanceVehicle:guidanceFollowCourseOf(other)
+    local op, oc = other:getGuidancePlan(), other:getGuidanceCourse()
+    if op == nil or oc == nil then
+        return false, g_i18n:getText("guidance_err_generic")
+    end
+    local spec = getSpec(self)
+    local plan = spec.settings:copy()
+    for _, k in ipairs(GuidanceVehicle.WINDROW_KEYS) do plan[k] = op[k] end
+    plan.headlands = GuidanceVehicle.headlandsOf(oc)
+    plan.rowAngle = oc.stats.rowAngle
+    for ix, name in pairs(GuidancePlan.PATTERNS) do
+        if name == oc.stats.pattern then plan.pattern = ix end
+    end
+    plan.autoWidth = false
+    plan.teamMode, plan.teamSize, plan.teamIndex = GuidancePlan.TEAM_ALONE, 1, 1
+    local info = GuidanceVehicleInfo.get(self)
+    if plan.autoRadius then plan.turnRadius = info.turnRadius end
+    plan.runOut = info.runOut
+    plan.allowReverse = info.canReverse
+    plan.towLength = info.towLength
+    local x, _, z = getWorldTranslation(self.rootNode)
+    plan.startX, plan.startZ = x, z
+    -- (the other's moved points are numbered along its course: they don't fit ours)
+    plan.moves = ""
+    plan.landsPipe = GuidanceVehicle.pipeSide(self)
+    plan.toolSig = GuidanceVehicle.toolSignature(self)
+    self:guidanceSetPlan(plan)
+    if spec.course == nil then
+        return false, spec.error
     end
     return true
 end
@@ -402,8 +497,13 @@ function GuidanceVehicle:guidanceApplySettings(values)
     local spec = getSpec(self)
     local remake = false
     for name, value in pairs(values) do
-        spec.settings[name] = value
-        if not GuidanceVehicle.START_SETTINGS[name] then remake = true end
+        if GuidanceVehicle.START_SETTINGS[name] then
+            -- (to the server too, even when the course stays)
+            self:guidanceSetStartSetting(name, value)
+        else
+            spec.settings[name] = value
+            remake = true
+        end
     end
     -- a change of the course (other than the moves themselves) drops the editor's moved points
     if remake and values.moves == nil and (spec.settings.moves or "") ~= "" then
@@ -421,11 +521,22 @@ end
 GuidanceVehicle.START_SETTINGS = {startMode = true, refillX = true, refillZ = true, unloadX = true, unloadZ = true,
                                   unloadFull = true, unloadMode = true}
 
+--- A setting only for starting: kept in the settings and the course's plan (the course stays as it is, and where it
+--- got to), sent to the server and the other players
+function GuidanceVehicle:guidanceSetStartSetting(name, value, noEventSend)
+    local spec = getSpec(self)
+    spec.settings[name] = value
+    if spec.plan then spec.plan[name] = value end
+    if not noEventSend then
+        GuidanceSettingEvent.sendEvent(self, name, value)
+    end
+end
+
 --- Changes a setting (from the HUD) and makes the course again if there is one
 function GuidanceVehicle:guidanceChangeSetting(name, value)
     local spec = getSpec(self)
     if GuidanceVehicle.START_SETTINGS[name] then
-        spec.settings[name] = value
+        self:guidanceSetStartSetting(name, value)
         return
     end
     -- a setting of the field: remember it for the field (if the player wants that)
@@ -462,12 +573,17 @@ function GuidanceVehicle:getIsGuidanceActive()
 end
 
 -- our jobs without a course, by the game's job name: their kind
-GuidanceVehicle.HELPER_JOBS = {GUIDANCE_UNLOAD = "unload", GUIDANCE_BALES = "bales", GUIDANCE_SILO = "silo"}
+GuidanceVehicle.HELPER_JOBS = {GUIDANCE_UNLOAD = "unload", GUIDANCE_BALES = "bales", GUIDANCE_SILO = "silo",
+                               GUIDANCE_SHOVEL = "shovel"}
 
 -- what a helper without a course is doing, for the panel (sent as a number: only add at the end)
 GuidanceVehicle.HELPER_PHASES = {"unloadWait", "unloadDrive", "unloadFollow", "unloadLeave", "unloadTrip",
                                  "balesFind", "balesPick", "balesHome", "balesUnload", "siloDrive", "siloWait",
-                                 "balesCantWrap", "unloadToTruck", "unloadOverload", "unloadToHeap", "unloadHeap"}
+                                 "balesCantWrap", "unloadToTruck", "unloadOverload", "unloadToHeap", "unloadHeap",
+                                 "shovelLoad", "shovelToTrailer", "shovelTip", "shovelBack", "shovelEmpty",
+                                 "shovelNoTrailer", "shovelNoHeap"}
+-- why a helper stopped by itself: still shown after the job
+GuidanceVehicle.END_PHASES = {balesCantWrap = true, shovelEmpty = true, shovelNoTrailer = true, shovelNoHeap = true}
 
 --- (server) a helper without a course says what it is doing (nil: nothing)
 function GuidanceVehicle:guidanceSetHelperPhase(name)
@@ -498,7 +614,7 @@ end
 --- What helpers without a course the vehicle could be: list of kinds
 function GuidanceVehicle:getGuidanceHelperKinds()
     local list = {}
-    for _, kind in ipairs({"unload", "bales", "silo"}) do
+    for _, kind in ipairs({"unload", "bales", "silo", "shovel"}) do
         if GuidanceHelperJob.canDo(self, kind) == true then list[#list + 1] = kind end
     end
     return list

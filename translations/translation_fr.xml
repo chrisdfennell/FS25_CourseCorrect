@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (installé)"/>
         <text name="guidance_pf_autoMissing" text="Auto (non installé)"/>
         <text name="guidance_pf_off" text="Désactivé"/>
+        <text name="guidance_windrows_of" text="Andains : %s a andainé ici"/>
+        <text name="guidance_windrows_follow" text="Suivre"/>
+        <text name="guidance_vines_name" text="Vigne %d"/>
+        <text name="guidance_pattern_vines" text="Rangs de vigne"/>
+        <text name="guidance_set_vineMode" text="Vigne"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Sur les rangs"/>
+        <text name="guidance_vine_between" text="Entre les rangs"/>
+        <text name="guidance_helper_shovel" text="Chargeur"/>
+        <text name="guidance_helper_noShovel" text="Attelez un godet (chargeuse, télescopique ou chargeur frontal) et garez-vous face au tas"/>
+        <text name="guidance_helperAbout_shovel" text="Charge le tas devant lui dans les remorques garées à proximité (jusqu'à 80 m) : godet à plat dans le tas jusqu'à ce qu'il soit plein, recul, perpendiculaire au flanc de la remorque, levé au-dessus, vidé. Une largeur de godet à la fois ; s'arrête quand le tas a disparu ou qu'aucune remorque n'a de place."/>
+        <text name="guidance_helperReady_shovel" text="Démarrez-le face au tas"/>
+        <text name="guidance_phase_shovelLoad" text="Remplit le godet"/>
+        <text name="guidance_phase_shovelToTrailer" text="Va à la remorque"/>
+        <text name="guidance_phase_shovelTip" text="Vide dans la remorque"/>
+        <text name="guidance_phase_shovelBack" text="Retour au tas"/>
+        <text name="guidance_phase_shovelEmpty" text="Terminé : le tas a disparu"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Arrêté : aucune remorque avec de la place près du tas"/>
+        <text name="guidance_phase_shovelNoHeap" text="Arrêté : pas de tas devant (garez-vous face à lui)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
         <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>

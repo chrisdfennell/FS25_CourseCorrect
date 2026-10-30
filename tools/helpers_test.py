@@ -11,6 +11,9 @@ the tractor):
 - auger wagon: full, it empties into a truck standing 8 m off the field edge, then waits again.
 - heap: a tipper tips two loads onto a heap where it started, standing while it runs out and on where the ground is
   full; the second load goes on where the first ended.
+- loader: a wheel loader (arm and bucket wired the other way round, it has to learn which way is which) loads a
+  16 t heap into a trailer standing beside it: all of it, nothing spilled, done when the heap is gone; with a 6 t
+  trailer it fills it and stops (no trailer with room).
 - silo compacter: a 12 x 50 m bunker silo: every lane driven, never outside the walls, waiting when compacted,
   finished when the silo is closed.
 - refill trip: a seeder runs empty: to the station (the game's drive task), filled at the trigger, back, the field
@@ -541,6 +544,119 @@ function runHeap(flat, startX, startZ, heapX, heapZ, heapH)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
+-- loader: a wheel loader with a bucket, a heap ahead, a trailer standing beside; arm and bucket moved through the
+-- game's moving tools (here both wired the other way round: it has to learn which way is which)
+-----------------------------------------------------------------------------------------------------------------------
+function runShovel(trailerCapacity)
+    GuidanceUnloadDriver.serving = {}
+    local realGWT, realLDW = getWorldTranslation, localDirectionToWorld
+    getWorldTranslation = function(node) return node.x, node.y or 0, node.z end
+    localDirectionToWorld = function(node, x, y, z)
+        if node.tiltDeg then return 0, math.cos(math.rad(node.tiltDeg)), 0 end
+        return realLDW(node, x, y, z)
+    end
+    Cylindered = {}
+    function Cylindered.setToolRotation(v, tool, speed, dt)
+        local old = tool.curRot[1]
+        tool.curRot[1] = math.max(tool.rotMin, math.min(tool.rotMax, old + speed * dt))
+        return tool.curRot[1] ~= old
+    end
+    Cylindered.setToolTranslation = Cylindered.setToolRotation
+    function Cylindered.setDirty() end
+    -- the heap: 3 lanes 2.5 m wide, 6 m long from 12 m ahead, 900 l a square metre... per 1 m cell
+    local cells, heapTotal = {}, 0
+    local home = {x = 500, z = 500, h = 0}
+    local function cellAt(x, z)
+        local along, lat = x - home.x, -(z - home.z)
+        local lane = math.floor(lat / 2.5 + 0.5)
+        local a = math.floor(along)
+        if lane < -1 or lane > 1 or a < 12 or a >= 18 then return nil end
+        return lane .. ":" .. a
+    end
+    for lane = -1, 1 do
+        for a = 12, 17 do cells[lane .. ":" .. a] = 900; heapTotal = heapTotal + 900 end
+    end
+    DensityMapHeightUtil = {getFillTypeAtLine = function(x0, y0, z0, x1, y1, z1, r)
+        for k = 0, 6 do
+            local c = cellAt(x0 + (x1 - x0) * k / 6, z0 + (z1 - z0) * k / 6)
+            if c and cells[c] > 1 then return 7 end
+        end
+        return nil
+    end}
+    local loader = makeVehicle(home.x, home.z, home.h, "Wheel loader")
+    local arm = {axis = "AXIS_FRONTLOADER_ARM", curRot = {1.0}, rotMin = -0.2, rotMax = 1.2, rotSpeed = 0.0006, dirtyFlag = 1}
+    local tilt = {axis = "AXIS_FRONTLOADER_TOOL", curRot = {0.5}, rotMin = -0.8, rotMax = 1.0, rotSpeed = 0.0008, dirtyFlag = 2}
+    loader.spec_cylindered = {movingTools = {arm, tilt}, cylinderedDirtyFlag = 3}
+    local bucketNode = {x = 0, z = 0, y = 0, lx = 0, lz = 3}
+    local tipNode = {tiltDeg = 90}
+    local bucket = {spec_shovel = {shovelNodes = {{node = bucketNode, fillUnitIndex = 1, width = 2.5}},
+                                   shovelDischargeInfo = {node = tipNode, minSpeedAngle = math.rad(100), maxSpeedAngle = math.rad(125)}},
+                    level = 0, capacity = 3000}
+    function bucket:getFillUnitFillLevelPercentage() return self.level / self.capacity end
+    loader.children = {loader, bucket}
+    -- the trailer: 22 m to the left, along the same way
+    local tnode = {x = home.x + 6, z = home.z - 22, h = 0}
+    local fillNode = {x = tnode.x, z = tnode.z, y = 2.2}
+    local trailer = {rootNode = tnode, spec_trailer = {}, level = 0, capacity = trailerCapacity}
+    function trailer:getRootVehicle() return self end
+    function trailer:getLastSpeed() return 0 end
+    function trailer:getFillUnits() return {{}} end
+    function trailer:getFillUnitFreeCapacity() return self.capacity - self.level end
+    function trailer:getFillUnitExactFillRootNode() return fillNode end
+    g_currentMission.vehicleSystem = {vehicles = {loader, trailer}}
+    startHelper(loader, GuidanceShovelJob, {})
+    local dt, steps, spilled, maxHeightOverTrailer = 100, 0, 0, 0
+    local phases = {}
+    while loader.job ~= nil and steps < 30000 do
+        steps = steps + 1
+        local n = loader.rootNode
+        -- the bucket: 3 m ahead, its height from the arm (more rotation: lower), its angle from the tool and the arm
+        bucketNode.x, bucketNode.z = n.x + math.cos(n.h) * 3, n.z + math.sin(n.h) * 3
+        bucketNode.y = 4.5 * (1.2 - arm.curRot[1]) / 1.4
+        tipNode.tiltDeg = 90 - tilt.curRot[1] * 60 + (arm.curRot[1] - 1.2) * 5
+        local tiltDeg = tipNode.tiltDeg
+        -- digging: flat, low, moving forward into the heap
+        local c = cellAt(bucketNode.x, bucketNode.z)
+        if c and cells[c] > 0 and loader.speed > 0.5 and not loader.reversing and bucketNode.y < 0.35
+                and math.abs(tiltDeg - 90) < 12 and bucket.level < bucket.capacity then
+            local q = math.min(cells[c], 1000 * dt / 1000, bucket.capacity - bucket.level)
+            cells[c], bucket.level = cells[c] - q, bucket.level + q
+        end
+        -- tipped past 100 degrees: out it goes, into the trailer under it or onto the ground
+        if tiltDeg > 100 and bucket.level > 0 then
+            local f = math.min(1, (tiltDeg - 100) / 25)
+            local q = math.min(bucket.level, 1500 * f * dt / 1000)
+            local over = dist(bucketNode.x, bucketNode.z, fillNode.x, fillNode.z) < 1.8 and bucketNode.y > 3
+            if over and trailer.level < trailer.capacity then
+                q = math.min(q, trailer.capacity - trailer.level)
+                trailer.level = trailer.level + q
+                maxHeightOverTrailer = math.max(maxHeightOverTrailer, bucketNode.y)
+            elseif over then
+                q = 0
+            else
+                spilled = spilled + q
+            end
+            bucket.level = bucket.level - q
+        end
+        local d = loader.spec_guidance.helperDriver
+        if d then phases[d.state] = true end
+        local oldX, oldZ = n.x, n.z
+        loader:update(dt)
+        loader.reversing = ((n.x - oldX) * math.cos(n.h) + (n.z - oldZ) * math.sin(n.h)) < 0
+        g_time = (g_time or 0) + dt
+    end
+    local left = 0
+    for _, v in pairs(cells) do left = left + v end
+    getWorldTranslation, localDirectionToWorld = realGWT, realLDW
+    local states = {}
+    for k in pairs(phases) do states[#states + 1] = k end
+    table.sort(states)
+    return {heap = heapTotal, left = left, trailer = trailer.level, spilled = spilled, steps = steps,
+            finished = loader.job == nil, phase = tostring(loader:getGuidanceHelperPhase()),
+            armSign = loader.spec_guidance.helperDriver == nil and "?" or "", states = table.concat(states, " ")}
+end
+
+-----------------------------------------------------------------------------------------------------------------------
 -- silo compacter
 -----------------------------------------------------------------------------------------------------------------------
 function runSilo(sx, sz)
@@ -755,6 +871,16 @@ def main():
           and r["tipSide"] == 2 and r["off"],
           f"two loads tipped over {r['cells']} cells, starting {r['fromHome']:.0f} m from the heap's place, the second "
           f"on {r['gap']:.1f} m from where the first ended, {r['steps'] / 600:.1f} min")
+
+    r = G.runShovel(20000)
+    check("loader", r["finished"] and r["phase"] == "shovelEmpty" and r["trailer"] > 0.97 * r["heap"]
+          and r["spilled"] < 1,
+          f"{r['trailer']:.0f} of the heap's {r['heap']:.0f} l into the trailer, spilled {r['spilled']:.0f} l, "
+          f"{r['steps'] / 600:.0f} min, then: {r['phase']} (states {r['states']})")
+    r = G.runShovel(6000)
+    check("loader, trailer full", r["finished"] and r["phase"] == "shovelNoTrailer" and r["trailer"] > 5990
+          and r["spilled"] < 1,
+          f"{r['trailer']:.0f} l into the 6000 l trailer, spilled {r['spilled']:.0f} l, then: {r['phase']}")
 
     r = G.runSilo(1000, 1000)
     check("silo compacter", r["outside"] == 0 and r["minX"] < 3 and r["maxX"] > 9 and r["reversed"] > 100

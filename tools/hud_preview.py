@@ -186,7 +186,12 @@ function makeScene(course, mode, showMore)
     end
     if mode:sub(1, 4) == "set_" then
         hud.view = "settings"
-        hud.settingsScope = ({set_tractor = "tractor", set_field = "field", set_user = "user"})[mode]
+        hud.settingsScope = ({set_tractor = "tractor", set_field = "field", set_user = "user", set_report = "user"})[mode]
+        if mode == "set_report" then
+            -- the problem report's message: the whole path, wrapped
+            hud:showMessage(string.format(g_i18n:getText("guidance_report_written"),
+                "C:/Users/someone.with.a.long.name/OneDrive/Documents/My Games/FarmingSimulator2025/modSettings/FS25_CourseCorrect/report.txt"), false, 20)
+        end
         if mode == "set_tractor" then
             plan.teamMode, plan.teamSize, plan.teamIndex = GuidancePlan.TEAM_STRIPS, 3, 2
             -- shown as a combine: the unloader row appears
@@ -387,7 +392,7 @@ def main():
         bgd.line([i, 0, i - 300, H], fill=(84, 74, 48), width=18)
     for mode, more in (("ready", False), ("working", False), ("paused", True), ("fleet", False),
                        ("library", False), ("folders", False), ("details", False),
-                       ("recording", False), ("set_tractor", False), ("set_field", False), ("set_user", False), ("otherHelper", False), ("team", False), ("log", False), ("import", False), ("alerts", False),
+                       ("recording", False), ("set_tractor", False), ("set_field", False), ("set_user", False), ("set_report", False), ("otherHelper", False), ("team", False), ("log", False), ("import", False), ("alerts", False),
                        ("edit", False), ("edit_direction", False), ("more", True),
                        ("helper_unload", False), ("helper_unloadRun", False), ("helper_bales", False),
                        ("helper_siloRun", False), ("jobswitch", False)):

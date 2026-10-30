@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (instalado)"/>
         <text name="guidance_pf_autoMissing" text="Auto (no instalado)"/>
         <text name="guidance_pf_off" text="Desactivado"/>
+        <text name="guidance_windrows_of" text="Hileras: %s ha rastrillado aquí"/>
+        <text name="guidance_windrows_follow" text="Seguir"/>
+        <text name="guidance_vines_name" text="Viñedo %d"/>
+        <text name="guidance_pattern_vines" text="Hileras de vid"/>
+        <text name="guidance_set_vineMode" text="Viñedo"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Sobre las hileras"/>
+        <text name="guidance_vine_between" text="Entre las hileras"/>
+        <text name="guidance_helper_shovel" text="Cargadora"/>
+        <text name="guidance_helper_noShovel" text="Engancha una pala (cargadora, telescópica o pala frontal) y aparca mirando al montón"/>
+        <text name="guidance_helperAbout_shovel" text="Carga el montón que tiene delante en los remolques parados cerca (hasta 80 m): pala plana en el montón hasta llenarse, marcha atrás, perpendicular al lateral del remolque, elevada encima, volcada. Un ancho de pala cada vez; para cuando el montón se acaba o ningún remolque tiene sitio."/>
+        <text name="guidance_helperReady_shovel" text="Arráncala mirando al montón"/>
+        <text name="guidance_phase_shovelLoad" text="Llenando la pala"/>
+        <text name="guidance_phase_shovelToTrailer" text="Va al remolque"/>
+        <text name="guidance_phase_shovelTip" text="Volcando en el remolque"/>
+        <text name="guidance_phase_shovelBack" text="Vuelve al montón"/>
+        <text name="guidance_phase_shovelEmpty" text="Hecho: el montón se acabó"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Parada: ningún remolque con sitio cerca del montón"/>
+        <text name="guidance_phase_shovelNoHeap" text="Parada: no hay montón delante (aparca mirando a él)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>

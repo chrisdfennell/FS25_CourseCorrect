@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (installato)"/>
         <text name="guidance_pf_autoMissing" text="Auto (non installato)"/>
         <text name="guidance_pf_off" text="Off"/>
+        <text name="guidance_windrows_of" text="Andane: %s ha ranghinato qui"/>
+        <text name="guidance_windrows_follow" text="Segui"/>
+        <text name="guidance_vines_name" text="Vigneto %d"/>
+        <text name="guidance_pattern_vines" text="Filari"/>
+        <text name="guidance_set_vineMode" text="Vigneto"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Sui filari"/>
+        <text name="guidance_vine_between" text="Tra i filari"/>
+        <text name="guidance_helper_shovel" text="Caricatore"/>
+        <text name="guidance_helper_noShovel" text="Aggancia una benna (pala gommata, telescopico o caricatore frontale) e parcheggia davanti al mucchio"/>
+        <text name="guidance_helperAbout_shovel" text="Carica il mucchio davanti a sé nei rimorchi fermi vicino (fino a 80 m): benna piatta nel mucchio finché è piena, indietro, perpendicolare al fianco del rimorchio, alzata sopra, svuotata. Una larghezza di benna alla volta; si ferma quando il mucchio è finito o nessun rimorchio ha spazio."/>
+        <text name="guidance_helperReady_shovel" text="Avvialo davanti al mucchio"/>
+        <text name="guidance_phase_shovelLoad" text="Riempie la benna"/>
+        <text name="guidance_phase_shovelToTrailer" text="Va al rimorchio"/>
+        <text name="guidance_phase_shovelTip" text="Svuota nel rimorchio"/>
+        <text name="guidance_phase_shovelBack" text="Torna al mucchio"/>
+        <text name="guidance_phase_shovelEmpty" text="Fatto: il mucchio è finito"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Fermo: nessun rimorchio con spazio vicino al mucchio"/>
+        <text name="guidance_phase_shovelNoHeap" text="Fermo: nessun mucchio davanti (parcheggia davanti)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: avvia"/>
         <text name="guidance_action_stop" text="CourseCorrect: ferma"/>

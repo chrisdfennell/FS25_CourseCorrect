@@ -1019,10 +1019,34 @@ function Driver:updateStats(dt)
     st.fuelLevel = level
 end
 
+--- Vine tools (grape harvester, pre-pruner, vine sprayer...) aren't the game's AI implements: unfolded, lowered
+--- on their attacher joint and switched on by hand
+function Driver.isVineTool(v)
+    return v.spec_vineCutter ~= nil or v.spec_vinePrepruner ~= nil
+end
+
+function Driver.setVineToolWorking(v, working)
+    if working and v.getIsUnfolded and not v:getIsUnfolded() and v.setFoldDirection and v.spec_foldable then
+        v:setFoldDirection(v.spec_foldable.turnOnFoldDirection or -1)
+    end
+    local attacher = v.getAttacherVehicle and v:getAttacherVehicle()
+    if attacher and attacher.getAttacherJointIndexFromObject and attacher.setJointMoveDown then
+        local ix = attacher:getAttacherJointIndexFromObject(v)
+        if ix then attacher:setJointMoveDown(ix, working, false) end
+    end
+    if v.setIsTurnedOn and v.getIsTurnedOn and v:getIsTurnedOn() ~= working
+            and (not working or v.getCanBeTurnedOn == nil or v:getCanBeTurnedOn()) then
+        v:setIsTurnedOn(working)
+    end
+end
+
 function Driver:lowerImplements()
     Guidance.debug("%s: lowering at %.1f m", Guidance.vehicleName(self.vehicle), self.follower.s)
     for _, implement in pairs(self.vehicle:getAttachedAIImplements()) do
         implement.object:aiImplementStartLine()
+    end
+    for _, v in pairs(allVehicles(self.vehicle)) do
+        if Driver.isVineTool(v) then Driver.setVineToolWorking(v, true) end
     end
     self.vehicle:raiseStateChange(VehicleStateChange.AI_START_LINE)
     self.lowered = true
@@ -1035,6 +1059,9 @@ function Driver:raiseImplements()
     Guidance.debug("%s: raising at %.1f m", Guidance.vehicleName(self.vehicle), self.follower.s)
     for _, implement in pairs(self.vehicle:getAttachedAIImplements()) do
         implement.object:aiImplementEndLine()
+    end
+    for _, v in pairs(allVehicles(self.vehicle)) do
+        if Driver.isVineTool(v) then Driver.setVineToolWorking(v, false) end
     end
     self.vehicle:raiseStateChange(VehicleStateChange.AI_END_LINE)
     self.lowered = false

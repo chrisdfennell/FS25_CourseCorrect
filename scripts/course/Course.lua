@@ -88,6 +88,10 @@ function GuidancePlan.new()
     self.unloadX, self.unloadZ, self.unloadFull = 0, 0, 97
     -- 0: the station at unloadX, unloadZ (none: stop when full), 1: a truck at the field edge, 2: a heap
     self.unloadMode = 0
+    -- vineyards: 0 automatic (on the rows with a grape harvester / pre-pruner, else between), 1 on, 2 between
+    self.vineMode = 0
+    -- (the vehicle had a tool for on the rows when the course was made)
+    self.vineTool = false
     -- the editor's moved points: "ix x z;ix x z" (the course's waypoint ix moved there; its neighbours along the
     -- course follow, less the further away). Any other change of the course drops them.
     self.moves = ""
@@ -197,6 +201,8 @@ function GuidancePlan:writeStream(streamId)
     streamWriteFloat32(streamId, self.unloadZ or 0)
     streamWriteUInt8(streamId, self.unloadFull or 97)
     streamWriteUInt8(streamId, self.unloadMode or 0)
+    streamWriteUInt8(streamId, self.vineMode or 0)
+    streamWriteBool(streamId, self.vineTool == true)
 end
 
 function GuidancePlan.readStream(streamId)
@@ -254,6 +260,8 @@ function GuidancePlan.readStream(streamId)
     self.unloadZ = streamReadFloat32(streamId)
     self.unloadFull = streamReadUInt8(streamId)
     self.unloadMode = streamReadUInt8(streamId)
+    self.vineMode = streamReadUInt8(streamId)
+    self.vineTool = streamReadBool(streamId)
     return self
 end
 
@@ -368,7 +376,7 @@ GuidancePlan.XML_FIELDS = {
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"rowsPerLand", "INT"}, {"rowShape", "INT"}, {"tramlines", "BOOL"},
     {"rowPhase", "FLOAT"}, {"rowSpacing", "FLOAT"}, {"skipRows", "STRING"}, {"skipZones", "STRING"},
     {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"}, {"moves", "STRING"},
-    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"}, {"unloadMode", "INT"},
+    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"}, {"unloadMode", "INT"}, {"vineMode", "INT"}, {"vineTool", "BOOL"},
 }
 
 function GuidancePlan.registerXMLPaths(schema, basePath)
@@ -581,7 +589,12 @@ function GuidanceCourse.fieldForCourse(x, z, farmId)
     end
     local mapId = GuidanceCourse.getMapFieldIdAt(x, z)
     local scan
-    if GuidanceFieldScan and GuidanceFieldScan.isAvailable() then
+    -- among vines: the vineyard (its rows and room round them to turn), not the ground
+    local vineyard = GuidanceVines and GuidanceVines.at(x, z)
+    if vineyard then
+        scan = {outline = vineyard.outline, area = vineyard.area, vines = true}
+        mapId = nil
+    elseif GuidanceFieldScan and GuidanceFieldScan.isAvailable() then
         local ok, result = pcall(GuidanceFieldScan.scan, x, z, mapId)
         scan = ok and result or nil
         if not ok then Guidance.info("field scan failed: %s", tostring(result)) end
@@ -614,6 +627,12 @@ function GuidanceCourse.fieldForCourse(x, z, farmId)
     local name
     if old then
         name = old.name
+    elseif scan.vines then
+        local n = 1
+        for _, f in ipairs(GuidanceLibrary.fields) do
+            if f.baseField == 0 and f.farmId == farmId then n = n + 1 end
+        end
+        name = string.format(g_i18n:getText("guidance_vines_name"), n)
     elseif onMapField then
         name = string.format(g_i18n:getText("guidance_scan_name"), mapId)
     else
@@ -668,6 +687,20 @@ function GuidanceCourse.generate(plan)
         return nil, g_i18n:getText("guidance_err_noField")
     end
     local settings = plan:getGeneratorSettings()
+    -- a vineyard: along its rows
+    local vineyard = GuidanceVines and GuidanceVines.inOutline(outline)
+    if vineyard and #vineyard.rows >= 2 then
+        local onRows = plan.vineMode == 1 or (plan.vineMode ~= 2 and plan.vineTool == true)
+        local lines = GuidanceVines.lines(vineyard, onRows, settings.workWidth)
+        local result, err = GuidanceCourseGenerator.generateFromLines(outline, settings, lines, GuidanceVines.EXTEND)
+        if result == nil then
+            return nil, err
+        end
+        result.stats.vineRows = #vineyard.rows
+        result.stats.vineOnRows = onRows
+        GuidanceCourse.applyMoves(result.waypoints, plan:getMoves())
+        return GuidanceCourse.new(result, plan, outline)
+    end
     settings.islands = GuidanceCourse.findIslands(plan.fieldId, outline)
     -- the areas the player marked to work round: like islands
     local zones = plan:getSkipZones()

@@ -1165,3 +1165,430 @@ end
 function Base:giveWay(dt, maxSpeed, x, z, h, reversing)
     return GuidanceFieldworkDriver.giveWay(self, dt, maxSpeed, x, z, h, reversing)
 end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- The loader: a wheel loader, telehandler or tractor front loader with a bucket, loading a heap into the trailers
+-- standing by it. Started facing the heap. The arm and the bucket are moved through the game's moving tools (on the
+-- server; the game sends them to the clients); which way each goes is learnt from watching the bucket.
+-----------------------------------------------------------------------------------------------------------------------
+
+GuidanceShovelDriver = setmetatable({}, {__index = Base})
+local Shovel = GuidanceShovelDriver
+local Shovel_mt = {__index = Shovel}
+
+Shovel.SPEED_IN = 4 -- km/h into the heap
+Shovel.SPEED = 10 -- km/h between heap and trailer
+Shovel.CREEP = 2 -- km/h up to the trailer, the bucket over it
+Shovel.REACH = 40 -- m ahead of where it started the heap is looked for
+Shovel.TRAILER_REACH = 80 -- m from where it started a trailer may stand
+Shovel.LANES = 4 -- lanes each side of the first one (a bucket's width apart)
+Shovel.LOAD_HEIGHT = 0.05 -- m, the bucket over the ground digging in
+Shovel.CARRY_HEIGHT = 0.6 -- m carrying
+Shovel.UNLOAD_MIN = 3.5 -- m at least over the ground before going over a trailer's side
+Shovel.LEVEL, Shovel.CARRY, Shovel.PRE = 90, 55, 45 -- degrees: the bucket flat, tilted back to carry, before tipping
+Shovel.POSE_TIME = 10000 -- ms a pose may take; then on as it is
+Shovel.STUCK_IN = 4000 -- ms not getting on in the heap: out with what it has
+Shovel.TIP_WAIT = 5000 -- ms tipping without the bucket getting emptier: the trailer is full
+Shovel.LOOK_AHEAD = 6 -- m ahead of the bucket the lane is looked at for more
+
+--- The bucket and the arm and bucket tools of the combination: {shovel, node, tipNode, maxTip, arm, tilt}, or nil
+function Shovel.findTools(vehicle)
+    local out = {}
+    for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {vehicle}) do
+        local sp = v.spec_shovel
+        if out.shovel == nil and sp and sp.shovelNodes and sp.shovelNodes[1] then
+            out.shovel, out.node = v, sp.shovelNodes[1]
+            local info = sp.shovelDischargeInfo
+            out.tipNode = info and info.node or sp.shovelNodes[1].node
+            out.maxTip = info and info.maxSpeedAngle and math.deg(info.maxSpeedAngle) or 130
+        end
+        local cyl = v.spec_cylindered
+        for _, tool in ipairs(cyl and cyl.movingTools or {}) do
+            if tool.axis == "AXIS_FRONTLOADER_ARM" and out.arm == nil then
+                out.arm = {tool = tool, owner = v, sign = 1}
+            elseif tool.axis == "AXIS_FRONTLOADER_TOOL" and out.tilt == nil then
+                out.tilt = {tool = tool, owner = v, sign = 1}
+            end
+        end
+    end
+    if out.shovel and out.arm and out.tilt then return out end
+    return nil
+end
+
+function Shovel.new(vehicle, job)
+    local self = setmetatable({}, Shovel_mt)
+    Base.init(self, vehicle)
+    self.job = job
+    self.tools = Shovel.findTools(vehicle)
+    self.lane = 1
+    self.fullTrailers = {}
+    self.state = "start"
+    self.width = math.max(1.5, ((self.tools and self.tools.node.width) or 2.5) * 0.9)
+    return self
+end
+
+-- the bucket: how high over the ground, how tipped (degrees: 90 flat, less tilted back, more tipped)
+function Shovel:height()
+    local x, y, z = getWorldTranslation(self.tools.node.node)
+    return y - getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, x, 0, z)
+end
+
+function Shovel:tiltAngle()
+    local _, dy = localDirectionToWorld(self.tools.tipNode, 0, 0, 1)
+    return math.deg(math.acos(math.max(-1, math.min(1, dy))))
+end
+
+function Shovel:fill()
+    local v, ix = self.tools.shovel, self.tools.node.fillUnitIndex or 1
+    if v.getFillUnitFillLevelPercentage then return v:getFillUnitFillLevelPercentage(ix) end
+    local c = v:getFillUnitCapacity(ix)
+    return (c and c > 0) and v:getFillUnitFillLevel(ix) / c or 0
+end
+
+--- Moves a tool towards target (as measure() sees it), tol: near enough. Which way is which is learnt from its first
+--- moves (the error has to shrink); at an end stop it is as far as it goes. True when there.
+function Shovel:moveTool(t, target, measure, tol, dt)
+    local err = target - measure()
+    if math.abs(err) <= tol then
+        t.window = nil
+        return true
+    end
+    local tool = t.tool
+    local rot = (tool.rotSpeed or 0) ~= 0 or (tool.transSpeed or 0) == 0
+    local speed = rot and math.abs((tool.rotSpeed or 0) ~= 0 and tool.rotSpeed or 0.0005) or math.abs(tool.transSpeed)
+    local f = math.max(0.3, math.min(1, math.abs(err) / (tol * 5)))
+    local dir = (err > 0 and 1 or -1) * t.sign
+    local move = rot and Cylindered.setToolRotation or Cylindered.setToolTranslation
+    if move(t.owner, tool, speed * f * dir, dt) then
+        Cylindered.setDirty(t.owner, tool)
+        local cyl = t.owner.spec_cylindered
+        if tool.dirtyFlag then t.owner:raiseDirtyFlags(tool.dirtyFlag) end
+        if cyl and cyl.cylinderedDirtyFlag then t.owner:raiseDirtyFlags(cyl.cylinderedDirtyFlag) end
+        t.atEnd = 0
+    else
+        -- at an end stop: the wrong way round (not learnt yet), or as far as it goes
+        t.atEnd = (t.atEnd or 0) + dt
+        if t.atEnd > 300 then
+            t.atEnd = 0
+            if t.verified then return true end
+            t.sign = -t.sign
+            t.flips = (t.flips or 0) + 1
+            if t.flips > 2 then t.verified = true end
+        end
+        return false
+    end
+    t.window = t.window or {time = 0, err = math.abs(err)}
+    t.window.time = t.window.time + dt
+    if t.window.time > 400 then
+        local now = math.abs(err)
+        if now < t.window.err - 1e-3 then
+            t.verified = true
+        elseif now > t.window.err + 1e-3 and not t.verified then
+            t.sign = -t.sign
+        end
+        t.window = {time = 0, err = now}
+    end
+    return false
+end
+
+--- Arm and bucket towards a pose (until both have learnt their way, one after the other); true when there
+function Shovel:pose(dt, height, tilt)
+    local tools = self.tools
+    local tiltOk = self:moveTool(tools.tilt, tilt, function() return self:tiltAngle() end, 2.5, dt)
+    if not tiltOk and not (tools.tilt.verified and tools.arm.verified) then return false end
+    local armOk = self:moveTool(tools.arm, height, function() return self:height() end, 0.12, dt)
+    return tiltOk and armOk
+end
+
+--- Standing until the pose is there (or POSE_TIME is up), then the next state
+function Shovel:poseThen(dt, height, tilt, nextState)
+    self.poseTimer = (self.poseTimer or 0) + dt
+    if self:pose(dt, height, tilt) or self.poseTimer > Shovel.POSE_TIME then
+        self.poseTimer = 0
+        self.state = nextState
+    end
+    return self:standStill()
+end
+
+-- along the line it started on (its heading) and across it: where (x, z) is
+function Shovel:along(x, z)
+    local h = self.home
+    return (x - h.x) * math.cos(h.h) + (z - h.z) * math.sin(h.h)
+end
+
+function Shovel:lanePoint(along, lane)
+    local h = self.home
+    local lx, lz = leftOf(h.h)
+    local off = Shovel.laneOffset(lane) * self.width
+    return h.x + math.cos(h.h) * along + lx * off, h.z + math.sin(h.h) * along + lz * off
+end
+
+--- lanes: 0, one to the left, one to the right, two to the left...
+function Shovel.laneOffset(lane)
+    if lane <= 1 then return 0 end
+    local k = math.floor(lane / 2)
+    return (lane % 2 == 0) and k or -k
+end
+
+local function heapType(ft)
+    if ft == nil or ft == 0 or (FillType and ft == FillType.UNKNOWN) then return nil end
+    return ft
+end
+
+--- What lies on the ground across the lane at 'along' (a line as wide as the bucket), or nil
+function Shovel:materialAt(along, lane)
+    local x, z = self:lanePoint(along, lane)
+    local lx, lz = leftOf(self.home.h)
+    local half = self.width / 2
+    local y = getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, x, 0, z)
+    return heapType(DensityMapHeightUtil.getFillTypeAtLine(x + lx * half, y, z + lz * half, x - lx * half, y,
+        z - lz * half, 0.5))
+end
+
+--- Where the heap starts on the lane (along), its material; nil when there's none within REACH
+function Shovel:findHeap(lane, from)
+    for a = from or 1, Shovel.REACH, 0.5 do
+        local ft = self:materialAt(a, lane)
+        if ft then return a, ft end
+    end
+    return nil
+end
+
+--- A trailer to load: standing near where it started, not ours, room for the heap's material; and its fill node
+function Shovel:findTrailer()
+    local ours = {}
+    for _, v in ipairs(self.vehicle:getChildVehicles() or {}) do ours[v] = true end
+    local best, bestNode, bestD
+    for _, v in pairs(g_currentMission.vehicleSystem.vehicles or {}) do
+        if not ours[v] and not self.fullTrailers[v] and v.spec_trailer and v.getFillUnits and v.rootNode then
+            local root = v.getRootVehicle and v:getRootVehicle() or v
+            local tx, _, tz = getWorldTranslation(v.rootNode)
+            local d = dist(tx, tz, self.home.x, self.home.z)
+            if d < Shovel.TRAILER_REACH and (root.getLastSpeed == nil or root:getLastSpeed() < 0.5) then
+                for ix in ipairs(v:getFillUnits()) do
+                    local free = v:getFillUnitFreeCapacity(ix, self.fillType, self.vehicle:getOwnerFarmId())
+                    local takes = v.getFillUnitSupportsFillType == nil or v:getFillUnitSupportsFillType(ix, self.fillType)
+                    local node = v.getFillUnitExactFillRootNode and v:getFillUnitExactFillRootNode(ix)
+                    if takes and free and free > 1 and node and (bestD == nil or d < bestD) then
+                        best, bestNode, bestD = v, node, d
+                    end
+                end
+            end
+        end
+    end
+    return best, bestNode
+end
+
+--- Square to the trailer's side nearer to us, the bucket's reach plus 6 m out: where to drive to, facing it
+function Shovel:trailerApproach()
+    local px, _, pz = getWorldTranslation(self.trailerNode)
+    local root = self.trailer.getRootVehicle and self.trailer:getRootVehicle() or self.trailer
+    local _, _, th = Base.poseOf(self.trailer.getAIDirectionNode and self.trailer or root)
+    local nx, nz = leftOf(th)
+    local x, z = Base.poseOf(self.vehicle)
+    if (x - px) * nx + (z - pz) * nz < 0 then nx, nz = -nx, -nz end
+    local _, ahead = Base.offsetIn(self.vehicle, self.tools.node.node)
+    local out = math.max(0, ahead) + 6
+    return px + nx * out, pz + nz * out, math.atan2(-nz, -nx), px, pz
+end
+
+local SHOVEL_PHASES = {start = "shovelLoad", toLane = "shovelBack", lower = "shovelLoad", dig = "shovelLoad",
+                       out = "shovelLoad", toTrailer = "shovelToTrailer", raise = "shovelToTrailer",
+                       creep = "shovelToTrailer", tip = "shovelTip", away = "shovelBack"}
+
+function Shovel:finishWith(phase, message)
+    self.vehicle:guidanceSetHelperPhase(phase)
+    self:finish(message or AIMessageSuccessFinishedJob.new())
+end
+
+function Shovel:getDriveData(dt, vX, vY, vZ)
+    if self.done then return self:standStill() end
+    self.vehicle:guidanceSetHelperPhase(SHOVEL_PHASES[self.state])
+    if self:isPaused() then return self:standStill() end
+    if self.tools == nil then
+        self:finishWith("shovelNoHeap", AIMessageErrorBlockedByObject.new())
+        return self:standStill()
+    end
+    local x, z, h = Base.poseOf(self.vehicle)
+    local state = self.state
+    if state == "start" then
+        -- the heap: straight ahead (on the first lane, or one beside it)
+        for lane = 1, 3 do
+            local from, ft = self:findHeap(lane)
+            if from then
+                self.heapFrom, self.fillType = from, ft
+                break
+            end
+        end
+        if self.heapFrom == nil then
+            self:finishWith("shovelNoHeap", AIMessageErrorBlockedByObject.new())
+            return self:standStill()
+        end
+        self.state = "lower"
+        return self:standStill()
+    elseif state == "toLane" then
+        local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Shovel.SPEED, self.trailer)
+        self:pose(dt, Shovel.CARRY_HEIGHT, Shovel.CARRY)
+        if done then self.state = "lower" end
+        return gx, gz, fwd, speed, toStop
+    elseif state == "lower" then
+        return self:poseThen(dt, Shovel.LOAD_HEIGHT, Shovel.LEVEL, "dig")
+    elseif state == "dig" then
+        self:pose(dt, Shovel.LOAD_HEIGHT, Shovel.LEVEL)
+        local _, ahead = Base.offsetIn(self.vehicle, self.tools.node.node)
+        local bucketAlong = self:along(x, z) + ahead
+        local fill = self:fill()
+        -- the end of the heap on this lane: nothing from the bucket on for a while (what's left further on: on to it)
+        local ended = false
+        if bucketAlong > self.heapFrom + 0.5 then
+            ended = true
+            for a = bucketAlong, bucketAlong + Shovel.LOOK_AHEAD, 0.5 do
+                if self:materialAt(a, self.lane) then
+                    ended = false
+                    break
+                end
+            end
+        end
+        local speed = Shovel.SPEED_IN
+        if self.vehicle:getLastSpeed() < 0.3 then
+            self.stuckIn = (self.stuckIn or 0) + dt
+        else
+            self.stuckIn = 0
+        end
+        if fill >= 0.97 or ended or self.stuckIn > Shovel.STUCK_IN or bucketAlong > Shovel.REACH + 5 then
+            self.stuckIn = 0
+            if ended and fill < 0.3 then self.laneDone = true end
+            self.state = "out"
+            return self:standStill()
+        end
+        local gx, gz = self:lanePoint(self:along(x, z) + 5, self.lane)
+        return gx, gz, true, speed, 5
+    elseif state == "out" then
+        -- straight back out of the heap, carrying
+        self:pose(dt, Shovel.CARRY_HEIGHT, Shovel.CARRY)
+        local back = self:along(x, z)
+        if back <= 0.5 then
+            if self:fill() > 0.1 then
+                self.emptyDigs = 0
+                self.state = "toTrailer"
+                self.follower = nil
+            else
+                -- nothing got: the next lane; a whole round of them without anything: the heap is done
+                self.emptyDigs = (self.emptyDigs or 0) + 1
+                if self.emptyDigs > 2 * Shovel.LANES + 1 then
+                    self:finishWith("shovelEmpty")
+                else
+                    self:nextLane()
+                end
+            end
+            return self:standStill()
+        end
+        local gx, gz = self:lanePoint(back - 5, self.lane)
+        self:checkStuck(dt, 4)
+        return gx, gz, false, 5, back
+    elseif state == "toTrailer" then
+        if self.follower == nil then
+            self.trailer, self.trailerNode = self:findTrailer()
+            if self.trailer == nil then
+                self:finishWith("shovelNoTrailer")
+                return self:standStill()
+            end
+            local ax, az, ah = self:trailerApproach()
+            self.approachH = ah
+            self:planTo(ax, az, ah, 8)
+        end
+        self:pose(dt, Shovel.CARRY_HEIGHT, Shovel.CARRY)
+        local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Shovel.SPEED, self.trailer)
+        if done then
+            self.state = "raise"
+            local tx, ty, tz = getWorldTranslation(self.trailerNode)
+            local ground = getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, tx, 0, tz)
+            self.unloadHeight = math.max(Shovel.UNLOAD_MIN, (ty or 0) - ground + 1)
+            return self:standStill()
+        end
+        return gx, gz, fwd, speed, toStop
+    elseif state == "raise" then
+        return self:poseThen(dt, self.unloadHeight, Shovel.PRE, "creep")
+    elseif state == "creep" then
+        -- in until the bucket is over the trailer's opening
+        self:pose(dt, self.unloadHeight, Shovel.PRE)
+        local px, _, pz = getWorldTranslation(self.trailerNode)
+        local bx, _, bz = getWorldTranslation(self.tools.node.node)
+        local ah = self.approachH
+        local togo = (px - bx) * math.cos(ah) + (pz - bz) * math.sin(ah)
+        self.creepFrom = self.creepFrom or {x = x, z = z}
+        if togo <= 0.3 or dist(x, z, self.creepFrom.x, self.creepFrom.z) > 10 then
+            self.creepFrom = nil
+            self.state = "tip"
+            self.tipLevel, self.tipTimer = self:fill(), 0
+            return self:standStill()
+        end
+        return x + math.cos(ah) * 5, z + math.sin(ah) * 5, true, Shovel.CREEP, togo
+    elseif state == "tip" then
+        self:pose(dt, self.unloadHeight, self.tools.maxTip + 5)
+        local fill = self:fill()
+        if fill <= 0.01 then
+            self.state = "away"
+            self.awayFrom = {x = x, z = z}
+            return self:standStill()
+        end
+        if fill < self.tipLevel - 0.005 then
+            self.tipLevel, self.tipTimer = fill, 0
+        else
+            self.tipTimer = self.tipTimer + dt
+            if self.tipTimer > Shovel.TIP_WAIT then
+                -- not going in: the trailer is full; the rest into the next one
+                self.fullTrailers[self.trailer] = true
+                self.state = "away"
+                self.awayFrom = {x = x, z = z}
+            end
+        end
+        return self:standStill()
+    elseif state == "away" then
+        -- back off, the bucket tilted back up (the arm stays up until clear of the trailer)
+        local cleared = dist(x, z, self.awayFrom.x, self.awayFrom.z) > 6
+        if cleared then
+            if self:fill() > 0.1 then
+                -- some still in it (the trailer was full): to the next one
+                self.state = "toTrailer"
+                self.follower = nil
+            else
+                self:toLane()
+            end
+            return self:standStill()
+        end
+        self:pose(dt, self.unloadHeight, Shovel.CARRY)
+        self:checkStuck(dt, 4)
+        return x - math.cos(h) * 5, z - math.sin(h) * 5, false, 5, 6
+    end
+    return self:standStill()
+end
+
+--- Back to the start of the lane to dig
+function Shovel:toLane()
+    local lx, lz = self:lanePoint(0, self.lane)
+    self:planTo(lx, lz, self.home.h, 6)
+    self.state = "toLane"
+end
+
+--- This lane is dug out: the next one with something on it, or the heap is done
+function Shovel:nextLane()
+    self.laneDone = nil
+    for lane = self.lane + 1, 2 * Shovel.LANES + 1 do
+        local from = self:findHeap(lane, math.max(1, (self.heapFrom or 1) - 5))
+        if from then
+            self.lane = lane
+            self:toLane()
+            return
+        end
+    end
+    -- and the first lanes once more (the heap slides into them)
+    for lane = 1, self.lane do
+        if self:findHeap(lane, math.max(1, (self.heapFrom or 1) - 5)) then
+            self.lane = lane
+            self:toLane()
+            return
+        end
+    end
+    self:finishWith("shovelEmpty")
+end

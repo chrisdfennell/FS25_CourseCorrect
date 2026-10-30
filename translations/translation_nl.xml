@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (geïnstalleerd)"/>
         <text name="guidance_pf_autoMissing" text="Auto (niet geïnstalleerd)"/>
         <text name="guidance_pf_off" text="Uit"/>
+        <text name="guidance_windrows_of" text="Zwaden: %s heeft hier geharkt"/>
+        <text name="guidance_windrows_follow" text="Volgen"/>
+        <text name="guidance_vines_name" text="Wijngaard %d"/>
+        <text name="guidance_pattern_vines" text="Wijnrijen"/>
+        <text name="guidance_set_vineMode" text="Wijngaard"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Op de rijen"/>
+        <text name="guidance_vine_between" text="Tussen de rijen"/>
+        <text name="guidance_helper_shovel" text="Lader"/>
+        <text name="guidance_helper_noShovel" text="Koppel een bak (shovel, verreiker of voorlader) en parkeer met de neus naar de hoop"/>
+        <text name="guidance_helperAbout_shovel" text="Laadt de hoop voor hem in de aanhangers die in de buurt staan (tot 80 m): bak vlak de hoop in tot hij vol is, terug, haaks op de zijkant van de aanhanger, erboven geheven, gekipt. Eén bakbreedte tegelijk; stopt als de hoop op is of geen aanhanger nog plaats heeft."/>
+        <text name="guidance_helperReady_shovel" text="Start hem met de neus naar de hoop"/>
+        <text name="guidance_phase_shovelLoad" text="Vult de bak"/>
+        <text name="guidance_phase_shovelToTrailer" text="Rijdt naar de aanhanger"/>
+        <text name="guidance_phase_shovelTip" text="Kipt in de aanhanger"/>
+        <text name="guidance_phase_shovelBack" text="Terug naar de hoop"/>
+        <text name="guidance_phase_shovelEmpty" text="Klaar: de hoop is op"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Gestopt: geen aanhanger met plaats bij de hoop"/>
+        <text name="guidance_phase_shovelNoHeap" text="Gestopt: geen hoop vooruit (parkeer ervoor)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

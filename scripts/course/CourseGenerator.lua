@@ -1887,6 +1887,95 @@ function CG.generate(boundary, settings)
     return best, nil
 end
 
+--- A course along given lines (a vineyard's rows): no headland passes. boundary: the area to turn in (list of {x, z});
+--- lines: list of {a, b ({x, y}), lat (place across)}; each driven once, either way, extend m on past its ends. Next
+--- comes the nearest line start, preferably one far enough to the side to turn into without backing up (as many
+--- lines as that takes skipped, and filled in on the way back). Returns course (as CG.generate) or nil, error text
+function CG.generateFromLines(boundary, settings, lines, extend)
+    local s = withDefaults(settings)
+    if #lines == 0 then
+        return nil, "no rows"
+    end
+    local poly = {}
+    for i, p in ipairs(boundary) do poly[i] = {x = p.x, y = p.z or p.y} end
+    poly = Geo.ensureCCW(poly)
+    local b = newBuilder(s, {field = poly})
+    extend = extend or 0
+    local wide = 2 * s.turnRadius
+    local done = {}
+    local cur = {x = s.startX or lines[1].a.x, y = s.startZ or lines[1].a.y}
+    local lastLat
+    local rowNumber = 0
+    local ranks = {}
+    do
+        local order = {}
+        for i = 1, #lines do order[i] = i end
+        table.sort(order, function(p, q) return lines[p].lat < lines[q].lat end)
+        for rank, i in ipairs(order) do ranks[i] = rank end
+    end
+    for _ = 1, #lines do
+        local best, bestD, bestFlip
+        for i, l in ipairs(lines) do
+            if not done[i] then
+                for _, flip in ipairs({false, true}) do
+                    local p = flip and l.b or l.a
+                    local d = Geo.dist(cur, p)
+                    -- (too close beside the last one to turn into round)
+                    if lastLat and math.abs(l.lat - lastLat) < wide - 0.01 then d = d + 1000 end
+                    if bestD == nil or d < bestD then best, bestD, bestFlip = i, d, flip end
+                end
+            end
+        end
+        done[best] = true
+        local l = lines[best]
+        local p1, p2 = bestFlip and l.b or l.a, bestFlip and l.a or l.b
+        local h = math.atan2(p2.y - p1.y, p2.x - p1.x)
+        local cx, cy = math.cos(h), math.sin(h)
+        p1 = {x = p1.x - cx * extend, y = p1.y - cy * extend}
+        p2 = {x = p2.x + cx * extend, y = p2.y + cy * extend}
+        if b:hasPoints() then
+            local pose = b:lastPose()
+            b:add(pose.x + math.cos(pose.h) * s.runOut, pose.y + math.sin(pose.h) * s.runOut, "T", false)
+            b:route({x = p1.x, y = p1.y, h = h}, "T")
+            b:add(p1.x, p1.y, b.wps[#b.wps].t, false)
+        else
+            b:add(p1.x - cx * 5, p1.y - cy * 5, "C", false)
+        end
+        rowNumber = rowNumber + 1
+        local extra = {row = rowNumber, block = 1, line = ranks[best]}
+        b:add(p1.x, p1.y, "R", false, {rs = true, row = rowNumber, block = 1, line = ranks[best]})
+        -- points along it (every 10 m), for the progress and the drawing
+        local len = Geo.dist(p1, p2)
+        local n = math.floor(len / 10)
+        for k = 1, n - 1 do
+            b:add(p1.x + cx * len * k / n, p1.y + cy * len * k / n, "R", true, extra)
+        end
+        b:add(p2.x, p2.y, "R", true, {re = true, row = rowNumber, block = 1, line = ranks[best]})
+        cur, lastLat = p2, l.lat
+    end
+    local pose = b:lastPose()
+    b:add(pose.x + math.cos(pose.h) * s.runOut, pose.y + math.sin(pose.h) * s.runOut, "C", false)
+    local total, worked, reversing = 0, 0, 0
+    for i = 2, #b.wps do
+        local d = Geo.dist({x = b.wps[i - 1].x, y = b.wps[i - 1].z}, {x = b.wps[i].x, y = b.wps[i].z})
+        total = total + d
+        if b.wps[i].work then worked = worked + d end
+        if b.wps[i].rev then reversing = reversing + d end
+    end
+    return {
+        waypoints = b.wps,
+        settings = s,
+        stats = {headlands = 0, rows = rowNumber, blocks = 1, rowAngle = math.deg(math.atan2(lines[1].b.y - lines[1].a.y,
+                 lines[1].b.x - lines[1].a.x)) % 180, pattern = "vines", length = total, workLength = worked,
+                 reverseLength = reversing, area = Geo.signedArea(poly), skippedArea = 0, islands = 0, islandsIgnored = 0,
+                 time = CG.estimateTime(b.wps, s), allRows = rowNumber, offField = b.offField or 0,
+                 offFieldSpots = b.offFieldSpots},
+        boundary = poly,
+        skippedLines = {},
+        area = {field = poly},
+    }
+end
+
 --- The way from pose 'from' to pose 'to' (into the course) for a course's area: direct, or along the headland when
 --- the direct way would cut through the middle of the field or an island. Returns points {x, y}.
 function CG.planApproach(area, settings, from, to)

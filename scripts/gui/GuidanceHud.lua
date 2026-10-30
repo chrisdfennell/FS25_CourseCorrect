@@ -139,10 +139,10 @@ function Hud:onVehicleDeleted(vehicle)
     end
 end
 
-function Hud:showMessage(text, isError)
+function Hud:showMessage(text, isError, seconds)
     self.message = text
     self.messageIsError = isError
-    self.messageTimer = 6000
+    self.messageTimer = (seconds or 6) * 1000
 end
 
 function Hud:update(dt)
@@ -451,6 +451,17 @@ function Hud:getSettingRows(vehicle, scope, all)
         inc = change("workWidth", math.min(60, s.workWidth + 0.5)),
         click = (not s.autoWidth) and change("autoWidth", true) or nil,
     })
+    -- a vineyard: on the rows or between them (automatic: on them with a grape harvester / pre-pruner)
+    if stats and stats.pattern == "vines" then
+        local mode = s.vineMode or 0
+        local names = {[0] = "auto", [1] = "on", [2] = "between"}
+        local value = t("guidance_vine_" .. names[mode])
+        if mode == 0 then value = value .. " · " .. t(stats.vineOnRows and "guidance_vine_on" or "guidance_vine_between") end
+        add("vineMode", {
+            label = t("guidance_set_vineMode"), value = value,
+            dec = change("vineMode", (mode + 2) % 3), inc = change("vineMode", (mode + 1) % 3),
+        })
+    end
     -- headlands: automatic is at least 30 m and enough to turn on the field; the arrows take a pass off or add one
     -- from there, a click on the value goes back to automatic
     local spacing = s.workWidth * (1 - (s.overlap or 0))
@@ -1084,7 +1095,12 @@ function Hud:drawVehicle()
     -- the course was made with another implement
     local toolWas = course and not active and vehicle.getGuidanceToolChange and vehicle:getGuidanceToolChange()
     local toolH = toolWas and self:h(28) or 0
-    warnH = warnH + shortageH + queueH + toolH
+    -- a baler / loader wagon on a field the rake has a course on: its passes are where the windrows lie
+    local rake = not active and GuidanceVehicle ~= nil and GuidanceVehicle.hasPickup(vehicle)
+        and GuidanceVehicle.windrowSource(vehicle) or nil
+    if rake and vehicle:guidanceFollowsCourseOf(rake) then rake = nil end
+    local rakeH = rake and self:h(28) or 0
+    warnH = warnH + shortageH + queueH + toolH + rakeH
     -- the job switch (this vehicle could also be an unloader / bale collector / silo compacter)
     local switchH = self:jobSwitchHeight(vehicle)
     local contentH = switchH + progressH + plotH + summaryH + detailsH + warnH + padY * 0.5 + #rows * rowH + moreH + startAtH
@@ -1196,6 +1212,18 @@ function Hud:drawVehicle()
             end, smallSize)
         warnH = warnH - toolH
     end
+    if rakeH > 0 then
+        cy = cy - rakeH
+        local followW = Draw.textWidth(smallSize, t("guidance_windrows_follow"), true) + self:w(16)
+        self:textIn(x + pad, cy, rakeH, smallSize,
+            fit(t("guidance_windrows_of", rake:getName()), smallSize, width - 2 * pad - followW - self:w(8)), C.text)
+        self:button(x + width - pad - followW, cy + self:h(3), followW, rakeH - self:h(6), t("guidance_windrows_follow"),
+            C.accent, C.hover, C.text, function()
+                local ok, err = vehicle:guidanceFollowCourseOf(rake)
+                if not ok then self:showMessage(err or t("guidance_err_generic"), true) end
+            end, smallSize)
+        warnH = warnH - rakeH
+    end
     if queueH > 0 then
         cy = cy - queueH
         local entry = GuidanceLibrary.getEntry(queue[1])
@@ -1254,7 +1282,7 @@ function Hud:drawVehicle()
     local s = vehicle:getGuidanceSettings()
     cy = self:drawSwitch(x, cy, startAtH, t("guidance_set_startAt"), Hud.startModes(),
         s.startMode or GuidancePlan.START_CONTINUE,
-        function(mode) vehicle:guidanceChangeSetting("startMode", mode) end, editable, self:w(210))
+        function(mode) vehicle:guidanceChangeSetting("startMode", mode) end, true, self:w(210))
 
     -- buttons: new course + start, or pause/resume + stop while working
     cy = cy - padY * 0.5 - buttonsH
@@ -1428,7 +1456,7 @@ function Hud:drawHelper(kind)
     cy = cy - phaseH
     local phase = vehicle:getGuidanceHelperPhase()
     -- (after the job: why the wrapper left bales)
-    local phaseText = ((running or phase == "balesCantWrap") and phase and t("guidance_phase_" .. phase))
+    local phaseText = ((running or (GuidanceVehicle ~= nil and GuidanceVehicle.END_PHASES[phase or ""])) and phase and t("guidance_phase_" .. phase))
         or t("guidance_helperReady_" .. kind)
     self:textIn(x + pad, cy, phaseH, m.textSize, fit(phaseText, m.textSize, width - 2 * pad, true),
         running and C.accent or C.text, nil, true)
@@ -1966,7 +1994,8 @@ function Hud:getScopeContent(vehicle, scope, editable)
             {t("guidance_report_btn"), function()
                 local ok, path = pcall(GuidanceDebug.writeReport, vehicle)
                 if ok and path then
-                    self:showMessage(t("guidance_report_written", path), false)
+                    -- (the whole path, on as many lines as it takes, long enough to read)
+                    self:showMessage(t("guidance_report_written", path), false, 20)
                 else
                     self:showMessage(t("guidance_report_failed"), true)
                 end
@@ -2014,7 +2043,8 @@ function Hud:drawSettings()
     local scopeH, noteH, startAtH = self:h(40), self:h(26), self:h(34)
     local sectionH = scope == "tractor" and self:h(36) or 0
     local buttonsH = #buttons > 0 and self:h(36) or 0
-    local messageH = self.message and self:h(24) or 0
+    local messageLines = self.message and math.min(5, self:countLines(self.message, smallSize, width - 2 * pad)) or 0
+    local messageH = messageLines > 0 and (messageLines * self:h(16) + self:h(8)) or 0
     local contentH = scopeH + sectionH + noteH + padY * 0.5 + #rows * rowH + (scope == "user" and startAtH or 0)
         + padY * 0.5 + buttonsH + messageH
 
@@ -2054,8 +2084,8 @@ function Hud:drawSettings()
     end
     if self.message then
         cy = cy - messageH
-        self:textIn(x + pad, cy, messageH, smallSize, fit(self.message, smallSize, width - 2 * pad),
-            self.messageIsError and C.danger or C.muted)
+        self:textLines(x + pad, cy + self:h(4), messageH - self:h(8), smallSize, self.message, width - 2 * pad,
+            self.messageIsError and C.danger or C.muted, messageLines)
     end
 end
 
@@ -2066,9 +2096,37 @@ end
 Hud.TEAM_PAGE = 7
 
 --- Text broken into at most maxLines lines that fit the width (the last one shortened with dots if needed)
+--- A word too wide for a line (a file path) in pieces that fit: broken after a slash where it can be
+local function splitLong(word, size, width)
+    local pieces = {}
+    while Draw.textWidth(size, word) > width and #word > 1 do
+        local cut
+        for i = #word - 1, 1, -1 do
+            local c = word:sub(i, i)
+            if (c == "/" or c == "\\") and Draw.textWidth(size, word:sub(1, i)) <= width then
+                cut = i
+                break
+            end
+        end
+        if cut == nil then
+            -- no slash that fits: as many letters as fit
+            cut = 1
+            while cut < #word and Draw.textWidth(size, word:sub(1, cut + 1)) <= width do cut = cut + 1 end
+        end
+        pieces[#pieces + 1] = word:sub(1, cut)
+        word = word:sub(cut + 1)
+    end
+    pieces[#pieces + 1] = word
+    return pieces
+end
+
 local function wrapLines(text, size, width, maxLines)
     local lines, line = {}, ""
+    local words = {}
     for word in string.gmatch(text, "%S+") do
+        for _, piece in ipairs(splitLong(word, size, width)) do words[#words + 1] = piece end
+    end
+    for _, word in ipairs(words) do
         local try = line == "" and word or (line .. " " .. word)
         if Draw.textWidth(size, try) <= width or line == "" then
             line = try

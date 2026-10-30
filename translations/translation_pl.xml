@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (zainstalowany)"/>
         <text name="guidance_pf_autoMissing" text="Auto (brak)"/>
         <text name="guidance_pf_off" text="Wył."/>
+        <text name="guidance_windrows_of" text="Wały: %s zgrabiał tutaj"/>
+        <text name="guidance_windrows_follow" text="Jedź po nich"/>
+        <text name="guidance_vines_name" text="Winnica %d"/>
+        <text name="guidance_pattern_vines" text="Rzędy winorośli"/>
+        <text name="guidance_set_vineMode" text="Winnica"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Na rzędach"/>
+        <text name="guidance_vine_between" text="Między rzędami"/>
+        <text name="guidance_helper_shovel" text="Ładowarka"/>
+        <text name="guidance_helper_noShovel" text="Podłącz łyżkę (ładowarka kołowa, teleskopowa lub czołowa) i ustaw się przodem do pryzmy"/>
+        <text name="guidance_helperAbout_shovel" text="Ładuje pryzmę przed sobą do przyczep stojących w pobliżu (do 80 m): łyżka płasko w pryzmę aż będzie pełna, cofnięcie, prostopadle do boku przyczepy, uniesiona nad nią, wysypana. Jedna szerokość łyżki naraz; staje, gdy pryzma zniknie lub żadna przyczepa nie ma miejsca."/>
+        <text name="guidance_helperReady_shovel" text="Uruchom przodem do pryzmy"/>
+        <text name="guidance_phase_shovelLoad" text="Napełnia łyżkę"/>
+        <text name="guidance_phase_shovelToTrailer" text="Jedzie do przyczepy"/>
+        <text name="guidance_phase_shovelTip" text="Wysypuje do przyczepy"/>
+        <text name="guidance_phase_shovelBack" text="Wraca do pryzmy"/>
+        <text name="guidance_phase_shovelEmpty" text="Gotowe: pryzmy już nie ma"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Zatrzymano: brak przyczepy z miejscem przy pryzmie"/>
+        <text name="guidance_phase_shovelNoHeap" text="Zatrzymano: brak pryzmy z przodu (ustaw się przodem do niej)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (installed)"/>
         <text name="guidance_pf_autoMissing" text="Auto (not installed)"/>
         <text name="guidance_pf_off" text="Off"/>
+        <text name="guidance_windrows_of" text="Windrows: %s raked here"/>
+        <text name="guidance_windrows_follow" text="Follow"/>
+        <text name="guidance_vines_name" text="Vineyard %d"/>
+        <text name="guidance_pattern_vines" text="Vine rows"/>
+        <text name="guidance_set_vineMode" text="Vineyard"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="On the rows"/>
+        <text name="guidance_vine_between" text="Between the rows"/>
+        <text name="guidance_helper_shovel" text="Loader"/>
+        <text name="guidance_helper_noShovel" text="Attach a bucket (wheel loader, telehandler or front loader) and park facing the heap"/>
+        <text name="guidance_helperAbout_shovel" text="Loads the heap in front of it into the trailers standing near it (within 80 m): bucket flat into the heap until full, back out, square to the trailer's side, lifted over it, tipped. A bucket's width at a time; stops when the heap is gone or no trailer has room."/>
+        <text name="guidance_helperReady_shovel" text="Start it facing the heap"/>
+        <text name="guidance_phase_shovelLoad" text="Loading the bucket"/>
+        <text name="guidance_phase_shovelToTrailer" text="Driving to the trailer"/>
+        <text name="guidance_phase_shovelTip" text="Tipping into the trailer"/>
+        <text name="guidance_phase_shovelBack" text="Back to the heap"/>
+        <text name="guidance_phase_shovelEmpty" text="Done: the heap is gone"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Stopped: no trailer with room near the heap"/>
+        <text name="guidance_phase_shovelNoHeap" text="Stopped: no heap ahead (park facing it)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="105">
     <author>Chris Fennell</author>
-    <version>0.6.1.0</version>
+    <version>0.7.0.0</version>
     <title>
         <en>CourseCorrect</en>
         <de>CourseCorrect</de>
@@ -47,6 +47,7 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
         <sourceFile filename="scripts/geometry/Dubins.lua"/>
         <sourceFile filename="scripts/course/CourseGenerator.lua"/>
         <sourceFile filename="scripts/course/FieldScan.lua"/>
+        <sourceFile filename="scripts/course/Vines.lua"/>
         <sourceFile filename="scripts/course/Course.lua"/>
         <sourceFile filename="scripts/course/Library.lua"/>
         <sourceFile filename="scripts/ai/PathFollower.lua"/>
@@ -61,6 +62,7 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
         <sourceFile filename="scripts/ai/HelperJobs.lua"/>
         <sourceFile filename="scripts/events/GuidanceCourseEvent.lua"/>
         <sourceFile filename="scripts/events/GuidancePauseEvent.lua"/>
+        <sourceFile filename="scripts/events/GuidanceSettingEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceLibraryEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceQueueEvent.lua"/>
         <sourceFile filename="scripts/gui/GuidanceDraw.lua"/>

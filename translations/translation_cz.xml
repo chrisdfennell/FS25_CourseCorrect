@@ -55,6 +55,25 @@
         <text name="guidance_pf_autoFound" text="Auto (nainstalováno)"/>
         <text name="guidance_pf_autoMissing" text="Auto (nenainstalováno)"/>
         <text name="guidance_pf_off" text="Vyp."/>
+        <text name="guidance_windrows_of" text="Řádky: %s zde shrnoval"/>
+        <text name="guidance_windrows_follow" text="Sledovat"/>
+        <text name="guidance_vines_name" text="Vinice %d"/>
+        <text name="guidance_pattern_vines" text="Řady vinic"/>
+        <text name="guidance_set_vineMode" text="Vinice"/>
+        <text name="guidance_vine_auto" text="Auto"/>
+        <text name="guidance_vine_on" text="Na řadách"/>
+        <text name="guidance_vine_between" text="Mezi řadami"/>
+        <text name="guidance_helper_shovel" text="Nakladač"/>
+        <text name="guidance_helper_noShovel" text="Připojte lžíci (kolový nakladač, teleskop nebo čelní nakladač) a zaparkujte čelem k hromadě"/>
+        <text name="guidance_helperAbout_shovel" text="Nakládá hromadu před sebou do přívěsů stojících poblíž (do 80 m): lžíce naplocho do hromady, dokud není plná, zpět, kolmo k boku přívěsu, zvednutá nad něj, vysypaná. Jedna šířka lžíce po druhé; zastaví, když hromada zmizí nebo žádný přívěs nemá místo."/>
+        <text name="guidance_helperReady_shovel" text="Spusťte čelem k hromadě"/>
+        <text name="guidance_phase_shovelLoad" text="Plní lžíci"/>
+        <text name="guidance_phase_shovelToTrailer" text="Jede k přívěsu"/>
+        <text name="guidance_phase_shovelTip" text="Vysypává do přívěsu"/>
+        <text name="guidance_phase_shovelBack" text="Zpět k hromadě"/>
+        <text name="guidance_phase_shovelEmpty" text="Hotovo: hromada je pryč"/>
+        <text name="guidance_phase_shovelNoTrailer" text="Zastaveno: žádný přívěs s místem u hromady"/>
+        <text name="guidance_phase_shovelNoHeap" text="Zastaveno: před ním není hromada (zaparkujte čelem k ní)"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>

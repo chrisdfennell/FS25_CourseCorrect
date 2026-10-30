@@ -52,7 +52,7 @@ function GuidanceHelperTask:stop(wasJobStopped)
     if self.vehicle ~= nil and self.vehicle.spec_guidance ~= nil then
         self.vehicle.spec_guidance.driver = nil
         if self.isServer and self.vehicle.guidanceSetHelperPhase
-                and self.vehicle:getGuidanceHelperPhase() ~= "balesCantWrap" then
+                and not GuidanceVehicle.END_PHASES[self.vehicle:getGuidanceHelperPhase() or ""] then
             -- on the road: the game drives
             self.vehicle:guidanceSetHelperPhase(self.job.kind == "unload" and not wasJobStopped and "unloadTrip" or nil)
         end
@@ -69,6 +69,7 @@ GuidanceHelperJob.KINDS = {
     unload = {name = "GUIDANCE_UNLOAD", driver = function() return GuidanceUnloadDriver end},
     bales = {name = "GUIDANCE_BALES", driver = function() return GuidanceBaleDriver end},
     silo = {name = "GUIDANCE_SILO", driver = function() return GuidanceSiloDriver end},
+    shovel = {name = "GUIDANCE_SHOVEL", driver = function() return GuidanceShovelDriver end},
 }
 
 function GuidanceHelperJob.new(isServer, customMt, kind)
@@ -115,6 +116,11 @@ GuidanceSiloJob = {}
 local Silo_mt = Class(GuidanceSiloJob, GuidanceHelperJob)
 GuidanceSiloJob.name = GuidanceHelperJob.KINDS.silo.name
 function GuidanceSiloJob.new(isServer, customMt) return GuidanceHelperJob.new(isServer, customMt or Silo_mt, "silo") end
+
+GuidanceShovelJob = {}
+local Shovel_mt = Class(GuidanceShovelJob, GuidanceHelperJob)
+GuidanceShovelJob.name = GuidanceHelperJob.KINDS.shovel.name
+function GuidanceShovelJob.new(isServer, customMt) return GuidanceHelperJob.new(isServer, customMt or Shovel_mt, "shovel") end
 
 function GuidanceHelperJob:makeDriver(vehicle)
     return GuidanceHelperJob.KINDS[self.kind].driver().new(vehicle, self)
@@ -172,6 +178,9 @@ function GuidanceHelperJob.canDo(vehicle, kind)
         local x, z = GuidanceHelperDriver.poseOf(vehicle)
         if GuidanceSiloDriver.findSilo(x, z) then return true end
         return false, g_i18n:getText("guidance_helper_noSilo")
+    elseif kind == "shovel" then
+        if GuidanceShovelDriver.findTools(vehicle) then return true end
+        return false, g_i18n:getText("guidance_helper_noShovel")
     end
     return false, "?"
 end
@@ -287,7 +296,7 @@ function GuidanceHelperJob:stop(aiMessage)
     if self.task and self.task.isRunning then
         self.task:stop(true)
     end
-    if vehicle:getGuidanceHelperPhase() ~= "balesCantWrap" then vehicle:guidanceSetHelperPhase(nil) end
+    if not GuidanceVehicle.END_PHASES[vehicle:getGuidanceHelperPhase() or ""] then vehicle:guidanceSetHelperPhase(nil) end
     vehicle:deleteAgent()
     vehicle:aiJobFinished()
     AIJob.stop(self, aiMessage)

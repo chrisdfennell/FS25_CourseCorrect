@@ -7,7 +7,7 @@ Guidance = {
     MOD_NAME = g_currentModName,
     MOD_DIR = g_currentModDirectory,
     SPEC_NAME = g_currentModName .. ".guidance",
-    VERSION = "0.6.1.0",
+    VERSION = "0.7.0.0",
     -- the name players see
     TITLE = "CourseCorrect",
     -- the mod's name before 0.5: its data is read once, and it must not be loaded as well
@@ -171,6 +171,7 @@ function Guidance:loadMap()
     mission.aiJobTypeManager:registerJobType(GuidanceUnloadJob.name, g_i18n:getText("guidance_helper_unload"), GuidanceUnloadJob)
     mission.aiJobTypeManager:registerJobType(GuidanceBaleJob.name, g_i18n:getText("guidance_helper_bales"), GuidanceBaleJob)
     mission.aiJobTypeManager:registerJobType(GuidanceSiloJob.name, g_i18n:getText("guidance_helper_silo"), GuidanceSiloJob)
+    mission.aiJobTypeManager:registerJobType(GuidanceShovelJob.name, g_i18n:getText("guidance_helper_shovel"), GuidanceShovelJob)
     if g_client ~= nil then
         GuidancePrefs.load()
         self.hud = GuidanceHud.new()
