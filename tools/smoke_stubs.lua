@@ -57,6 +57,7 @@ end
 
 AIMessageManager = {getMessageIndex = function() return 1 end}
 AIJobTypeManager = {getJobTypeIndex = function() return 1 end}
+AISystem = {startJob = function() end}
 TypeManager = {finalizeTypes = function() end}
 function addModEventListener(l) MOD_LISTENER = l end
 function addConsoleCommand() end

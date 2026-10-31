@@ -88,6 +88,14 @@ function GuidancePlan.new()
     self.unloadX, self.unloadZ, self.unloadFull = 0, 0, 97
     -- 0: the station at unloadX, unloadZ (none: stop when full), 1: a truck at the field edge, 2: a heap
     self.unloadMode = 0
+    -- the unloader on the field: round standing crop (false: straight through it)
+    self.avoidCrop = true
+    -- the unloader's place under the pipe moved: out from the combine (+, m) and forward (+, m)
+    self.unloadSide, self.unloadAlong = 0, 0
+    -- the side its place under the pipe is on: 0 where the pipe is measured, 1 left, 2 right
+    self.unloadPipeSide = 0
+    -- the one combine the unloader serves (its key), wherever it works; "": any on the field it starts on
+    self.unloadCombine = ""
     -- vineyards: 0 automatic (on the rows with a grape harvester / pre-pruner, else between), 1 on, 2 between
     self.vineMode = 0
     -- a harvester stops while harvesting would lose yield in the rain (the game's rule), on again after
@@ -97,6 +105,13 @@ function GuidancePlan.new()
     -- obstacles near the field edge (within the headland passes): 0 driven over, 1 worked round (notched into the
     -- edge, every pass bending round them)
     self.edgeObstacles = 0
+    -- the AutoDrive marker that takes a vehicle to this course (its name; "": the one nearest its start)
+    self.adMarker = ""
+    -- lifted while working (turns, from one pass to the next): the implements keep running (not switched off)
+    self.keepRunning = false
+    -- the game's own field work helper hired for this vehicle at its course's field (the hire key, the game's helper
+    -- menu, AutoDrive set to the game's helper): CourseCorrect works the course instead
+    self.takeOver = true
     -- (the vehicle had a tool for on the rows when the course was made)
     self.vineTool = false
     -- the editor's moved points: "ix x z;ix x z" (the course's waypoint ix moved there; its neighbours along the
@@ -209,11 +224,19 @@ function GuidancePlan:writeStream(streamId)
     streamWriteFloat32(streamId, self.unloadZ or 0)
     streamWriteUInt8(streamId, self.unloadFull or 97)
     streamWriteUInt8(streamId, self.unloadMode or 0)
+    streamWriteBool(streamId, self.avoidCrop ~= false)
+    streamWriteFloat32(streamId, self.unloadSide or 0)
+    streamWriteFloat32(streamId, self.unloadAlong or 0)
+    streamWriteUInt8(streamId, self.unloadPipeSide or 0)
+    streamWriteString(streamId, self.unloadCombine or "")
     streamWriteUInt8(streamId, self.vineMode or 0)
     streamWriteBool(streamId, self.rainWait ~= false)
     streamWriteBool(streamId, self.refillEdge == true)
     streamWriteUInt8(streamId, self.edgeObstacles or 0)
+    streamWriteString(streamId, self.adMarker or "")
+    streamWriteBool(streamId, self.keepRunning == true)
     streamWriteBool(streamId, self.vineTool == true)
+    streamWriteBool(streamId, self.takeOver ~= false)
 end
 
 function GuidancePlan.readStream(streamId)
@@ -271,11 +294,19 @@ function GuidancePlan.readStream(streamId)
     self.unloadZ = streamReadFloat32(streamId)
     self.unloadFull = streamReadUInt8(streamId)
     self.unloadMode = streamReadUInt8(streamId)
+    self.avoidCrop = streamReadBool(streamId)
+    self.unloadSide = streamReadFloat32(streamId)
+    self.unloadAlong = streamReadFloat32(streamId)
+    self.unloadPipeSide = streamReadUInt8(streamId)
+    self.unloadCombine = streamReadString(streamId)
     self.vineMode = streamReadUInt8(streamId)
     self.rainWait = streamReadBool(streamId)
     self.refillEdge = streamReadBool(streamId)
     self.edgeObstacles = streamReadUInt8(streamId)
+    self.adMarker = streamReadString(streamId)
+    self.keepRunning = streamReadBool(streamId)
     self.vineTool = streamReadBool(streamId)
+    self.takeOver = streamReadBool(streamId)
     return self
 end
 
@@ -391,8 +422,8 @@ GuidancePlan.XML_FIELDS = {
     {"rowPhase", "FLOAT"}, {"rowSpacing", "FLOAT"}, {"skipRows", "STRING"}, {"skipZones", "STRING"},
     {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"}, {"moves", "STRING"},
     {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"},
-    {"unloadMode", "INT"}, {"vineMode", "INT"}, {"vineTool", "BOOL"}, {"rainWait", "BOOL"}, {"refillEdge", "BOOL"},
-    {"edgeObstacles", "INT"},
+    {"unloadMode", "INT"}, {"avoidCrop", "BOOL"}, {"unloadSide", "FLOAT"}, {"unloadAlong", "FLOAT"}, {"unloadPipeSide", "INT"}, {"unloadCombine", "STRING"}, {"vineMode", "INT"}, {"vineTool", "BOOL"}, {"rainWait", "BOOL"}, {"refillEdge", "BOOL"},
+    {"edgeObstacles", "INT"}, {"adMarker", "STRING"}, {"keepRunning", "BOOL"}, {"takeOver", "BOOL"},
 }
 
 function GuidancePlan.registerXMLPaths(schema, basePath)
@@ -402,8 +433,13 @@ function GuidancePlan.registerXMLPaths(schema, basePath)
 end
 
 function GuidancePlan:saveToXMLFile(xmlFile, key)
+    -- (a value not set, e.g. prefsApplied before the player's defaults were applied: left out, it loads as the
+    -- default; the game's setValue errors on nil and the rest of the vehicle would not be saved)
     for _, f in ipairs(GuidancePlan.XML_FIELDS) do
-        xmlFile:setValue(key .. "#" .. f[1], self[f[1]])
+        local v = self[f[1]]
+        if v ~= nil then
+            xmlFile:setValue(key .. "#" .. f[1], v)
+        end
     end
 end
 
@@ -819,10 +855,14 @@ function GuidanceCourse:getWaypoint(ix)
     return self.waypoints[ix]
 end
 
+GuidanceCourse.NEAREST_TRIES = 200 -- stretches looked at for one with work left (accept), nearest first
+
 --- The worked stretch nearest to a vehicle at x, z facing h (one facing about the other way counts as far
---- away): its end waypoint index, and the point on it to start at (nil: at the waypoint before it)
-function GuidanceCourse:getNearest(x, z, h)
-    local best, bestCost, bestPoint
+--- away): its end waypoint index, and the point on it to start at (nil: at the waypoint before it). accept (or nil):
+--- function(ix, point) false for a start with nothing left to do there (a pass already harvested): then the nearest
+--- one it accepts, and true as a third value; the nearest after all when it accepts none.
+function GuidanceCourse:getNearest(x, z, h, accept)
+    local candidates = {}
     local wps = self.waypoints
     for i = 2, #wps do
         local a, b = wps[i - 1], wps[i]
@@ -830,23 +870,55 @@ function GuidanceCourse:getNearest(x, z, h)
             local d, t = GuidanceGeo.distToSegment({x = x, y = z}, {x = a.x, y = a.z}, {x = b.x, y = b.z})
             local dh = math.abs(GuidanceGeo.normAngle(math.atan2(b.z - a.z, b.x - a.x) - h))
             local cost = d + (dh > math.pi / 2 and 200 or dh / (math.pi / 2) * 20)
-            if bestCost == nil or cost < bestCost then
-                local len = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
-                bestCost, best = cost, i
-                -- start where the vehicle is along it, unless that's right at its start or end
-                if len > 10 and t * len > 5 and (1 - t) * len > 10 then
-                    bestPoint = {x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t}
-                else
-                    bestPoint = nil
-                    if t * len <= 5 then best = i - 1 end
-                end
+            local len = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+            local ix, point = i, nil
+            -- start where the vehicle is along it, unless that's right at its start or end
+            if len > 10 and t * len > 5 and (1 - t) * len > 10 then
+                point = {x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t}
+            elseif t * len <= 5 then
+                ix = i - 1
+            end
+            table.insert(candidates, {cost = cost, ix = math.max(1, ix), point = point})
+        end
+    end
+    if #candidates == 0 then
+        return 1
+    end
+    table.sort(candidates, function(p, q) return p.cost < q.cost end)
+    if accept then
+        for k = 1, math.min(#candidates, GuidanceCourse.NEAREST_TRIES) do
+            local c = candidates[k]
+            if accept(c.ix, c.point) then
+                return c.ix, c.point, k > 1
             end
         end
     end
-    if best == nil then
-        return 1
+    return candidates[1].ix, candidates[1].point
+end
+
+--- Metres of standing crop (a GuidanceFruitProbe) on the worked stretches of the course within dist m on from a
+--- start (waypoint ix, or a point on the way to it)
+function GuidanceCourse:cropAhead(probe, ix, point, dist)
+    local wps = self.waypoints
+    local prev = point or wps[ix]
+    local i = point and ix or ix + 1
+    local crop, len = 0, 0
+    while i <= #wps and len < dist do
+        local wp = wps[i]
+        local d = math.sqrt((wp.x - prev.x) ^ 2 + (wp.z - prev.z) ^ 2)
+        local to = wp
+        if len + d > dist then
+            local t = (dist - len) / d
+            to = {x = prev.x + (wp.x - prev.x) * t, z = prev.z + (wp.z - prev.z) * t}
+        end
+        if wp.work and not wp.rev then
+            crop = crop + GuidancePathfinder.fruitLength(probe, {x = prev.x, y = prev.z}, {{x = to.x, y = to.z}})
+        end
+        len = len + d
+        prev = wp
+        i = i + 1
     end
-    return math.max(1, best), bestPoint
+    return crop
 end
 
 --- Index where to continue after an interruption at ix: the start of the row or headland pass we were on

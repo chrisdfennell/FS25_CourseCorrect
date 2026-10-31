@@ -26,7 +26,9 @@ local overlays, state = {}, {color = {1, 1, 1, 1}, rot = 0, uvs = nil}
 local text = {align = 0, bold = false, color = {1, 1, 1, 1}}
 function createImageOverlay(path) table.insert(overlays, path) return #overlays end
 function delete() end
-function setOverlayColor(id, r, g, b, a) state.color = {r, g, b, a} end
+-- (the mod hands the game linear colours: back to screen colours for the picture)
+local function srgb(v) return (v or 0) ^ (1 / 2.2) end
+function setOverlayColor(id, r, g, b, a) state.color = {srgb(r), srgb(g), srgb(b), a} end
 function setOverlayRotation(id, rot, px, py) state.rot = rot end
 function getIsOverlayReady() return true end
 function setOverlayUVs(id, ...) state.uvs = {...} end
@@ -36,7 +38,7 @@ function renderOverlay(id, x, y, w, h)
 end
 function setTextBold(b) text.bold = b end
 function setTextAlignment(a) text.align = a end
-function setTextColor(r, g, b, a) text.color = {r, g, b, a} end
+function setTextColor(r, g, b, a) text.color = {srgb(r), srgb(g), srgb(b), a} end
 function setTextWrapWidth() end
 function renderText(x, y, size, s)
     table.insert(DRAW, {kind = "text", x = x, y = y, size = size, text = s, align = text.align, bold = text.bold,
@@ -64,7 +66,7 @@ function makeScene(course, mode, showMore)
     if mode == "more" then mode = "ready" end
     local plan = GuidancePlan.new()
     plan.workWidth, plan.turnRadius, plan.autoWidth = 6, 6, true
-    local active = mode ~= "ready" and mode ~= "library" and mode ~= "folders" and mode ~= "recording"
+    local active = mode ~= "ready" and mode ~= "library" and mode ~= "folders" and mode ~= "recording" and mode ~= "away"
         and mode:sub(1, 4) ~= "set_" and mode:sub(1, 4) ~= "edit" and mode ~= "otherHelper"
         and mode:sub(1, 6) ~= "helper" and mode ~= "jobswitch"
     local wps = course.waypoints
@@ -139,6 +141,30 @@ function makeScene(course, mode, showMore)
             {fieldId = 3, vehicle = "John Deere 8R 410", farmId = 1, area = 43000, seconds = 2500, fuel = 30.5, day = {day = 13, hour = 8, minute = 45}},
         }
     end
+    if mode == "tab" then
+        -- Tab to another tractor with the panel open on the Saved tab: it goes with us, same tab; out on foot: closed
+        local list = g_currentMission.vehicleSystem.vehicles
+        local other = list[4]
+        local current = v
+        g_localPlayer = {getCurrentVehicle = function() return current end}
+        g_inputBinding = {getShowMouseCursor = function() return true end, setShowMouseCursor = function() end}
+        hud.view = "library"
+        hud.messageTimer = 0
+        current = other
+        hud:update(16)
+        local followed = hud.isOpen and hud.vehicle == other and hud.view == "library"
+        current = nil
+        hud:update(16)
+        TAB_CHECK = string.format("Tab to another tractor: panel open for it on the same tab %s; on foot: closed %s",
+            tostring(followed), tostring(not hud.isOpen))
+        hud.isOpen, hud.vehicle, hud.view = true, v, "vehicle"
+        g_localPlayer = nil
+    end
+    if mode == "mini" then
+        -- minimised while it works: the mouse is the game's
+        hud.minimized = true
+        g_inputBinding = {getShowMouseCursor = function() return false end}
+    end
     if mode == "import" then
         hud.view, hud.importFiles = "import", {"Field 9 - plowing.xml", "Field 12 - sowing 12 m.xml", "Steves meadow.xml"}
     end
@@ -178,6 +204,28 @@ function makeScene(course, mode, showMore)
             table.insert(GuidanceLibrary.entries, e)
         end
         hud.fieldHere, hud.fieldHereVehicle, hud.fieldHereTime = 9, v, 0
+    end
+    if mode == "away" then
+        -- Start pressed 1.2 km from the course's field, a marker for it
+        function v:guidanceAtCourseField() return false, 1240 end
+        hud.offField = {vehicle = v, distance = 1240, marker = "Field 9 gate", time = 0}
+    end
+    if mode == "help" or mode == "help_topic" then
+        hud.view, hud.helpFrom = "help", "library"
+        GuidanceHelp.loaded = HELP_TOPICS
+        hud.helpTopic = mode == "help_topic" and 5 or nil
+    end
+    if mode == "queue" then
+        hud.view = "queue"
+        GuidanceLibrary.entries = {}
+        for i, name in ipairs({"Field 6 · sowing", "Field 12 · 12.3 m cultivator", "Field 27 · combine"}) do
+            local e = GuidanceLibrary.newEntry(name, 1, plan, course)
+            e.id = i
+            e.plan.fieldId = ({6, 12, 27})[i]
+            if i == 1 then e.plan.adMarker = "Field 6 gate" end
+            table.insert(GuidanceLibrary.entries, e)
+        end
+        QUEUE = {1, 2, 3}
     end
     if mode == "folders" then
         hud.view = "library"
@@ -245,7 +293,7 @@ function makeScene(course, mode, showMore)
     function v:getGuidanceHelperKinds() return {} end
     function v:getGuidanceHelperKind() return nil end
     function v:getGuidanceHelperPhase() return nil end
-    local helperModes = {helper_unload = {"unload"}, helper_unloadRun = {"unload", "unloadFollow"},
+    local helperModes = {helper_unload = {"unload"}, helper_unloadRun = {"unload", "unloadFollow"}, helper_dropdown = {"unload"},
                          helper_bales = {"bales"}, helper_siloRun = {"silo", "siloWait"}}
     local hm = helperModes[mode]
     if hm then
@@ -259,6 +307,38 @@ function makeScene(course, mode, showMore)
         g_currentMission.accessHandler = {canFarmAccess = function() return true end}
         UnloadingStation = nil
         plan.unloadX, plan.unloadZ, plan.unloadFull = 100, 200, 95
+        if mode == "helper_dropdown" then
+            -- Unload at clicked: the list of where it can unload, open under it
+            local names = {"Grain elevator (Riverside)", "Main Silo INPUT", "Multifruit Buying Silo", "Sugar mill", "BGA"}
+            local stations = {}
+            for i, n in ipairs(names) do
+                stations[i] = {owningPlaceable = {getName = function() return n end},
+                               getAITargetPositionAndDirection = function() return 100 * i, 200, 1, 0 end,
+                               getAISupportedFillTypes = function() return {[1] = true} end}
+            end
+            g_currentMission.storageSystem = {getUnloadingStations = function() return stations end}
+            g_inputBinding = {getShowMouseCursor = function() return true end}
+            -- a click on its 4th option picks it and closes the list; a click elsewhere only closes it
+            local picked
+            function v:guidanceApplySettings(values) picked = values end
+            hud.dropdown = {id = TEXTS.guidance_set_unloadAt, scroll = 0}
+            hud:draw()
+            local e = hud.popupElements[4]
+            hud:mouseEvent(e.x + e.w / 2, e.y + e.h / 2, true, false, Input.MOUSE_BUTTON_LEFT)
+            local closedOnPick = hud.dropdown == nil
+            hud.dropdown = {id = TEXTS.guidance_set_unloadAt, scroll = 0}
+            hud:draw()
+            local before = picked
+            hud:mouseEvent(0.001, 0.001, true, false, Input.MOUSE_BUTTON_LEFT)
+            DROP_CHECK = string.format("4th option picked: %s (x %s), closed %s; click elsewhere: closed %s, nothing else picked %s",
+                tostring(picked ~= nil), tostring(picked and picked.unloadX), tostring(closedOnPick),
+                tostring(hud.dropdown == nil), tostring(picked == before))
+            -- open from a frame before (in the game it stays open across frames: the text under it is left out)
+            hud.dropdown = {id = TEXTS.guidance_set_unloadAt, scroll = 0}
+            hud:draw()
+            WHEEL_OURS = hud:wantsWheel()
+            DRAW = {}
+        end
         if hm[2] then
             function v:getGuidanceHelperKind() return hm[1] end
             function v:getGuidanceHelperPhase() return hm[2] end
@@ -289,6 +369,34 @@ function makeScene(course, mode, showMore)
         hud:drawAlerts()
         return DRAW, hud.alertBox
     end
+    if mode == "zoom" then
+        -- the mouse wheel over the map: two steps in (4 times closer round the vehicle), outside it nothing
+        Input.MOUSE_BUTTON_WHEEL_UP, Input.MOUSE_BUTTON_WHEEL_DOWN = 4, 5
+        g_inputBinding = {getShowMouseCursor = function() return true end}
+        hud:draw()
+        local b = hud.plot.box
+        local function wheel(x, y, button)
+            g_time = g_time + 200
+            hud:mouseEvent(x, y, true, false, button)
+            hud:draw()
+        end
+        wheel(b.x + b.w / 2, b.y + b.h / 2, 4)
+        wheel(b.x + b.w / 2, b.y + b.h / 2, 4)
+        local inTwice = hud.mapZoomIx
+        wheel(b.x + b.w / 2, b.y - 0.05, 5)
+        -- dragged 0.05 of the screen to the right: the map moves with the mouse, and stays there
+        local before = hud.mapCenter.x
+        local cx, cy = b.x + b.w / 2, b.y + b.h / 2
+        hud:mouseEvent(cx, cy, true, false, Input.MOUSE_BUTTON_LEFT)
+        hud:mouseEvent(cx + 0.05, cy, false, false, 0)
+        hud:mouseEvent(cx + 0.05, cy, false, true, Input.MOUSE_BUTTON_LEFT)
+        hud:draw()
+        local moved = before - hud.mapCenter.x
+        ZOOM_CHECK = string.format("wheel over the map twice: zoom step %d (want 3); below the map: %d (want 3); "
+            .. "dragged right: centre %.1f m west (want > 0), stays %s, panel not moved %s", inTwice, hud.mapZoomIx,
+            moved, tostring(hud.mapCenter.pinned == true), tostring(hud.dragging == nil and hud.posX == nil))
+        DRAW = {}
+    end
     hud:draw()
     return DRAW, hud.box
 end
@@ -313,7 +421,9 @@ ARROW = Image.open(Path(__file__).resolve().parent / "arrow_preview.png").conver
 
 def paint(draws, background):
     img = background.copy().convert("RGBA")
-    for d in draws.values():
+    # as the game does: every box first, then all the text on top
+    ordered = [d for d in draws.values() if d.kind != "text"] + [d for d in draws.values() if d.kind == "text"]
+    for d in ordered:
         layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
         g = ImageDraw.Draw(layer)
         c = d.color
@@ -372,8 +482,15 @@ def main():
                 "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/ai/Planner.lua", "scripts/ai/Trips.lua", "scripts/ai/Helpers.lua",
                 "scripts/gui/GuidanceDraw.lua",
                 "scripts/gui/GuidanceMap.lua",
-                "scripts/gui/GuidanceHud.lua"]:
+                "scripts/gui/GuidanceHelp.lua", "scripts/gui/GuidanceHud.lua"]:
         lua.execute((ROOT / rel).read_text(encoding="utf-8"))
+    # the help topics (the game reads them with its XML functions; here the English file, read in Python)
+    import xml.etree.ElementTree as HET
+    topics = []
+    for tp in HET.parse(ROOT / "help" / "help_en.xml").getroot().findall("topic"):
+        paras = lua.table_from([para.text or "" for para in tp.findall("p")])
+        topics.append(lua.table_from({"id": tp.get("id"), "title": tp.get("title"), "paras": paras}))
+    lua.globals().HELP_TOPICS = lua.table_from(topics)
     if os.environ.get("LINE_PIECE"):
         lua.execute("GuidanceDraw.LINE_PIECE = " + os.environ["LINE_PIECE"])
     # the driver isn't loaded here: its harvester check, as it is
@@ -390,11 +507,11 @@ def main():
     bgd = ImageDraw.Draw(bg)
     for i in range(0, W, 40):
         bgd.line([i, 0, i - 300, H], fill=(84, 74, 48), width=18)
-    for mode, more in (("ready", False), ("working", False), ("paused", True), ("fleet", False),
-                       ("library", False), ("folders", False), ("details", False),
+    for mode, more in (("ready", False), ("working", False), ("mini", False), ("zoom", False), ("tab", False), ("paused", True), ("fleet", False),
+                       ("library", False), ("away", False), ("queue", False), ("help", False), ("help_topic", False), ("folders", False), ("details", False),
                        ("recording", False), ("set_tractor", False), ("set_field", False), ("set_user", False), ("set_report", False), ("otherHelper", False), ("team", False), ("log", False), ("import", False), ("alerts", False),
                        ("edit", False), ("edit_direction", False), ("more", True),
-                       ("helper_unload", False), ("helper_unloadRun", False), ("helper_bales", False),
+                       ("helper_unload", False), ("helper_dropdown", False), ("helper_unloadRun", False), ("helper_bales", False),
                        ("helper_siloRun", False), ("jobswitch", False)):
         draws, box = lua.globals().makeScene(course, mode, more)
         img = paint(draws, bg)
@@ -402,6 +519,13 @@ def main():
         img.crop((int(x0), int(max(0, y0)), int(x0 + box.w * W + 40), int((1 - box.y) * H + 20))).save(
             out / f"panel_{mode}.png")
         print("written", out / f"panel_{mode}.png")
+        if mode == "zoom":
+            print(lua.globals().ZOOM_CHECK)
+        if mode == "tab":
+            print(lua.globals().TAB_CHECK)
+        if mode == "helper_dropdown":
+            print(lua.globals().DROP_CHECK)
+            print("list open: the camera's wheel zoom held off", lua.globals().WHEEL_OURS)
 
 
 if __name__ == "__main__":

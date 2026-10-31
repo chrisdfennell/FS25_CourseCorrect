@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<!-- CourseCorrect's own help (the ? in the panel). One file per language (help_de.xml...); a language without its own
+     file shows this one. Topic ids are fixed (the panel opens the topic of the tab you're on); titles and text are free. -->
+<help>
+    <topic id="start" title="Getting started">
+        <p>Open the panel with Ctrl+J in any tractor. Stand on a field: the course appears on the map at once, sized for the implements you have attached.</p>
+        <p>Press Start (or Alt+J without the panel). Start at decides where it begins: Continue (where it stopped), Nearest (the nearest stretch, facing your way) or First.</p>
+        <p>Pressed away from the course's field, Start asks first: Go there has AutoDrive take it to the field's marker, the implements folded, and it starts when it arrives.</p>
+        <p>While it works the panel shows progress and time left. Pause stops it where it is, Stop ends the job. What the helper needs shows in the panel and as alerts on the screen.</p>
+        <p>A field the map doesn't have (a meadow, a corner): drive round it with Record field, or paint field ground with the landscaping tools; it is read from the ground.</p>
+    </topic>
+    <topic id="course" title="The course">
+        <p>Work width and Turning radius are measured from your implements (auto). The - and + change them; a click on the value goes back to auto.</p>
+        <p>Headlands are the passes round the edge; automatic is at least 40 m (Min. headland, under More settings). Headland direction, Headland order (first or last) and Rounded corners shape them.</p>
+        <p>Rows: Every row, Racetrack (skips rows for wider turns), Lands or Spiral; Row shape Along the edge bends them with the field's edge. Row direction is automatic (fewest turns) or set in degrees.</p>
+        <p>More settings has the rest: what to work (the whole field, headlands or rows only, rows from/to), In turns (keep down or lift), speeds, lights and obstacles near the edge.</p>
+    </topic>
+    <topic id="editor" title="Editing the course">
+        <p>Edit (top right of the map) opens the editor right on the map.</p>
+        <p>Direction: drag to turn the rows. Start: click where it should begin. Skip rows: click a row to leave it out. Skip area: drag a box round something to work round. Move: drag a point of the course somewhere else.</p>
+        <p>Every change makes the course again at once. Take back all undoes the rows and areas left out and the moved points; Done closes the editor.</p>
+    </topic>
+    <topic id="settings" title="Settings: tractor, field, my defaults">
+        <p>This tractor holds everything, saved with the vehicle. This field holds headlands, row direction and pattern for anyone who works that field. My defaults are your own starting values for tractors not set up yet, kept on your PC.</p>
+        <p>With Remember per field on, changing a field value on the Course tab also saves it for that field.</p>
+        <p>My defaults also has the debug overlay, Precision Farming (Auto or Off), the Problem report and Course line height: the course lines drawn in the world on the ground or up to 4 m, to see them over tall crops like maize.</p>
+        <p>When lifted (Driving): Switch off, or Keep running, so the implements stay on in turns and from one pass to the next.</p>
+        <p>While the helper works the settings are locked, except Call unloader at, the speeds, the lower and raise timing and In the rain: those it takes as you change them.</p>
+    </topic>
+    <topic id="saved" title="Saved courses, Go and the queue">
+        <p>Save this course keeps it on the Saved tab, in a folder for its field. Load puts it on the tractor.</p>
+        <p>Go sends the tractor there now: it stops what it is doing, folds the implements and drives there. When it is far, AutoDrive takes it to the course's AutoDrive marker and presses its CP button on arrival, which starts CourseCorrect.</p>
+        <p>Queue lines courses up: when one is finished, the next is loaded and driven to the same way. Manage (Course tab) or Queue (Saved tab) shows the queue: move courses up or down, Go, Remove, Clear all.</p>
+        <p>Pick a course's marker under Settings, Driving, AutoDrive marker. Nearest uses the marker nearest the course's start (within 250 m).</p>
+        <p>Export writes a course to a file. Import a course file reads them back, and Courseplay's saved courses of this map too.</p>
+    </topic>
+    <topic id="team" title="Several tractors on one field">
+        <p>On the Team tab pick how the tractors share the field: Strips (each its own strip), Lands, Convoy (side by side), or Next free row (each takes the next row nobody has).</p>
+        <p>Helpers give way to each other and to players. When two meet head-on, the one that waited first backs off to the side and lets the other by.</p>
+        <p>A convoy needs room: on a narrow field the Course tab says so, and Next free row or Strips work it better.</p>
+    </topic>
+    <topic id="harvest" title="Harvesting and unloading">
+        <p>A combine calls an unloader at Call unloader at (Settings, Driving). A tractor with a trailer on the Unloader job (the switch on top of the Course tab) waits at the field edge, drives to the combine round the crop and rides under its pipe. Once the combine is empty it lets it pull away and goes back to where you started it, or off to unload when the trailer couldn't take another load.</p>
+        <p>At the call level the pipe goes out, so an unloader can empty the tank on the move (AutoDrive: its Active unloading). A truck that leaves full while there is still grain in the tank: the combine calls the next one straight away. An AutoDrive truck that should drive back to its waiting place after each unload: set its AutoDrive setting Park in field to No, and make its first target the waiting place.</p>
+        <p>Forage harvesters: the trailer drives beside them on the side without crop, or behind when opening a field. The harvester waits while nothing is under its spout.</p>
+        <p>A full harvester with nobody to unload it stops with a red Full, no unloader. AutoDrive sends a truck only when the truck and the harvester have the same first target in AutoDrive.</p>
+        <p>A full trailer goes where Unload at says: a station (on the game's roads and back), a truck standing at the field edge (auger wagon), a heap where it started (tipper), or it stops for you.</p>
+        <p>Harvesting in the rain loses yield. In the rain (Settings, Driving) set to Wait stops the harvester until the crop is dry again.</p>
+    </topic>
+    <topic id="refill" title="Seed, fertiliser and refilling">
+        <p>The planner (click the summary under the map) shows the seed, fertiliser, lime, spray and fuel the course needs against what is in the tanks, with Precision Farming's rates when it is installed.</p>
+        <p>Refill at (Settings, Driving): a station, reached on the game's roads; Supplies at the field edge, from pallets, big bags or a tanker standing by the field; or Off, and it stops when empty.</p>
+    </topic>
+    <topic id="grass" title="Grass, straw and bales">
+        <p>Mowing and raking are ordinary courses. A baler or loader wagon on a field your rake has a course on shows Windrows with Follow: its course then runs on the rake's passes.</p>
+        <p>Bales job: a bale loader picks up every bale of the field and unloads the stacks where it started; a bale wrapper wraps every bale it can. Started while a baler still works, both wait for more bales.</p>
+    </topic>
+    <topic id="loader" title="Loader and silo">
+        <p>Loader job: a wheel loader, telehandler or front loader with a bucket, parked facing a heap. It loads the heap into trailers standing within 80 m, a bucket's width at a time, and stops when the heap is gone or no trailer has room.</p>
+        <p>Silo job: a tractor at a bunker silo compacts it lane by lane, waits when it is compacted and stops when the silo is closed.</p>
+    </topic>
+    <topic id="vines" title="Vineyards and orchards">
+        <p>Stand among the vines and make a course: the vineyard (or orchard) becomes a field. A grape harvester or pre-pruner drives on the rows, anything else between them (the Vineyard setting).</p>
+        <p>It goes on to a row far enough away to turn into and fills the gaps on the way back. The vine tools are lowered and switched on in each row.</p>
+    </topic>
+    <topic id="autodrive" title="AutoDrive and Courseplay">
+        <p>Without Courseplay installed, AutoDrive treats CourseCorrect as Courseplay: its CP button starts CourseCorrect, and its unload and refill trips bring the tractor back to where it stopped.</p>
+        <p>Go and the queue use AutoDrive to reach fields that are far away, with its CP button switched on, so CourseCorrect starts when it arrives.</p>
+        <p>Courseplay's saved courses can be imported on the Saved tab (Import a course file).</p>
+    </topic>
+    <topic id="problems" title="When something goes wrong">
+        <p>The status and the alerts say what a helper needs: full, empty, stuck, giving way, waiting for the rain.</p>
+        <p>Stuck means it couldn't move for a while (something in the way, a slope, wheels spinning). Free it and press Start: Continue picks up where it stopped.</p>
+        <p>Problem report (Settings, My defaults) writes a file with the version, the tractor, its settings and what the helper was doing; the panel shows where. Send it along with what happened.</p>
+        <p>Debug overlay (My defaults) draws the helpers' paths and targets in the world.</p>
+    </topic>
+</help>

@@ -625,7 +625,9 @@ local function smoothRing(poly, s, square, keepAway, radius)
         piece = Geo.roundCorners(piece, r, false, math.rad(8), 1.5, keepAway)
         piece = Geo.limitCurvature(piece, r, false, nil, keepAway)
         piece = Geo.removeDuplicates(piece, 0.1)
-        local corner = {x = poly[i].x, y = poly[i].y, corner = true}
+        -- (with the edges it joins, as findSquareCorners saw them: the smoothed points next to it can be pushed in
+        -- off those edges, near a cut-off corner of the field)
+        local corner = {x = poly[i].x, y = poly[i].y, corner = true, edgeA = poly[(i - 2) % n + 1], edgeB = poly[i % n + 1]}
         table.insert(ring, corner)
         for k = 2, #piece - 1 do
             table.insert(ring, piece[k])
@@ -853,12 +855,13 @@ function Builder:route(to, t, allowOutside)
         table.insert(self.offFieldSpots, {x = from.x, y = from.y, toX = to.x, toY = to.y, t = t})
     end
     self:addPoints(best, t)
-    -- nothing in the way and only forward: an implement may stay down here
-    local clean = bestCount == 0
+    -- nothing in the way and only forward: an implement may stay down here; forward only and on the field (unworked
+    -- land on the way or not): second
+    local forward = true
     for _, p in ipairs(best) do
-        if p.rev then clean = false end
+        if p.rev then forward = false end
     end
-    return clean
+    return bestCount == 0 and forward, forward and bestDanger == 0
 end
 
 --- Adds points {x, y, rev} as type t, implement raised
@@ -923,6 +926,17 @@ function Builder:addSquareCorner(prev, c, nxt, pass, extra)
     local s = self.s
     local r, spacing = s.turnRadius, spacingOf(s)
     local h1, h2 = Geo.heading(prev, c), Geo.heading(c, nxt)
+    -- the directions of the straight edges the corner joins, not of the points next to it (pushed in off the edges
+    -- near a cut-off corner of the field, they skew the turn: a reverse far across the passes). The pass may be
+    -- driven either way round.
+    if c.edgeA and c.edgeB then
+        local ha, hb = Geo.heading(c.edgeA, c), Geo.heading(c, c.edgeB)
+        if math.abs(Geo.normAngle(ha - h1)) <= math.abs(Geo.normAngle(hb + math.pi - h1)) then
+            h1, h2 = ha, hb
+        else
+            h1, h2 = hb + math.pi, ha + math.pi
+        end
+    end
     local turn = Geo.normAngle(h2 - h1)
     local side = turn > 0 and 1 or -1
     local tanHalf = math.tan(math.abs(turn) / 2)
@@ -1172,7 +1186,7 @@ function CG.timeProfile(wps, workSpeed, turnSpeed, reverseSpeed)
                 end
             end
             -- a worked stretch starts here with the implements up: stop and lower them
-            if c.work and not b.work and not c.rev and not b.keep then
+            if c.work and not b.work and not c.rev and not b.keep and not b.lane then
                 v, wait = 0, wait + CG.LOWER_TIME
             elseif c.work and not b.work then
                 v = math.min(v, CG.LOWER_APPROACH_SPEED / 3.6)
@@ -1481,14 +1495,16 @@ local function generateCourse(boundary, s)
         return pts, nil
     end
 
-    --- don't start a pass at or just after a square corner, the manoeuvre needs the edges on both sides: start in
-    --- the middle of the edge after it
+    --- don't start a pass at or just after a square corner, the manoeuvre needs the edges on both sides: start a
+    --- turn's length after it (at most the middle of the edge after it). A start further on along that edge is fine:
+    --- moving it to the middle made every move to the next pass a long drift along the one just done.
     local function offCorner(ring)
         local n = #ring
+        local clear = 2 * s.turnRadius + spacing
         if ring[1].corner then
-            return ringStartingNear(ring, ring[1], Geo.dist(ring[1], ring[2]) / 2)
-        elseif ring[n].corner then
-            return ringStartingNear(ring, ring[n], (Geo.dist(ring[n], ring[1]) + Geo.dist(ring[1], ring[2])) / 2)
+            return ringStartingNear(ring, ring[1], math.min(clear, Geo.dist(ring[1], ring[2]) / 2))
+        elseif ring[n].corner and Geo.dist(ring[n], ring[1]) < clear then
+            return ringStartingNear(ring, ring[n], math.min(clear, (Geo.dist(ring[n], ring[1]) + Geo.dist(ring[1], ring[2])) / 2))
         end
         return ring
     end
@@ -1501,6 +1517,7 @@ local function generateCourse(boundary, s)
             local lead = 2 * s.turnRadius + 1
             local need = lead + base + 2 * s.turnRadius + 10
             local ring
+            local moveFrom = #b.wps + 1
             if not b:hasPoints() then
                 ring = startOnStraight(ringStartingNear(entry.ring, near, 0), need, lead)
             else
@@ -1554,7 +1571,11 @@ local function generateCourse(boundary, s)
             end
             ring = offCorner(ring)
             if b:hasPoints() then
-                b:route({x = ring[1].x, y = ring[1].y, h = Geo.heading(ring[1], ring[2])}, "C")
+                local _, onField = b:route({x = ring[1].x, y = ring[1].y, h = Geo.heading(ring[1], ring[2])}, "C")
+                -- from one pass to the next on the field, forward only: the implement stays down (switched off)
+                if onField and moveFrom > 1 then
+                    for k = moveFrom, #b.wps do b.wps[k].lane = true end
+                end
             end
             b:addRing(ring, entry.pass, entry.island and {island = entry.island} or nil)
             lastRing = ring

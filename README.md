@@ -13,7 +13,7 @@ show what this build does; in the game it looks the same, on the game's own pict
 
 | | |
 |---|---|
-| Version | **1.0.0.0** (called *Guidance* up to 0.4.4.0) |
+| Version | **1.0.4.5** (called *Guidance* up to 0.4.4.0) |
 | Author | Chris Fennell |
 | Zip | `FS25_CourseCorrect.zip`: 42 files, 268,880 bytes |
 | SHA-256 | `bc91b5f517dbba4dc1dddb6f3be339b566ec7b04bafcbb3fe0921df298456b6f` |
@@ -89,6 +89,28 @@ Drag the panel anywhere by its background; it remembers where you put it.
 
 Five tabs: **Course**, **Team**, **Saved**, **Fleet** and **Settings**.
 
+**Minimise** (the **–** at the top, next to the close button) shrinks the panel to its header, the progress, the
+course map and **Start** / **Pause** / **Stop**, and gives the mouse back to the game, so you can drive and look round
+with the map on the screen. **Ctrl+J** then gives the mouse to the small panel (to click its buttons) and back to the
+game; the **+** at its top brings the whole panel back.
+
+**Zoom the map:** the **–** and **+** at the bottom right of the course map, or the mouse wheel over it: up to 8 times
+closer, round the vehicle (the map follows it); drag it with the mouse to look elsewhere (it then stays there
+until you zoom again); all the way out shows the whole course again. Not while the course
+editor is open.
+
+While the panel is open (minimised too) the course is drawn on the ground around the vehicle, with a green **Start**
+flag where the course starts and a red **End** flag where it ends, as the dots on the panel's map.
+
+**Lists to pick from:** click the value of a setting with choices (*Unload at*, *Combine*, *Pipe side*, *Crop on the
+way*, *AutoDrive marker*) and a list of them opens under it; click one, or anywhere else to close it. A long list
+scrolls with the mouse wheel. The - and + still step through them.
+
+**Help** (the **?** at the top, next to minimise) opens CourseCorrect's own help on the topic of where you
+are (the tab, the helper job): 13 short topics from getting started to when something goes wrong, with a list of
+them and the one before and after on each page. The text is in `help/help_<language>.xml` (English and German so far;
+a language without its own file shows the English one), so it can be translated without touching the code.
+
 ### Course
 
 <table><tr><td align="center" valign="top"><img src="docs/images/panel/panel_ready.png" width="250"><br><sub>Before the start</sub></td><td align="center" valign="top"><img src="docs/images/panel/panel_working.png" width="250"><br><sub>Working</sub></td><td align="center" valign="top"><img src="docs/images/panel/panel_more.png" width="250"><br><sub>More settings</sub></td></tr></table>
@@ -140,7 +162,8 @@ Five tabs: **Course**, **Team**, **Saved**, **Fleet** and **Settings**.
   **More settings** adds turning radius, headland direction, headland order, rows pattern (and for *Lands* rows
   per land and the worked side), row shape, rounded corners, in turns and work part. Minimum headland, team and lower / raise timing are on the Settings tab.
 - **Start at**: *Continue* (where it stopped), *Nearest* (the nearest worked stretch, facing the same way, even
-  mid-row) or *First*. It can be changed while the helper works too (it counts at the next start); on a server
+  mid-row; a harvester leaves out the passes already harvested and takes the nearest with crop standing) or
+  *First*. It can be changed while the helper works too (it counts at the next start); on a server
   it goes to the server, so a start from the game's own helper menu uses it as well.
 - **Buttons**: *New course* + *Start*, or *Pause/Resume* + *Stop* while working.
 - **Record field**: drive around a meadow, an odd corner or part of a field to make your own field outline
@@ -205,7 +228,7 @@ Settings come at three levels. Switch between them at the top of the tab:
 |---|---|---|---|
 | **This tractor** (in three sections: *Course*, *Driving*, *Team*) | Everything: width, radius, headlands, row direction, pattern, rows per land, row shape, tramlines, corners, in turns, minimum headland, team, call unloader at (harvesters), tool offset, lower / raise timing, start at | In the savegame, with the vehicle | That tractor |
 | **This field** | Headlands, row direction, headland direction, headland order, rows pattern, rounded corners | On the server, in the savegame (`courseCorrect.xml`) | **Anyone** who makes a course on that field |
-| **My defaults** | Minimum headland, rounded corners, in turns, lower / raise timing, headland direction and order, pattern, start at, *Remember per field*, *Notifications*, *Debug overlay*, *Precision Farming* (Auto / Off), **Problem report** (writes `modSettings/FS25_CourseCorrect/report.txt` and shows its whole path) | On your own PC (`modSettings/FS25_CourseCorrect.xml`) | You only: tractors that are not set up yet |
+| **My defaults** | Minimum headland, rounded corners, in turns, lower / raise timing, headland direction and order, pattern, start at, *Remember per field*, *Notifications*, *Course line height* (the course lines in the world on the ground, or 1, 2.5 (8 ft) or 4 m up, to see them over tall crops like maize), *Debug overlay*, *Precision Farming* (Auto / Off), **Problem report** (writes `modSettings/FS25_CourseCorrect/report.txt` and shows its whole path) | On your own PC (`modSettings/FS25_CourseCorrect.xml`) | You only: tractors that are not set up yet |
 
 How they combine when a course is made:
 
@@ -283,6 +306,16 @@ it for that field. With it off, field settings change only from the Settings tab
   - *Keep down, switch off*: on turns that stay clear of the field edge and obstacles, the implement stays down
     but is switched off, so no seed or spray is used and no time is lost lifting.
   - Plows and seeders that can't be switched off always lift.
+- **When lifted** (Driving; also in My defaults): *Switch off* (the game's way) or *Keep running*: lifted while
+  working (turns, from one pass to the next, getting back on its line), the implements stay switched on; at the end
+  of the work they go off as usual (1.0.3.9).
+  - From one headland pass to the next (on the field, forward only) the implement always stays down, switched off,
+    whatever this says (1.0.3.7); a harvester keeps running there (switched off, the game would hold it).
+- **Game's helper here** (Driving; also in My defaults): *CourseCorrect drives* (default) or *The game's helper*.
+  When the game's own field work helper is hired for a vehicle that has a CourseCorrect course and stands at that
+  course's field, CourseCorrect works the course instead. That catches the hire key (it restarts whatever job the
+  savegame remembers, often the game's field work from before) and AutoDrive with its helper button set to the
+  game's helper (1.0.4.3).
 - **Towed (trailed) implements**: the tractor swings wide in bends so the implement stays on the line, and the
   headland corners are sized so the implement doesn't cut them.
 - **Side-offset implements** (mowers, offset plows such as the Lizard plows) work with their offset to the
@@ -330,6 +363,11 @@ unload*...), with *Pause* and *Stop*.
     the combine's speed; CourseCorrect's combine opens its pipe for it, holds on while it gets into place, never
     gives way to it (nor it to the combine), and waits for it when full instead of stopping;
   - stops following while the combine turns, and comes in again after;
+  - once the combine is empty: when the trailer couldn't take that combine's next load (less room than its tank at
+    its call level), straight off to unload; else it stands until the combine has pulled 20 m away (at most 20 s;
+    the combine doesn't stop for the unloader that has just emptied it), then drives back to where it was started
+    and waits there; a call on the way takes it straight to that combine. (Before 1.0.3.7 it waited beside the
+    combine, and the combine waited for it: both stood still.)
   - **forage harvesters** call all the time they work: the trailer drives beside it on the side with no standing
     crop (the side picked as each row starts, kept along it), or straight behind it, the tractor clear of it, when
     there is crop on both sides (opening a field). CourseCorrect's forage harvester keeps its spout out and holds
@@ -345,6 +383,27 @@ unload*...), with *Pause* and *Stop*.
       out and rolling on slowly where the ground is full, so the heap gets long; the next load goes on where the
       last one ended;
     - *Stop when full*: it stops at the field edge (for you, or AutoDrive).
+  - **Crop on the way**: *Go round* (default: on the field it drives round standing crop when the straight way
+    would cross more than 5 m of it) or *Drive through*.
+  - **Combine**: *Any on its field* (the ones on the field it was started on), or one of your harvesters (the list
+    says the field each is on). Picked, it serves only that one, wherever it works. Started away from that combine's
+    field: the implements fold, AutoDrive takes it to the field's marker (one at the field's edge named after the
+    field, such as *Field 42b WAIT*, first) and the unloader starts there, that marker its waiting place.
+  - **Pipe side**: *Auto* (the side its pipe is measured on, else the harvester's side setting), *Left* or *Right*.
+  - **Side offset** and **Front/back offset**: its place under the pipe moved further out from the combine (+) or
+    closer in (-), 0.25 m steps up to 4 m, and forward (+) or back (-), 0.5 m steps up to 8 m (to fill the trailer
+    where you want it, or keep clear of a wide header). Click the value: back to 0.
+  - *Unload at*, *Leave when full at*, *Crop on the way* and the offsets can be changed while it works; it takes them
+    at once.
+  - started (or ending up) next to a standing combine with its trailer folded: it pulls out straight first, slowly,
+    up to 25 m (straight on, else 30 or 60 deg to a side, whichever is clear of the combine, standing crop and the
+    field's edge), then takes a new way in with the trailer straight. At most 3 times per combine.
+  - started where a combine's pass runs (e.g. on the headland): when the combine gets there and is held up by it, it
+    calls it at once, full or not; the unloader takes what there is and both go on. Better: start it just off the
+    combine's way, at the field edge.
+  - **Saving fuel:** standing 10 s with nothing to do (waiting for a combine; likewise the silo compacter with the
+    silo compacted and the wrapper waiting for the baler), it switches its engine off; on again as soon as it has to
+    move. Not while it only stands a moment under a pipe.
 - **Bale collector** (a bale loader or a bale wrapper), started where the stack should be: picks up (or wraps)
   every bale of the field it is on, the nearest first, the grab point lined up and slow over the bale; a bale it
   missed is tried again from another side (three times). A full loader drives to where it started and unloads the
@@ -419,7 +478,11 @@ The modes:
 **Giving way** (always on, team or not): a CourseCorrect helper slows down and stops a few metres behind anything right
 in its path, and goes on once it has moved off: another CourseCorrect helper, a vehicle a player drives, another mod's or
 the game's helper, any vehicle moving, a person on foot. Not for parked vehicles (it would wait forever) and not for
-AutoDrive's vehicles (they keep clear themselves, and an unloader drives right beside a combine). Side by side on
+moving AutoDrive vehicles (they keep clear themselves, and an unloader drives right beside a combine); a *standing*
+AutoDrive vehicle in its way (a truck that has just unloaded it, when it turns) it waits for, at most 20 s (AutoDrive's
+truck may be waiting for it to turn), then goes on. To have AutoDrive's truck leave the spot after each unload, set
+that truck's AutoDrive setting *Park in field* to *No*: it then drives to its first target (make that its waiting
+place). Side by side on
 neighbouring passes isn't in the way (only implements that would overlap). Helpers never all wait for each other:
 when waiting goes round in a circle (two or more), one goes first, but it never drives into one standing in its way
 (it stops 12 m short, middle to middle). Then the one that started waiting first makes room: it backs up at an
@@ -431,8 +494,10 @@ are in their lanes (their spacing keeps them apart).
 
 ## Driving
 
-- **At the start** it waits until the implements are unfolded and ready (as the game's own helper does), and
-  measures them then; one that can't get ready stops the helper with the game's *could not prepare* message.
+- **At the start** it waits while an implement is still unfolding (as the game's own field helper does, at most a
+  minute) and measures it then. An implement that is already unfolded starts at once: 1.0.0.0 waited for the
+  game's "ready to drive" instead, which is for the road (it wants implements folded), so an unfolded cultivator
+  never started there ("not in transport mode").
 - **Rain** (harvesters, Settings tab, *Driving*: **In the rain**): harvesting in the rain loses yield (the game's
   rule, until about 20 minutes after it stops). *Wait* (the default): the harvester stands where it is, showing
   *Waiting for the rain to stop*, and goes on by itself when the crop is dry. *Carry on*: it harvests anyway.
@@ -458,11 +523,19 @@ are in their lanes (their spacing keeps them apart).
 - **Call unloader at** (Settings tab, shown for combines, foragers and other harvesters with a pipe): 10 to 100 %
   in 5 % steps, default 80 %. When the helper starts, CourseCorrect sets AutoDrive's own *call level* on that
   harvester to it (AutoDrive's nearest step: 0, 10 ... 80, 85, 90, 100 %); AutoDrive then sends an unloader when
-  the harvester is that full.
+  the harvester is that full. It can be changed while the helper works (and goes to AutoDrive then too), like the
+  speeds, the lower / raise timing and *In the rain*; the other settings are locked while it works. At the call
+  level the pipe goes out (when there are unloaders about, not in turns), so AutoDrive's *active unloading* empties
+  the tank on the move; a CourseCorrect unloader that leaves full with grain still in the tank makes the combine
+  call the next one straight away.
 - **Combines and choppers**:
   - the pipe opens when needed
   - with AutoDrive unloaders around, the combine waits for them when full instead of stopping
-  - it reports "maneuvering" in turns so unloaders keep clear, and holds when AutoDrive asks
+  - lowered but not switched on (the game switches on only as it is lowered, and refuses that while e.g. the
+    pipe is still moving after unloading): it asks again every second, switches on itself after 3 s (1.0.3.7);
+  - it reports "maneuvering" in turns so unloaders keep clear, and holds when AutoDrive asks; its pipe stays out over
+    a trailer till the tank is quite empty (AutoDrive waits for the last litre), and a hold with nothing coming out of
+    the tank lasts at most 15 s (else the harvester and the truck stood there for ever: 1.0.3.7)
 - **Fill levels and fuel**: full, empty or out of fuel stops the helper and tells AutoDrive (see below).
 - **Loading a save made while a helper worked**:
   - With *After loading: Carry on* (the default; Settings tab, also in *My defaults*) the helper starts again by
@@ -499,12 +572,32 @@ way through.
 
 ### Queue (several fields in a row)
 
-**Queue** saved courses from the Saved tab. When a course is finished, the helper loads the next one:
+**Start away from the field**: pressed with the tractor more than 40 m off its course's field, Start asks first:
+"*Not on Field 6 (1.2 km away)*". With an AutoDrive marker for the field, **Go there** does what *Go* does below for
+the course it has (folded, AutoDrive with its CP button on, started on arrival); without one, **Start anyway**.
+**Cancel** leaves it.
 
-- **within 150 m** of its start: the helper drives there itself and starts.
-- **farther away**: if an **AutoDrive marker** is within 250 m of the start, AutoDrive drives the tractor there,
-  and CourseCorrect starts when AutoDrive stops.
-- otherwise it shows *Next field waiting* until you drive it there.
+**Go** (Saved tab, on each course) sends the tractor there now: on field 32, *Go* on field 6's course and it
+stops what it is doing, loads field 6's course and goes. **Queue** does the same once the course it is on is
+finished. Either way:
+
+- **within 150 m** of the course's start: the helper drives there itself and starts.
+- **farther away**: the implements are made ready for the road first (switched off, raised and folded; AutoDrive
+  sets off once they are folded, or after 30 s), then **AutoDrive** drives the tractor to the course's **AutoDrive
+  marker**, with AutoDrive's helper
+  ("CP") button switched on for you. When AutoDrive gets there it presses that button itself and CourseCorrect
+  starts (by *Start at*). Your CP button goes back to how it was. If AutoDrive stops without handing over (more
+  than 30 m from the marker, or Courseplay installed), CourseCorrect starts by itself once AutoDrive has stopped.
+- the marker: pick it once when you set up the course (Settings tab, *Driving*: **AutoDrive marker**, any of
+  AutoDrive's markers; *Automatic*: within 250 m of the course's start, a marker at the field's edge named after
+  the field, such as *Field 42b WAIT*, else any marker at the field's edge, else any; of those the nearest to the
+  start. The setting shows which one that is). It is saved with the course,
+  and the Saved tab shows it on the course.
+- no marker: *Next field waiting*, until you drive it there.
+
+**The queue view** shows what is queued: **Manage** on the Course tab's queue line, or **Queue (N)** on the Saved
+tab. The courses in order with their field, time and AutoDrive marker, and the time of all of them; on each **Up**
+and **Down** (the order), **Go** (there now, out of the queue) and **Remove**; **Clear all** (a second click within 4 s).
 
 The queue is saved with the vehicle.
 
@@ -533,8 +626,8 @@ AutoDrive treats CourseCorrect as if it were Courseplay. No change to AutoDrive 
 - **AutoDrive unloaders for a CourseCorrect combine** use `getIsCpHarvesterWaitingForUnload`,
   `getIsCpHarvesterManeuvering` and `holdCpHarvesterTemporarily`. `getIsCpHarvesterWaitingForUnloadInPocket`
   is always false: CourseCorrect doesn't back into a pocket.
-- **The queue** uses AutoDrive the other way round: CourseCorrect asks AutoDrive to drive to the marker nearest the
-  next field.
+- **Go and the queue** use AutoDrive the other way round: CourseCorrect asks AutoDrive to drive to the course's
+  marker with its helper button on, so AutoDrive starts CourseCorrect on arrival (see *Queue* above).
 
 **Important: only without Courseplay.** Courseplay registers the same functions, and only one mod may do so.
 CourseCorrect offers them **only when `FS25_Courseplay` is not loaded**. With Courseplay installed, AutoDrive's CP
@@ -603,17 +696,17 @@ hand out finished rows again.
 | `tools/batch3_test.py` | lands (6-row lands, middle out, every row once; worked side left / right: in every land the rows done before always on that side, 75 looks each, none wrong), spiral (passes to the middle, no rows), curved rows along the edge, tramlines (an 18 m sprayer on a 6 m sowing course: every row on a sowing pass, the middle of each 3), rows left out (gone, listed for the editor), an area worked round (no waypoint in it); each on the field (worst 0.52 m) and lands / spiral / curved driven to the end (pinned to 30 m headlands: with 40 m field 9's inside no longer reaches its bent edge) ; an obstacle 8 m in from the edge: driven over with the switch off (warned), notched in with it on (nothing within 3 m of it, 0.51 m worst off the field) | **17/17 OK** |
 | `tools/fieldscan_test.py` | painted field ground: the map's field as it is (map outline kept, scan 0.05 s), painted on (80 m strip: its own field, area right within 3 %, rows over 96 % of the new part), the same again (no new field), painted more (same field, bigger), painted away (area right, no waypoint there), a spot inside not field (island, no waypoint on it), a field painted where the map has none, no field ground (map field as before), a player on a server (the field goes to the server first, the course follows) | **9/9 OK** |
 | `tools/planner_test.py` | seed and the seeder's fertiliser by the game's rates; everything that runs out, the first first; with Precision Farming (its real PrecisionFarming.xml, stand-in maps): seed rate set high, seed by soil, fertiliser by need and set, lime by need, switched off in My defaults (the plain amounts), the part still to do, worked out at most every 2 s | **11/11 OK** |
-| `tools/helpers_test.py` | the helpers without a course, through the mod's own drive loop: unloader (a combine harvesting field 9's rows, turning at each end; grain only flows under the pipe): comes, follows under the pipe, takes a full load, back to where it started, stops full; forage harvester (no tank, it holds while nothing is under its spout): beside it, and behind it with crop on both sides (the tractor never nearer than 8.9 m), the trailer filled; auger wagon into a truck 8 m off the field edge (pipe over the opening within 0.4 m, emptied, pipe in, waiting again); heap (two loads, the second going on 0.5 m from where the first ended, rear tip side); bale collector: all 6 bales with a 4-bale loader, the stacks unloaded where it started; bale wrapper: every hay bale wrapped, the straw bale left, that shown when done; bale wrapper behind a baler still at work: each bale wrapped as it is dropped, waiting for the next (59 s), finished only once the baler is switched off (closest 7 m centre to centre); silo compacter: every lane of a 12 m silo, never over the walls, waits when compacted, finishes when closed; refill trip: to the station, filled at the trigger, back, the course on; loader (arm and bucket wired the other way round, it has to learn them): a 16.2 t heap into a 20 t trailer, all of it in 9 min, nothing spilled, done when the heap is gone; a 6 t trailer filled, then stops | **12/12 OK** (unloader: 19.4 t, under the pipe 85 % of its following; forage harvester held 34 % of the time, mostly while the trailer came round after its turns) |
-| `tools/support_test.py` | the editor's moved points (there, neighbours following less, over the network, dropped by another change, not on a new course), the problem report (version, vehicle, settings, the mod's last log lines; written through the game's file functions), the debug overlay (a helper's way, target and text); the grass chain (a baler with a 9 m turning radius on a 6 m rake's course: the same rows, row ends 0.00 m apart, the same headland passes); *Start at* sent to the server without making the course again or losing where it got to, kept through a later course change; implements unfolding at the start (waited 3.1 s, no speed before, measured again; one never ready: stopped after 20 s); rain (a combine stands while it rains, goes on when dry; *Carry on*: it doesn't wait); refilling at the field edge (a seeder empty, a seed pallet 20 m off the field: its opening into the pallet's trigger, filled to 98 %, back within 0.4 m of where it stopped) | **15/15 OK** |
+| `tools/helpers_test.py` | the helpers without a course, through the mod's own drive loop: unloader (a combine harvesting field 9's rows, turning at each end; grain only flows under the pipe): comes, follows under the pipe, takes a load, lets the combine pull away and goes back to where it waits, comes again, leaves once there is no room for another load, back to where it started, stops full; a combine of ours stops for an unloader standing beside it but not for the one that has just emptied it; AutoDrive's hold: stands while the tank empties, goes on after 15 s when nothing comes out; forage harvester (no tank, it holds while nothing is under its spout): beside it, and behind it with crop on both sides (the tractor never nearer than 8.9 m), the trailer filled; auger wagon into a truck 8 m off the field edge (pipe over the opening within 0.4 m, emptied, pipe in, waiting again); heap (two loads, the second going on 0.5 m from where the first ended, rear tip side); bale collector: all 6 bales with a 4-bale loader, the stacks unloaded where it started; bale wrapper: every hay bale wrapped, the straw bale left, that shown when done; bale wrapper behind a baler still at work: each bale wrapped as it is dropped, waiting for the next (59 s), finished only once the baler is switched off (closest 7 m centre to centre); silo compacter: every lane of a 12 m silo, never over the walls, waits when compacted, finishes when closed; refill trip: to the station, filled at the trigger, back, the course on; loader (arm and bucket wired the other way round, it has to learn them): a 16.2 t heap into a 20 t trailer, all of it in 9 min, nothing spilled, done when the heap is gone; a 6 t trailer filled, then stops | **15/15 OK** (unloader: 18.8 t, under the pipe 94 % of its following; forage harvester held 34 % of the time, mostly while the trailer came round after its turns) |
+| `tools/support_test.py` | the editor's moved points (there, neighbours following less, over the network, dropped by another change, not on a new course), the problem report (version, vehicle, settings, the mod's last log lines; written through the game's file functions), the debug overlay (a helper's way, target and text); the grass chain (a baler with a 9 m turning radius on a 6 m rake's course: the same rows, row ends 0.00 m apart, the same headland passes); *Start at* sent to the server without making the course again or losing where it got to, kept through a later course change; implements unfolding at the start (waited 3.1 s, no speed before, measured again); one already unfolded that the game calls not ready for the road starts at once (the 1.0.0.0 bug); one stuck folding: goes after 60 s; rain (a combine stands while it rains, goes on when dry; *Carry on*: it doesn't wait); refilling at the field edge (a seeder empty, a seed pallet 20 m off the field: its opening into the pallet's trigger, filled to 98 %, back within 0.4 m of where it stopped); Go with a saved course 300 m off: the unfolded cultivator switched off, raised and folded first, AutoDrive only once it is folded; AutoDrive (a stand-in) sent to the course's own marker (not the nearer one) with its helper button on, the course started once when AutoDrive hands over, the button back off; without the hand-off started once after AutoDrive stops; a start-only setting's value over the network as a name, on/off or number ; Start away from the field: on it (yes), 600 m off (no, 570 m), Go there with the course it has: AutoDrive to the marker by the field, CP on | **19/19 OK** |
 | `tools/vines_test.py` | an olive orchard read like a vineyard and named an orchard; a made-up vineyard (14 rows 2.8 m apart in two plots, one in pieces; another vineyard apart): read as 14 rows, made into a field; a grape harvester drives every row once, on it, 2 m past the vines, never off the vineyard, never into the row beside (all turns round); a 5.6 m sprayer between the rows, every other gap, every row sprayed; the vine tool unfolded, lowered, on, then up and off | **6/6 OK** |
-| `tools/check_translations.py` | every language (8) has exactly English's 359 texts, the same placeholders, the names kept | **OK** |
+| `tools/check_translations.py` | the help files: every one the same 13 topics as English, none empty; every language (8) has exactly English's 383 texts, the same placeholders, the names kept | **OK** |
 | `tools/team_drive_test.py` | a whole team driving at the same time, every mode, against one tractor alone: the small field 9 (6 rows) × 3 tractors, field 12 × 3, field 27 × 4; what each did when two came closest and why one stopped is printed | field 9 × 3: every mode finishes, next free row 17 min against 34 alone, closest 5.9 m (before 0.7.2.0: 0.2 m, two met head-on); convoy finishes but its 18 m passes leave 14 % (the panel warns). Field 12 × 3: all modes, 99.6 %, closest 5.6 m. Field 27 × 4: strips, lands, next free row finish, 99.5 %, closest 5.6 m (before: 0.0 m in next free row, 1.3 m in lands); convoy × 4 there works 96.7 % (outer lanes in the corners), 0.8 points short of the bar, as before |
 | `tools/pathfinder_test.py` | ways around standing crop, then driven, 8 fields (with 40 m headlands field 2's way came in along its row from the far end and turned back on the spot, 13 m off when driven: now a proper turn into the row, 0.4 m) | **8/8 OK** |
 | `tools/envelope_test.py` | every turn and connection stays on the field (the work area's corners and both front corners of the tractor): 36 fields × 6/12/24/45 m × mounted/towed (288 courses), plus the Lizard plows (22 m / 26 m) | **360/360**, worst 0.55 m |
 | `tools/hud_preview.py` | renders every panel view to PNG to check the layout | checked |
 | `tools/readme_images.py` | draws this README's pictures (`docs/images`): every panel view, the patterns, a team's shares, a painted field, the icon | drawn for 0.5.0.0 |
 
-**Not yet tested in the game:** waiting out the rain, refilling at the field edge, the Courseplay import, obstacles
+**Not yet tested in the game:** the unloader after emptying a combine, AutoDrive's hold (1.0.3.7); the off-field question on Start (1.0.3.0); the panel's colours converted for the game (1.0.2.1: it came out grey); the queue view and the help (1.0.2.0); Go and the AutoDrive marker, folding for the road (1.0.1.1); the start fix (1.0.0.1); waiting out the rain, refilling at the field edge, the Courseplay import, obstacles
 notched into the edge (1.0.0.0); making room and coming back onto the path, orchards (0.7.2.0); waiting for the baler (0.7.1.0); the loader, vineyards, balers following the rake, *Start at* in multiplayer (0.7.0.0);
 forage harvester chasing, overloading into a truck, tipping a heap, the bale
 wrapper, moving points in the editor, the debug overlay, the problem report and the Precision Farming switch

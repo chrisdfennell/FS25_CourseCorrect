@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<!-- Die eigene Hilfe von CourseCorrect (das ? im Panel). Die Kennungen der Themen sind fest (wie in help_en.xml). -->
+<help>
+    <topic id="start" title="Erste Schritte">
+        <p>Öffne das Panel in einem Traktor mit Strg+J. Stell dich auf ein Feld: Der Kurs erscheint sofort auf der Karte, passend zu den angehängten Geräten.</p>
+        <p>Drück Start (oder Alt+J ohne Panel). Start bei legt fest, wo es losgeht: Weiter (wo er aufgehört hat), Nächster (die nächste Stelle in deiner Fahrtrichtung) oder Anfang.</p>
+        <p>Abseits des Kursfelds fragt Start zuerst: Hinfahren lässt AutoDrive ihn zum Ziel des Felds bringen, die Geräte eingeklappt, und er startet bei der Ankunft.</p>
+        <p>Während er arbeitet, zeigt das Panel Fortschritt und Restzeit. Pause hält ihn an, Stopp beendet den Auftrag. Was der Helfer braucht, zeigen das Panel und die Hinweise auf dem Bildschirm.</p>
+        <p>Ein Feld, das die Karte nicht kennt (eine Wiese, eine Ecke): fahr mit Feld aufzeichnen herum, oder mal Feldboden mit den Landschaftswerkzeugen; er wird vom Boden gelesen.</p>
+    </topic>
+    <topic id="course" title="Der Kurs">
+        <p>Arbeitsbreite und Wenderadius werden von den Geräten gemessen (auto). Mit - und + änderst du sie; ein Klick auf den Wert stellt wieder auf auto.</p>
+        <p>Vorgewende sind die Runden am Rand; automatisch mindestens 40 m (Min. Vorgewende unter Mehr Einstellungen). Vorgewende-Richtung, Vorgewende-Reihenfolge (zuerst oder zuletzt) und Runde Ecken formen sie.</p>
+        <p>Bahnen: Jede Bahn, Beetweise (überspringt Bahnen für weitere Wenden), Beete oder Spirale; Bahnform Am Rand entlang biegt sie mit dem Feldrand. Die Bahnrichtung ist automatisch (wenigste Wenden) oder in Grad eingestellt.</p>
+        <p>Mehr Einstellungen hat den Rest: Bearbeiten (ganzes Feld, nur Vorgewende oder nur Bahnen, Bahnen von/bis), Beim Wenden (unten lassen oder heben), Geschwindigkeiten, Licht und Hindernisse am Rand.</p>
+    </topic>
+    <topic id="editor" title="Den Kurs bearbeiten">
+        <p>Bearbeiten (oben rechts auf der Karte) öffnet den Editor direkt auf der Karte.</p>
+        <p>Richtung: ziehen, um die Bahnen zu drehen. Start: klicken, wo es losgehen soll. Bahnen weg: eine Bahn anklicken, die ausgelassen wird. Bereich: ein Rechteck um etwas ziehen, das umfahren wird. Verschieben: einen Punkt des Kurses woandershin ziehen.</p>
+        <p>Jede Änderung baut den Kurs sofort neu. Alles zurück hebt ausgelassene Bahnen, Flächen und verschobene Punkte auf; Fertig schließt den Editor.</p>
+    </topic>
+    <topic id="settings" title="Einstellungen: Traktor, Feld, meine Vorgaben">
+        <p>Dieser Traktor enthält alles und wird mit dem Fahrzeug gespeichert. Dieses Feld enthält Vorgewende, Bahnrichtung und Muster für alle, die das Feld bearbeiten. Meine Vorgaben sind deine Startwerte für noch nicht eingerichtete Traktoren, auf deinem PC.</p>
+        <p>Mit Pro Feld merken ändert ein Feldwert auf dem Reiter Kurs auch die Einstellung des Felds.</p>
+        <p>Meine Vorgaben enthält auch die Debug-Anzeige, Precision Farming (Auto oder Aus), den Problembericht und die Höhe der Kurslinien: die Kurslinien in der Welt am Boden oder bis 4 m hoch, um sie über hohem Bestand wie Mais zu sehen.</p>
+        <p>Beim Ausheben (Fahren): Ausschalten oder Weiterlaufen, dann bleiben die Geräte beim Wenden und von einer Bahn zur nächsten eingeschaltet.</p>
+        <p>Während der Helfer arbeitet, sind die Einstellungen gesperrt, außer Überlader rufen bei, den Geschwindigkeiten, dem Absenken und Ausheben und Bei Regen: die übernimmt er sofort.</p>
+    </topic>
+    <topic id="saved" title="Gespeicherte Kurse, Los und die Warteschlange">
+        <p>Diesen Kurs speichern legt ihn auf dem Reiter Gespeichert ab, in einem Ordner für sein Feld. Laden setzt ihn auf den Traktor.</p>
+        <p>Los schickt den Traktor sofort hin: Er beendet, was er tut, klappt die Geräte ein und fährt hin. Ist es weit, bringt AutoDrive ihn zum AutoDrive-Ziel des Kurses und drückt bei Ankunft seinen CP-Knopf, der CourseCorrect startet.</p>
+        <p>Danach stellt Kurse in die Warteschlange: Ist einer fertig, wird der nächste geladen und genauso angefahren. Verwalten (Reiter Kurs) oder Warteschlange (Reiter Gespeichert) zeigt sie: Kurse hoch oder runter, Los, Entfernen, Alle entfernen.</p>
+        <p>Das Ziel eines Kurses wählst du unter Einstellungen, Fahren, AutoDrive-Ziel. Nächstes nimmt das Ziel, das dem Kursanfang am nächsten ist (bis 250 m).</p>
+        <p>Export schreibt einen Kurs in eine Datei. Kursdatei importieren liest sie wieder ein, und auch die gespeicherten Courseplay-Kurse dieser Karte.</p>
+    </topic>
+    <topic id="team" title="Mehrere Traktoren auf einem Feld">
+        <p>Auf dem Reiter Team wählst du, wie sich die Traktoren das Feld teilen: Streifen (jeder seinen Streifen), Beete, Kolonne (nebeneinander) oder Nächste freie Bahn (jeder nimmt die nächste Bahn, die keiner hat).</p>
+        <p>Helfer weichen einander und Spielern aus. Treffen sich zwei frontal, setzt der, der zuerst gewartet hat, seitlich zurück und lässt den anderen vorbei.</p>
+        <p>Eine Kolonne braucht Platz: Auf einem schmalen Feld sagt es der Reiter Kurs, und Nächste freie Bahn oder Streifen eignen sich besser.</p>
+    </topic>
+    <topic id="harvest" title="Ernten und Überladen">
+        <p>Ein Drescher ruft bei Überlader rufen bei (Einstellungen, Fahren) einen Überlader. Ein Traktor mit Anhänger im Auftrag Überlader (der Schalter oben auf dem Reiter Kurs) wartet am Feldrand, fährt um den Bestand zum Drescher und fährt unter seinem Rohr mit. Ist der Drescher leer, lässt er ihn vorfahren und fährt zurück, wo du ihn gestartet hast, oder zum Abladen, wenn der Anhänger keine weitere Ladung mehr fasst.</p>
+        <p>Ab dem Ruf-Füllstand schwenkt das Rohr aus, so kann ein Überlader den Bunker während der Fahrt leeren (AutoDrive: sein Aktives Überladen). Fährt ein LKW voll weg und ist noch Korn im Bunker, ruft der Drescher sofort den nächsten. Soll ein AutoDrive-LKW nach jedem Überladen zu seinem Warteplatz zurückfahren: seine AutoDrive-Einstellung Parken im Feld auf Nein, und sein erstes Ziel ist der Warteplatz.</p>
+        <p>Häcksler: Der Anhänger fährt neben ihm auf der Seite ohne Bestand, oder dahinter beim Anschneiden. Der Häcksler wartet, solange nichts unter seinem Auswurf ist.</p>
+        <p>Eine volle Erntemaschine ohne Überlader hält mit einem roten Voll, kein Überlader. AutoDrive schickt einen LKW nur, wenn LKW und Erntemaschine in AutoDrive dasselbe erste Ziel haben.</p>
+        <p>Ein voller Anhänger fährt, wohin Abladen bei sagt: zu einer Station (über die Straßen des Spiels und zurück), in einen LKW am Feldrand (Überladewagen), auf einen Haufen am Startpunkt (Kipper), oder er hält für dich.</p>
+        <p>Dreschen im Regen kostet Ertrag. Bei Regen (Einstellungen, Fahren) auf Warten hält den Drescher an, bis der Bestand wieder trocken ist.</p>
+    </topic>
+    <topic id="refill" title="Saatgut, Dünger und Nachfüllen">
+        <p>Der Planer (Klick auf die Zusammenfassung unter der Karte) zeigt Saatgut, Dünger, Kalk, Spritzmittel und Kraftstoff, die der Kurs braucht, gegenüber dem Tankinhalt, mit den Mengen von Precision Farming, wenn es installiert ist.</p>
+        <p>Nachfüllen bei (Einstellungen, Fahren): eine Station über die Straßen des Spiels; Vorrat am Feldrand, aus Paletten, BigBags oder einem Tankwagen am Feld; oder Aus, dann hält er, wenn er leer ist.</p>
+    </topic>
+    <topic id="grass" title="Gras, Stroh und Ballen">
+        <p>Mähen und Schwaden sind normale Kurse. Eine Presse oder ein Ladewagen auf einem Feld, auf dem dein Schwader einen Kurs hat, zeigt Schwaden mit Folgen: Sein Kurs liegt dann auf den Runden des Schwaders.</p>
+        <p>Auftrag Ballen: Ein Ballensammler sammelt alle Ballen des Felds und lädt die Stapel am Startpunkt ab; ein Ballenwickler wickelt alle Ballen, die er kann. Gestartet, während noch gepresst wird, warten beide auf weitere Ballen.</p>
+    </topic>
+    <topic id="loader" title="Lader und Silo">
+        <p>Auftrag Lader: ein Radlader, Teleskoplader oder Frontlader mit Schaufel, vor einem Haufen geparkt. Er lädt den Haufen in Anhänger, die bis 80 m entfernt stehen, eine Schaufelbreite nach der anderen, und hält, wenn der Haufen weg ist oder kein Anhänger mehr Platz hat.</p>
+        <p>Auftrag Silo: Ein Traktor am Fahrsilo verdichtet es Bahn für Bahn, wartet, wenn es verdichtet ist, und hält, wenn das Silo geschlossen wird.</p>
+    </topic>
+    <topic id="vines" title="Weinberge und Obstplantagen">
+        <p>Stell dich zwischen die Reben und mach einen Kurs: Der Weinberg (oder die Plantage) wird ein Feld. Ein Traubenvollernter oder Vorschneider fährt auf den Zeilen, alles andere dazwischen (Einstellung Weinberg).</p>
+        <p>Er nimmt als Nächstes eine Zeile, die weit genug weg ist, um hineinzuwenden, und füllt die Lücken auf dem Rückweg. Die Rebengeräte werden in jeder Zeile abgesenkt und eingeschaltet.</p>
+    </topic>
+    <topic id="autodrive" title="AutoDrive und Courseplay">
+        <p>Ohne installiertes Courseplay behandelt AutoDrive CourseCorrect wie Courseplay: Sein CP-Knopf startet CourseCorrect, und seine Ablade- und Nachfüllfahrten bringen den Traktor dorthin zurück, wo er aufgehört hat.</p>
+        <p>Los und die Warteschlange nehmen AutoDrive für weit entfernte Felder, mit eingeschaltetem CP-Knopf, damit CourseCorrect bei der Ankunft startet.</p>
+        <p>Gespeicherte Courseplay-Kurse lassen sich auf dem Reiter Gespeichert importieren (Kursdatei importieren).</p>
+    </topic>
+    <topic id="problems" title="Wenn etwas schiefgeht">
+        <p>Der Status und die Hinweise sagen, was ein Helfer braucht: voll, leer, festgefahren, weicht aus, wartet auf das Ende des Regens.</p>
+        <p>Festgefahren heißt, er konnte eine Weile nicht weiter (etwas im Weg, ein Hang, durchdrehende Räder). Befrei ihn und drück Start: Fortsetzen macht dort weiter, wo er aufgehört hat.</p>
+        <p>Problembericht (Einstellungen, Meine Vorgaben) schreibt eine Datei mit Version, Traktor, Einstellungen und dem, was der Helfer gerade tat; das Panel zeigt, wo. Schick sie mit einer Beschreibung, was passiert ist.</p>
+        <p>Die Debug-Anzeige (Meine Vorgaben) zeichnet Wege und Ziele der Helfer in die Welt.</p>
+    </topic>
+</help>

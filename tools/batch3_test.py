@@ -93,6 +93,85 @@ def main():
         ok = ok and bool(good)
         print(f"{name}: {info}{': ' if info else ''}{'OK' if good else 'FAILED'}")
 
+    # the move from one headland pass to the next: a short S-curve, the implement down (switched off) on it; not a
+    # long drift along the pass just done (a rectangle with square corners: each pass started in the middle of an
+    # edge, the move 95 m)
+    lane_lua = fp.load_lua()
+    lane_course, _ = fp.generate(lane_lua, [(0, 0), (250, 0), (250, 290), (0, 290)],
+                                 {"workWidth": 5.5, "turnRadius": 8.758, "runOut": 2, "headlands": 8,
+                                  "allowReverse": True, "squareCorners": True, "roundedPasses": 1})
+    wl = lane_course["lua"].waypoints
+    moves, cur = [], None
+    for k in range(1, len(wl) + 1):
+        w = wl[k]
+        if w.lane:
+            cur = (cur or 0) + (math.hypot(w.x - wl[k - 1].x, w.z - wl[k - 1].z) if k > 1 and wl[k - 1].lane else 0)
+        elif cur is not None:
+            moves.append(cur)
+            cur = None
+    check("headland lane moves", len(moves) == 7 and max(moves) < 30,
+          f"{len(moves)} moves between the 8 passes, longest {max(moves or [0]):.0f} m")
+
+    # square corners with a harvester's header ahead of the steering point (its back 4.1 m ahead): before driving on
+    # into work it backs up that much further (else the first 4 m past each corner stay standing), along the line it
+    # then drives on; an implement behind the tractor: nothing changes
+    def cusp_moves(back):
+        lp = lane_lua.table_from([lane_lua.table_from({"x": wl[i].x, "z": wl[i].z, "work": bool(wl[i].work),
+                                                       "rev": bool(wl[i].rev)}) for i in range(1, len(wl) + 1)])
+        before = [(lp[i].x, lp[i].z) for i in range(1, len(lp) + 1)]
+        me = lane_lua.table_from({"info": lane_lua.table_from({"backOffset": back})})
+        G2.GuidanceFieldworkDriver.reachBackAtCusps(me, lp)
+        moved, inline = 0, True
+        for i in range(1, len(lp) + 1):
+            bx, bz = before[i - 1]
+            if abs(lp[i].x - bx) + abs(lp[i].z - bz) > 1e-6:
+                moved += 1
+                nx, nz = lp[i + 1].x, lp[i + 1].z
+                # on the line from the old point to the next one, behind the old point
+                cross = (bx - lp[i].x) * (nz - lp[i].z) - (bz - lp[i].z) * (nx - lp[i].x)
+                if abs(cross) > 1e-3 * math.hypot(nx - lp[i].x, nz - lp[i].z):
+                    inline = False
+        return moved, inline
+    G2 = smoke_test.fresh_lua({"rect": [(0, 0), (250, 0), (250, 290), (0, 290)]}, "rect").globals()
+    lane_lua = G2._G and smoke_test.fresh_lua({"rect": [(0, 0), (250, 0), (250, 290), (0, 290)]}, "rect")
+    G2 = lane_lua.globals()
+    lane_course, _ = fp.generate(lane_lua, [(0, 0), (250, 0), (250, 290), (0, 290)],
+                                 {"workWidth": 5.5, "turnRadius": 8.758, "runOut": 2, "headlands": 8,
+                                  "allowReverse": True, "squareCorners": True, "roundedPasses": 0})
+    wl = lane_course["lua"].waypoints
+    front_moved, front_inline = cusp_moves(4.1)
+    rear_moved, _ = cusp_moves(-5)
+    check("header ahead at square corners", front_moved >= 20 and front_inline and rear_moved == 0,
+          f"{front_moved} reverse ends moved back for a header 4.1 m ahead (on the line driven on: {front_inline}), "
+          f"{rear_moved} for an implement behind")
+
+    # square corners next to a cut-off corner of the field (a player's field 42B, its edges along x and z): the points
+    # beside a corner are pushed in off the edges there; the manoeuvre still turns by the edges, so each reverse runs
+    # along an edge and is short (before 1.0.4.8: a 154 degree turn, backing up 45 m across the field)
+    cut = [(1145.19, -846.49), (1035.19, -846.49), (1033.19, -846.99), (1025.19, -846.99), (1019.47, -848.90),
+           (1019.47, -860.90), (1018.97, -862.90), (1018.97, -868.90), (1019.47, -870.90), (1019.47, -974.90),
+           (1018.97, -976.90), (1018.97, -984.90), (1019.47, -990.90), (1020.47, -992.90), (1023.97, -996.90),
+           (1027.97, -1000.90), (1033.19, -1004.99), (1034.47, -1006.90), (1034.97, -1008.90), (1037.19, -1009.99),
+           (1467.19, -1009.99), (1467.47, -910.90), (1467.97, -908.90), (1467.97, -862.90), (1467.47, -860.90),
+           (1467.19, -847.99), (1465.19, -846.99), (1455.19, -846.99), (1451.19, -845.99), (1437.19, -846.49),
+           (1435.19, -846.99), (1431.19, -846.49)]
+    cut_course, _ = fp.generate(lane_lua, cut,
+                                {"workWidth": 5.5, "turnRadius": 8.758, "runOut": 2, "headlands": -1,
+                                 "minHeadlandWidth": 40, "allowReverse": True, "squareCorners": True,
+                                 "roundedPasses": 1, "clockwise": True, "headlandsFirst": True,
+                                 "startX": 1098.67, "startZ": -860.21})
+    cw = cut_course["waypoints"]
+    longest, skewed, n_rev = 0, 0, 0
+    for a, b in zip(cw, cw[1:]):
+        if b["rev"] and not a["rev"]:
+            n_rev += 1
+            dx, dz = b["x"] - a["x"], b["z"] - a["z"]
+            longest = max(longest, math.hypot(dx, dz))
+            if min(abs(dx), abs(dz)) > 1:
+                skewed += 1
+    check("square corners by a cut-off corner", n_rev > 20 and longest < 16 and skewed == 0,
+          f"{n_rev} reverses, longest {longest:.1f} m, {skewed} across the edges")
+
     whole = G.makeCourse(F, T({}))
     whole_rows = list(G.rowsOf(whole).values())
     n_lines = len(whole_rows)

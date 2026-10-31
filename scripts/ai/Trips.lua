@@ -43,6 +43,35 @@ local function storage()
     return g_currentMission and g_currentMission.storageSystem
 end
 
+--- For the problem report: the stations the game has, and why the ones the unloader can't pick are left out
+function Trips.describeUnloadingStations(farmId)
+    local sys = storage()
+    if sys == nil or sys.getUnloadingStations == nil then return {"the game has no storage system to ask"} end
+    local total, notStation, noAccess, noAI, noPlace = 0, 0, 0, 0, 0
+    for _, st in pairs(sys:getUnloadingStations()) do
+        total = total + 1
+        if UnloadingStation ~= nil and not (st.isa and st:isa(UnloadingStation)) then
+            notStation = notStation + 1
+        elseif g_currentMission.accessHandler ~= nil and not g_currentMission.accessHandler:canFarmAccess(farmId, st) then
+            noAccess = noAccess + 1
+        else
+            local types = st.getAISupportedFillTypes and st:getAISupportedFillTypes()
+            if types == nil or next(types) == nil then
+                noAI = noAI + 1
+            elseif not Trips.targetOf(st) then
+                noPlace = noPlace + 1
+            end
+        end
+    end
+    local names = {}
+    for _, st in ipairs(Trips.unloadingStations(farmId)) do names[#names + 1] = Trips.nameOf(st) end
+    return {
+        string.format("%d unloading station(s) in the game; left out: %d not a station, %d not the farm's to use, "
+            .. "%d the game's AI can't unload at, %d without a place to drive to", total, notStation, noAccess, noAI, noPlace),
+        #names > 0 and ("Unload at can pick: " .. table.concat(names, ", ")) or "Unload at can pick no station (only stop / heap / truck)",
+    }
+end
+
 --- The unloading stations the farm can tip at, that take fillType (nil: any)
 function Trips.unloadingStations(farmId, fillType)
     local list = {}

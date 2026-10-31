@@ -4,6 +4,22 @@
 GuidanceDraw = {}
 local Draw = GuidanceDraw
 
+-- The panel's colours are written as they look on screen (sRGB); the game takes overlay and text colours as linear
+-- values (as in its own UI), so they go to it converted: else the dark panel comes out grey and everything paler.
+-- (Converted once per colour table.)
+Draw.GAMMA = 2.2
+local linearCache = setmetatable({}, {__mode = "k"})
+local function linear(color)
+    local c = linearCache[color]
+    if c == nil then
+        local g = Draw.GAMMA
+        c = {(color[1] or 0) ^ g, (color[2] or 0) ^ g, (color[3] or 0) ^ g, color[4] or 1}
+        linearCache[color] = c
+    end
+    return c
+end
+Draw.linear = linear
+
 -- colours of the course parts, same in the world and on the panel
 Draw.COLORS = {
     H = {0.24, 0.56, 0.95}, -- headland
@@ -69,7 +85,8 @@ local function circlePart(x, y, w, h, u0, v0, u1, v1, color)
     if not isReady(id) then
         return
     end
-    setOverlayColor(id, color[1], color[2], color[3], color[4] or 1)
+    local c = linear(color)
+    setOverlayColor(id, c[1], c[2], c[3], c[4])
     setOverlayUVs(id, u0, v0, u0, v1, u1, v0, u1, v1)
     renderOverlay(id, x, y, w, h)
 end
@@ -118,7 +135,8 @@ end
 function Draw.rect(x, y, w, h, color)
     local id = getPixel()
     setOverlayRotation(id, 0, 0, 0)
-    setOverlayColor(id, color[1], color[2], color[3], color[4] or 1)
+    local c = linear(color)
+    setOverlayColor(id, c[1], c[2], c[3], c[4])
     renderOverlay(id, x, y, w, h)
 end
 
@@ -137,7 +155,8 @@ function Draw.line(x1, y1, x2, y2, thickness, color)
         return
     end
     local id = getPixel()
-    setOverlayColor(id, color[1], color[2], color[3], color[4] or 1)
+    local c = linear(color)
+    setOverlayColor(id, c[1], c[2], c[3], c[4])
     local angle = math.atan2(dy, dx)
     -- flat lines aren't turned: one piece
     local pieces = 1
@@ -159,7 +178,8 @@ end
 function Draw.text(x, y, size, text, color, align, bold)
     setTextBold(bold or false)
     setTextAlignment(align or RenderText.ALIGN_LEFT)
-    setTextColor(color[1], color[2], color[3], color[4] or 1)
+    local c = linear(color)
+    setTextColor(c[1], c[2], c[3], c[4])
     renderText(x, y, size, text)
     setTextBold(false)
     setTextAlignment(RenderText.ALIGN_LEFT)
@@ -177,9 +197,13 @@ end
 -- World
 -----------------------------------------------------------------------------------------------------------------------
 
+--- The height the course lines are drawn at there: above the ground by the player's line height (higher to see
+--- them over tall crops)
 local function terrainY(x, z)
-    return getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, x, 0, z) + 0.25
+    local h = GuidancePrefs and GuidancePrefs.lineHeight or 0.25
+    return getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, x, 0, z) + h
 end
+Draw.lineY = terrainY
 
 --- The course near the vehicle as lines on the ground, done part dimmed
 function Draw.drawCourseInWorld(vehicle, course)
@@ -212,6 +236,47 @@ function Draw.drawCourseInWorld(vehicle, course)
                 px, py, pz = qx, qy, qz
             end
         end
+    end
+    -- where the course starts and ends (green and red, as on the panel's map)
+    local range = Draw.MARKER_RANGE * Draw.MARKER_RANGE
+    for k, wp in ipairs({wps[1], wps[#wps]}) do
+        if (wp.x - vx) ^ 2 + (wp.z - vz) ^ 2 < range then
+            Draw.worldMarker(wp.x, wp.z, k == 1 and Draw.START_COLOR or Draw.END_COLOR,
+                k == 1 and "guidance_world_start" or "guidance_world_end")
+        end
+    end
+end
+
+Draw.MARKER_RANGE = 400 -- m from the vehicle the course's start and end markers show
+Draw.START_COLOR = {0.30, 0.85, 0.50}
+Draw.END_COLOR = {0.93, 0.36, 0.36}
+
+--- A post with a flag, a ring round its foot and its name above it, at x, z on the ground
+function Draw.worldMarker(x, z, c, textKey)
+    local ground = getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, x, 0, z)
+    local top = terrainY(x, z) + 4
+    local r, g, b = c[1], c[2], c[3]
+    drawDebugLine(x, ground, z, r, g, b, x, top, z, r, g, b)
+    -- the flag: a triangle off the top of the post
+    drawDebugLine(x, top, z, r, g, b, x + 1.4, top - 0.4, z, r, g, b)
+    drawDebugLine(x + 1.4, top - 0.4, z, r, g, b, x, top - 0.8, z, r, g, b)
+    drawDebugLine(x, top - 0.2, z, r, g, b, x + 1.0, top - 0.4, z, r, g, b)
+    -- a ring on the ground
+    local n, radius = 16, 1.5
+    local px, pz = x + radius, z
+    for k = 1, n do
+        local a = k / n * 2 * math.pi
+        local qx, qz = x + math.cos(a) * radius, z + math.sin(a) * radius
+        drawDebugLine(px, terrainY(px, pz), pz, r, g, b, qx, terrainY(qx, qz), qz, r, g, b)
+        px, pz = qx, qz
+    end
+    if Utils and Utils.renderTextAtWorldPosition and g_i18n then
+        local size = getCorrectTextSize and getCorrectTextSize(0.016) or 0.016
+        setTextColor(r, g, b, 1)
+        setTextBold(true)
+        Utils.renderTextAtWorldPosition(x, top + 0.6, z, g_i18n:getText(textKey), size, 0)
+        setTextBold(false)
+        setTextColor(1, 1, 1, 1)
     end
 end
 
@@ -276,7 +341,8 @@ end
 
 --- Prepares the plot of a course in a box (screen coordinates): field outline and the course as lines,
 --- simplified to what can be seen at that size. Returns a plot table for Draw.drawPlot.
-function Draw.makePlot(course, x, y, w, h)
+--- The course map in the box x, y, w, h: the whole course, or zoom times closer around center {x, z} (world)
+function Draw.makePlot(course, x, y, w, h, zoom, center)
     local outline = course.outline or {}
     local minX, minZ, maxX, maxZ = math.huge, math.huge, -math.huge, -math.huge
     for _, p in ipairs(outline) do
@@ -289,8 +355,10 @@ function Draw.makePlot(course, x, y, w, h)
     end
     -- scale in pixels per meter, same in both directions
     local pxW, pxH = w * g_screenWidth, h * g_screenHeight
-    local scale = math.min(pxW / math.max(maxX - minX, 1), pxH / math.max(maxZ - minZ, 1)) * 0.94
+    zoom = zoom or 1
+    local scale = math.min(pxW / math.max(maxX - minX, 1), pxH / math.max(maxZ - minZ, 1)) * 0.94 * zoom
     local cx, cz = (minX + maxX) / 2, (minZ + maxZ) / 2
+    if zoom > 1 and center then cx, cz = center.x, center.z end
     local function toScreen(wx, wz)
         -- north up: world z grows to the south, screen y to the top
         return x + w / 2 + (wx - cx) * scale / g_screenWidth, y + h / 2 - (wz - cz) * scale / g_screenHeight
@@ -299,7 +367,7 @@ function Draw.makePlot(course, x, y, w, h)
         return cx + (sx - x - w / 2) * g_screenWidth / scale, cz - (sy - y - h / 2) * g_screenHeight / scale
     end
     local plot = {toScreen = toScreen, toWorld = toWorld, outline = {}, runs = {}, course = course,
-                  box = {x = x, y = y, w = w, h = h}}
+                  box = {x = x, y = y, w = w, h = h}, zoom = zoom, span = pxW / scale}
     for _, p in ipairs(outline) do
         local sx, sy = toScreen(p.x, p.z)
         table.insert(plot.outline, {x = sx, y = sy})
@@ -326,12 +394,47 @@ function Draw.makePlot(course, x, y, w, h)
     return plot
 end
 
+--- The part of the line a-b inside the box (Liang-Barsky), or nil
+local function clipToBox(ax, ay, bx, by, box)
+    local t0, t1 = 0, 1
+    local dx, dy = bx - ax, by - ay
+    for _, e in ipairs({{-dx, ax - box.x}, {dx, box.x + box.w - ax}, {-dy, ay - box.y}, {dy, box.y + box.h - ay}}) do
+        local p, q = e[1], e[2]
+        if p == 0 then
+            if q < 0 then return nil end
+        else
+            local r = q / p
+            if p < 0 then
+                if r > t1 then return nil end
+                if r > t0 then t0 = r end
+            else
+                if r < t0 then return nil end
+                if r < t1 then t1 = r end
+            end
+        end
+    end
+    return ax + dx * t0, ay + dy * t0, ax + dx * t1, ay + dy * t1
+end
+
 function Draw.drawPlot(plot, progressIx, vehicle, thickness)
     local outlineColor = {0.55, 0.75, 0.45, 0.6}
+    local box = plot.box
+    -- zoomed in, the map is bigger than its box: only what is inside it
+    local clip = (plot.zoom or 1) > 1
+    local function line(ax, ay, bx, by, width, color)
+        if clip then
+            ax, ay, bx, by = clipToBox(ax, ay, bx, by, box)
+            if ax == nil then return end
+        end
+        Draw.line(ax, ay, bx, by, width, color)
+    end
+    local function inBox(sx, sy)
+        return not clip or (sx >= box.x and sx <= box.x + box.w and sy >= box.y and sy <= box.y + box.h)
+    end
     local o = plot.outline
     for i = 1, #o do
         local a, b = o[i], o[i % #o + 1]
-        Draw.line(a.x, a.y, b.x, b.y, thickness, outlineColor)
+        line(a.x, a.y, b.x, b.y, thickness, outlineColor)
     end
     for _, run in ipairs(plot.runs) do
         local c = Draw.COLORS[run.t] or Draw.COLORS.C
@@ -340,17 +443,21 @@ function Draw.drawPlot(plot, progressIx, vehicle, thickness)
         local width = (run.t == "R" or run.t == "H") and thickness or thickness * 0.7
         for i = 2, #run.pts do
             local a, b = run.pts[i - 1], run.pts[i]
-            Draw.line(a.x, a.y, b.x, b.y, width, b.ix <= progressIx and done or todo)
+            line(a.x, a.y, b.x, b.y, width, b.ix <= progressIx and done or todo)
         end
     end
     -- where the course starts and ends
     local wps = plot.course.waypoints
     local sx0, sy0 = plot.toScreen(wps[1].x, wps[1].z)
     local sx1, sy1 = plot.toScreen(wps[#wps].x, wps[#wps].z)
-    Draw.disc(sx0, sy0, thickness * 3.2, {0.08, 0.10, 0.12, 0.9})
-    Draw.disc(sx0, sy0, thickness * 2.2, {0.30, 0.85, 0.50, 1})
-    Draw.disc(sx1, sy1, thickness * 3.2, {0.08, 0.10, 0.12, 0.9})
-    Draw.disc(sx1, sy1, thickness * 2.2, {0.93, 0.36, 0.36, 1})
+    if inBox(sx0, sy0) then
+        Draw.disc(sx0, sy0, thickness * 3.2, {0.08, 0.10, 0.12, 0.9})
+        Draw.disc(sx0, sy0, thickness * 2.2, {0.30, 0.85, 0.50, 1})
+    end
+    if inBox(sx1, sy1) then
+        Draw.disc(sx1, sy1, thickness * 3.2, {0.08, 0.10, 0.12, 0.9})
+        Draw.disc(sx1, sy1, thickness * 2.2, {0.93, 0.36, 0.36, 1})
+    end
     -- the vehicle: an arrow where it's heading, on a dark disc so it shows on any colour
     if vehicle then
         local vx, _, vz = getWorldTranslation(vehicle.rootNode)
@@ -361,6 +468,8 @@ function Draw.drawPlot(plot, progressIx, vehicle, thickness)
         local ux, uy = (ax - sx) * g_screenAspectRatio, ay - sy
         local len = math.sqrt(ux * ux + uy * uy)
         if len > 0 then ux, uy = ux / len, uy / len end
-        Draw.arrow(sx, sy, thickness * 20, math.atan2(uy, ux))
+        if inBox(sx, sy) then
+            Draw.arrow(sx, sy, thickness * 20, math.atan2(uy, ux))
+        end
     end
 end

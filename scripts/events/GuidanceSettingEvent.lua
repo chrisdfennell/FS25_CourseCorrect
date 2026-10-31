@@ -19,16 +19,34 @@ function GuidanceSettingEvent.new(vehicle, name, value)
     return self
 end
 
+-- the value as what it is: 0 a number, 1 a name, 2 on/off
 function GuidanceSettingEvent:writeStream(streamId, connection)
     NetworkUtil.writeNodeObject(streamId, self.vehicle)
     streamWriteString(streamId, self.name)
-    streamWriteFloat32(streamId, self.value)
+    local v = self.value
+    if type(v) == "boolean" then
+        streamWriteUInt8(streamId, 2)
+        streamWriteBool(streamId, v)
+    elseif type(v) == "string" then
+        streamWriteUInt8(streamId, 1)
+        streamWriteString(streamId, v)
+    else
+        streamWriteUInt8(streamId, 0)
+        streamWriteFloat32(streamId, tonumber(v) or 0)
+    end
 end
 
 function GuidanceSettingEvent:readStream(streamId, connection)
     self.vehicle = NetworkUtil.readNodeObject(streamId)
     self.name = streamReadString(streamId)
-    self.value = streamReadFloat32(streamId)
+    local kind = streamReadUInt8(streamId)
+    if kind == 2 then
+        self.value = streamReadBool(streamId)
+    elseif kind == 1 then
+        self.value = streamReadString(streamId)
+    else
+        self.value = streamReadFloat32(streamId)
+    end
     self:run(connection)
 end
 

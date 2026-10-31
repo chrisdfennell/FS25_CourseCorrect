@@ -22,6 +22,8 @@ GuidancePrefs = {
     raiseLate = 0,
     roundedPasses = 1,
     keepLowered = false,
+    keepRunning = false,
+    takeOver = true,
     startMode = 1,
     clockwise = true,
     headlandsFirst = true,
@@ -33,6 +35,8 @@ GuidancePrefs = {
     notifications = true,
     -- the debug overlay (the helpers' ways and thinking drawn in the world)
     debugOverlay = false,
+    -- how high above the ground the course lines are drawn in the world (m; up to see them over tall crops)
+    lineHeight = 0.25,
     -- Precision Farming in the planner's amounts: true = when it is installed (automatic), false = never
     precisionFarming = true,
 }
@@ -46,11 +50,14 @@ Prefs.FIELDS = {
     {"panelScale", "FLOAT"}, {"autoResume", "BOOL"}, {"workSpeedMax", "FLOAT"}, {"turnSpeed", "FLOAT"},
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"soundAlerts", "BOOL"}, {"alertsOnScreen", "BOOL"},
     {"alertsX", "FLOAT"}, {"alertsTop", "FLOAT"},
-    {"raiseLate", "FLOAT"},
+    {"raiseLate", "FLOAT"}, {"lineHeight", "FLOAT"}, {"keepRunning", "BOOL"}, {"takeOver", "BOOL"},
 }
 
+-- the heights the course lines can be drawn at (m above the ground): on it, 1 m, 2.5 m (8 ft, over maize), 4 m
+Prefs.LINE_HEIGHTS = {0.25, 1, 2.5, 4}
+
 -- the ones that are course settings, given to a vehicle that has none yet
-Prefs.PLAN_DEFAULTS = {"minHeadlandWidth", "roundedPasses", "keepLowered", "lowerLate", "raiseLate", "autoResume",
+Prefs.PLAN_DEFAULTS = {"minHeadlandWidth", "roundedPasses", "keepLowered", "keepRunning", "takeOver", "lowerLate", "raiseLate", "autoResume",
                        "workSpeedMax", "turnSpeed", "reverseSpeed", "lights",
                        "startMode",
                        "clockwise", "headlandsFirst",

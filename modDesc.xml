@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="115">
     <author>Chris Fennell</author>
-    <version>1.0.0.0</version>
+    <version>1.0.6.7</version>
     <title>
         <en>CourseCorrect</en>
     </title>
@@ -17,7 +17,117 @@
 - Planner for seed, fertiliser and fuel (with Precision Farming), alerts, fleet, work log, saved courses, import of Courseplay courses.
 - Works with AutoDrive. Multiplayer and dedicated servers.
 
-Open the panel: Ctrl+J. Start/stop the helper: Alt+J.]]></en>
+Open the panel: Ctrl+J. Start/stop the helper: Alt+J.
+
+Changelog 1.0.6.7:
+- Unloader started (or ended up) beside a standing combine with its trailer folded: every new way in was blocked by the combine at once, it used up its tries and stood short of its place. Now it first pulls out straight, slowly, up to 25 m: straight on, else 30 or 60 deg to either side, whichever is clear of the combine, of standing crop (with "Crop on the way" set to go round) and of the field's edge; once the trailer is straight it takes a new way in. At most 3 times per combine
+Changelog 1.0.6.6:
+- Unloader froze the server (0.3 to 0.4 s, "GuidanceVehicle:onUpdate") and stood behind the combine's corner: "combine right in front" was checked straight ahead, so every new way in counted as blocked and it planned again every 3 s, each plan asking the game about the crop thousands of times. Now checked along the way it will drive (a way turning off past the corner is free), each spot asked once per plan, the other ways to turn only looked at when the shortest crosses crop, and held up it waits longer before each new way (3, 6, 12, 24 s)
+Changelog 1.0.6.5:
+- Unloader started beside a standing combine with its trailer folded at an angle: it took itself as in place (the trailer's fill point near the pipe) and nothing flowed. In place now only with the trailer roughly straight behind (within 20 deg); folded, it takes a new way in, whose straight run-in straightens it
+- Problem report of an unloader: how far its trailer is folded
+Changelog 1.0.6.4:
+- Unloader full, leaving the combine: it drove into the combine on its way back (a stopped one counts as parked, nobody avoids it). The combine it served or just left is never driven into, and its ways go round it; held up by it 3 s, a new way
+- Unloader turning back: of the ways to turn, the one through the least crop (checked as wide as it is), not just the shortest (it turned into the standing cane and jackknifed)
+- Dropdown lists: the panel's text no longer shows through an open list
+- The camera no longer zooms when the mouse wheel scrolls a list or zooms the map over the panel
+Changelog 1.0.6.3:
+- Unloader with a trailer whose fill point (a mod's) lies 8 m to the side, off the trailer: it lined that point up under the pipe and the trailer stood 8 m away, nothing flowing. A fill point off its trailer gives way to the trailer's middle (said once in the log)
+- Helpers are as wide as they are for giving way and their ways (a trailer's markers made a truck "10 m wide")
+- Problem report of an unloader: where its fill point is
+Changelog 1.0.6.2:
+- Unloader lined up on the wrong side of a standing combine, 8 m from its place, nothing flowing: with the pipe folded, its side was a guess. The pipe now goes out as the unloader comes (a stopped combine's by the unloader, ours within 60 m), so it lines up where the pipe really is; and following a standing combine more than 2.5 m to the side of its place, it takes a new way in
+- Problem report: an unloader standing at its place says so ("the combine stands")
+Changelog 1.0.6.1:
+- Unloader: Combine (Any on its field, or one of your harvesters, with the field it is on). Picked, it serves only that one wherever it works; started away from that combine's field, AutoDrive takes it to the field's marker (one named after the field first) and it starts there
+- Dropdowns: click the value of Unload at, Combine, Pipe side, Crop on the way or AutoDrive marker for a list to pick from (the mouse wheel scrolls a long one)
+Changelog 1.0.6.0:
+- Unloader under a short pipe stood too far out for the crop to reach the trailer (since 1.0.5.7 it kept clear of the 5.5 m header). It keeps 0.6 m clear of the combine's body now; the way in still goes round the whole machine, header too
+- Problem report of an unloader: where it is against its place under the pipe (ahead, to the side, how far it points off), the combine's speed, pipe and discharge, the way left, its new ways in, what it waits for
+Changelog 1.0.5.9:
+- Unloader standing crosswise next to a standing combine, "unloading" for ever: near its place it took itself as lined up whichever way it pointed. Now only pointing the combine's way; crosswise it takes a new way in (straight run-in), a few times, then follows as it is
+Changelog 1.0.5.8:
+- Unloader circling behind a standing combine: it planned a new way every few seconds from halfway round the last one. Now only when the combine has moved on a fair part of the way
+- Unloader driving into the combine on its way in (stuck): its ways go round the combine it serves (body and header), like round standing crop
+- Unloader: Pipe side (Auto: where the pipe is measured / Left / Right)
+- A stopped combine's engine is started when the unloader opens its pipe (the game won't move the pipe with the engine off)
+Changelog 1.0.5.7:
+- Unloader under a short pipe (a sugarcane harvester's): the truck's cab drove into the harvester. Its place beside the combine is now always at least 0.6 m clear of the combine's widest part (its header), whatever the pipe's reach or the side offset
+- Unloader following under the pipe: it stops for anything else in its way (another truck, a player); it only did on the way there
+Changelog 1.0.5.6:
+- Unloader at a combine that isn't worked by CourseCorrect right now (stopped, stopped itself full, driven by you): it stood under the pipe and nothing came out. Now it opens the combine's pipe and starts the flow into its trailer itself, and folds the pipe again when it leaves
+Changelog 1.0.5.5:
+- Unloader: Side offset (out from the combine +, in -, 0.25 m steps) and Front/back offset (forward +, back -, 0.5 m steps) for its place under the pipe, changed while it works too; click the value for 0
+- Unloader with a long trailer behind a combine: it went round in circles (each new way in a loop round its wide radius). Roughly behind its place already, it follows from there
+Changelog 1.0.5.4:
+- Unloader trucks with a semi-trailer: their ways planned with the cab's tight turning radius (4.4 m) made the trailer cut in and the truck jackknife and get stuck. Now wide enough for what they pull (12 m trailer: 9 m), and a longer straight run-in behind the combine
+Changelog 1.0.5.3:
+- Switching vehicles with Tab: the panel goes with you (same tab, minimised stays minimised) instead of closing; out of the vehicle it closes
+- Problem report of an unloader: the stations Unload at can pick, and why the game's other stations are left out
+Changelog 1.0.5.2:
+- A harvester stood still for its unloader waiting beside its line (the truck's measured work width, 10 m, made it look in the way). Helpers without a course now count by their own size and what they pull
+- Problem report and overlay: a helper standing says why (rain, AutoDrive holding it, the implements can't go on and which, lowering, paused...)
+- An unloader (bale collector, silo compacter, loader) working when the game was saved starts again as that after loading, with its settings. It started the field course the vehicle also had instead (a truck drove an old 10 m course across the field). Saves from before this: the game's own last job tells
+Changelog 1.0.5.1:
+- AutoDrive truck in the way: after waiting 20 s for it, the helper drove on into it. Now it goes on only up to it and stops short, till it moves. Its trailer counts too (only the truck was looked at), and a moving AutoDrive truck is never driven into either. The helper's front is measured (a harvester's header reaches further than a tractor's nose)
+Changelog 1.0.5.0:
+- Unloader waiting on a combine's line (started on its headland pass): the combine, held up by it, calls it at once, below its call level too; it takes what there is and both go on (both waited for ever). The combine still gives way to its unloader while it comes round from in front
+- The log no longer calls our own unloader AutoDrive's ("has stood in our way for 20 s: going on", every 20 s)
+Changelog 1.0.4.9:
+- Helpers waiting for the others (unloader waiting for a combine, silo compacted, wrapper waiting for the baler): the engine off after 10 s to save fuel, on again as soon as they have to move
+- Unloader: Unload at, Leave when full at and the new Crop on the way (Go round / Drive through) can be changed while it works
+- Course map: drag it with the mouse when zoomed in (it stays there until zoomed again)
+Changelog 1.0.4.8:
+- Square corners next to a cut-off corner of the field: the manoeuvre turned by the points beside the corner (pushed in off the edges there) instead of by the edges: a skewed turn, backing up far across the passes (up to 45 m into the crop), the corner partly missed. Now it turns by the edges, a short reverse along them
+- The status at the top of the panel no longer covers the vehicle's name (shortened, or left out when there is no room)
+- Course map zoom: – and + on the map, or the mouse wheel over it; up to 8 times closer, following the vehicle
+- Minimised panel: Start / Pause / Stop buttons. Ctrl+J gives the mouse to the small panel (to click them) and back to the game; the + brings the whole panel back
+Changelog 1.0.4.7:
+- Go / Go there / the queue: AutoDrive takes it to the field's own marker (one at the field's edge named after the field, e.g. Field 42b WAIT), not the nearest marker to the course's start (a silo beside the field, where it unfolded everything). AutoDrive marker: Automatic shows which marker that is
+- Minimise (the – at the top of the panel): only the header, the progress and the course map stay, and the mouse goes back to the game; Ctrl+J brings the whole panel back
+- Start and End flags on the course lines in the world (green and red, as on the panel's map), while the panel is open (minimised too)
+Changelog 1.0.4.6:
+- Start at: Nearest with a harvester: the passes already harvested are left out, it starts on the nearest one with crop standing (it worked down a pass done before)
+Changelog 1.0.4.5:
+- Moving from one headland pass to the next with a long harvester: swinging wide in the S-bend, it took that for being pushed off its line, lifted and drove back across the field, leaving a strip standing. Not near those moves any more
+Changelog 1.0.4.4:
+- Square corners with a long harvester: lowered still a few metres off the next line after backing up, it took that for being pushed off its line, lifted and drove back, leaving the corner standing. Now only when it was on its line and got pushed off it, and not at a corner's stop
+Changelog 1.0.4.3:
+- The game's own helper hired for a vehicle with a CourseCorrect course, at that course's field (the hire key restarts the game's field work job the savegame remembers, AutoDrive with its helper set to the game's): CourseCorrect works the course instead. New setting Game's helper here (Settings, Driving; My defaults): CourseCorrect drives (default) or The game's helper
+Changelog 1.0.4.2:
+- Problem report of a harvester: how AutoDrive sees it (its target, call level, tank, pipe, working or idle, the truck sent) and every AutoDrive unloader with its target, to see why no truck comes
+Changelog 1.0.4.1:
+- The problem report names the helper job driving the vehicle, and says when it is not CourseCorrect's (the game's own helper, another mod's)
+Changelog 1.0.4.0:
+- Square corners with a header in front: it backs up 2 m further before driving on (it still stopped short and left the start of the next lane)
+Changelog 1.0.3.9:
+- When lifted (Settings, Driving; My defaults): Switch off (as before) or Keep running: lifted in turns and from one pass to the next, the implements keep running
+- Square corners with a header in front: it harvests on up to where it backs up (the last metres before the corner were left standing)
+Changelog 1.0.3.8:
+- Square corners with a header in front (harvesters): it backs up far enough that the header starts at the corner (the first 4 m past each corner were left standing)
+- Pushed off its line while working (a truck in the way): it goes back to where it left it, instead of on 30 m further along (it missed that much)
+- The problem report says what is driving the vehicle (CourseCorrect, the game's helper, AutoDrive)
+Changelog 1.0.3.1 to 1.0.3.7:
+- A harvester full with nobody to unload it says so (red alert, notification): start an unloader, or give an AutoDrive truck the same first target
+- A standing AutoDrive truck in the way (e.g. after unloading, when the harvester turns) is waited for, at most 20 s
+- Course line height (My defaults): the course lines in the world on the ground, or 1, 2.5 (8 ft) or 4 m up to see them over tall crops
+- Lowered but not switched on (the game refused it, e.g. the pipe still moving after unloading): asked again, so it no longer stands there for ever
+- Fixed: an error while saving the game (a setting not set yet), which could leave the rest of the vehicle unsaved
+- The problem report has the field's outline (a field read from the ground can then be made again)
+- From one headland pass to the next the implement stays down (switched off) instead of lifting, and the move over is short (it drifted along the pass just done for up to 100 m); a harvester keeps running on it
+- Call unloader at, the speeds, the lower / raise timing and In the rain can be changed while the helper works
+- Unloading on the move: at the call level the pipe goes out (with unloaders about), so AutoDrive's truck can empty it as it goes
+- A truck leaving full with grain still in the combine: the combine calls the next one at once
+- Harvester with an AutoDrive unloader: no longer stuck beside it after unloading (the pipe stays out till the tank is empty; a hold with nothing coming out lasts at most 15 s)
+- Unloader: after emptying a combine it no longer stands beside it (the two waited for each other): it lets the combine pull away and goes back to where it waits, or off to unload when the trailer has no room for another load
+- Start away from the course's field: asks, and AutoDrive takes it there (folded, CP on) and it starts on arrival
+- The panel's colours as designed (it was paler and grey in the game)
+- Help in the panel (the ?): how to use it, on the topic of where you are
+- Queue view: the queued courses in order, move, go, remove, clear
+- Go: sends the tractor to a saved course now; the implements are folded, AutoDrive drives it to the course's marker and starts CourseCorrect there
+- AutoDrive marker per course (Settings, Driving)
+- Fixed: a helper with an unfolded implement didn't start ("not in transport mode")
+- Icon redrawn]]></en>
         <de><![CDATA[CourseCorrect: Helfer, die deine Felder entlang eines geplanten Kurses bearbeiten, und Helfer für die Arbeit drumherum.
 
 - Auf ein Feld stellen, Kurs sofort sehen, Start drücken. Vorgewende, Bahnen, weiche Wenden passend zum Fahrzeug; jede Bahn, Rennbahn, Beete, Spirale oder gebogene Bahnen; Inseln werden umfahren.
@@ -29,7 +139,117 @@ Open the panel: Ctrl+J. Start/stop the helper: Alt+J.]]></en>
 - Planer für Saatgut, Dünger und Kraftstoff (mit Precision Farming), Hinweise, Fuhrpark, Arbeitsbuch, gespeicherte Kurse, Import von Courseplay-Kursen.
 - Arbeitet mit AutoDrive. Mehrspieler und dedizierte Server.
 
-Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
+Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.
+
+Änderungen 1.0.6.7:
+- Überlader neben einem stehenden Drescher gestartet (oder dort gelandet), der Auflieger eingeknickt: jeder neue Weg hinein war sofort vom Drescher blockiert, er verbrauchte seine Versuche und blieb vor seiner Position stehen. Jetzt fährt er zuerst langsam bis zu 25 m gerade heraus: geradeaus, sonst 30 oder 60 Grad zu einer Seite, je nachdem, was frei ist von Drescher, stehendem Bestand (wenn er ihn umfahren soll) und Feldrand; ist der Auflieger gerade, nimmt er einen neuen Weg hinein. Höchstens 3 Mal pro Drescher
+Änderungen 1.0.6.6:
+- Überlader ließ den Server hängen (0,3 bis 0,4 s, "GuidanceVehicle:onUpdate") und stand hinter der Ecke des Dreschers: "Drescher direkt vor uns" wurde geradeaus geprüft, jeder neue Weg galt als blockiert, alle 3 s ein neuer Plan mit tausenden Abfragen zum Bestand. Jetzt entlang des Wegs geprüft (ein Weg, der an der Ecke vorbei abbiegt, ist frei), jede Stelle einmal pro Plan abgefragt, die anderen Wendemöglichkeiten nur, wenn die kürzeste durch Bestand führt, und aufgehalten wartet er vor jedem neuen Weg länger (3, 6, 12, 24 s)
+Änderungen 1.0.6.5:
+- Überlader neben einem stehenden Drescher gestartet, der Auflieger schräg eingeknickt: er hielt sich für in Position (der Füllpunkt des Aufliegers nahe am Rohr) und nichts lief über. In Position jetzt nur mit dem Auflieger etwa gerade dahinter (bis 20 Grad); eingeknickt nimmt er einen neuen Weg hinein, dessen gerades Heranfahren ihn streckt
+- Problembericht eines Überladers: wie weit sein Auflieger eingeknickt ist
+Änderungen 1.0.6.4:
+- Überlader voll, verlässt den Drescher: er fuhr auf dem Rückweg in den Drescher (ein stehender zählt als geparkt, keiner weicht ihm aus). In den bedienten oder eben verlassenen Drescher fährt er nie, seine Wege führen um ihn herum; 3 s von ihm aufgehalten, ein neuer Weg
+- Überlader beim Wenden: von den Wendemöglichkeiten die mit dem wenigsten Bestand (so breit geprüft, wie er ist), nicht nur die kürzeste (er wendete ins stehende Zuckerrohr und knickte ein)
+- Auswahllisten: der Text des Panels scheint nicht mehr durch eine offene Liste
+- Die Kamera zoomt nicht mehr, wenn das Mausrad über dem Panel eine Liste blättert oder die Karte zoomt
+Änderungen 1.0.6.3:
+- Überlader mit einem Anhänger, dessen Füllpunkt (eines Mods) 8 m seitlich neben dem Anhänger liegt: er stellte diesen Punkt unter das Rohr, der Anhänger stand 8 m daneben, nichts lief über. Ein Füllpunkt neben seinem Anhänger wird durch die Mitte des Anhängers ersetzt (einmal im Log)
+- Helfer sind beim Ausweichen und für ihre Wege so breit, wie sie sind (die Marker eines Anhängers machten einen LKW "10 m breit")
+- Problembericht eines Überladers: wo sein Füllpunkt ist
+Änderungen 1.0.6.2:
+- Überlader stand auf der falschen Seite eines stehenden Dreschers, 8 m von seinem Platz, nichts lief über: bei eingeklapptem Rohr war seine Seite geraten. Das Rohr klappt jetzt aus, während der Überlader kommt (bei einem stehenden Drescher durch den Überlader, bei unserem ab 60 m), so stellt er sich dorthin, wo das Rohr wirklich ist; und folgt er einem stehenden Drescher mehr als 2,5 m seitlich vom Platz, nimmt er einen neuen Weg hinein
+- Problembericht: ein Überlader, der an seinem Platz steht, sagt es ("der Drescher steht")
+Änderungen 1.0.6.1:
+- Überlader: Drescher (Jeder auf seinem Feld, oder einer deiner Ernter, mit seinem Feld). Gewählt bedient er nur diesen, wo er auch arbeitet; abseits von dessen Feld gestartet, bringt AutoDrive ihn zum Marker des Felds (zuerst einer mit dem Namen des Felds) und er startet dort
+- Auswahllisten: Klick auf den Wert von Abladen bei, Drescher, Rohrseite, Bestand im Weg oder AutoDrive-Marker öffnet eine Liste (das Mausrad blättert)
+Änderungen 1.0.6.0:
+- Überlader unter einem kurzen Rohr stand zu weit draußen, die Ernte erreichte den Anhänger nicht (seit 1.0.5.7 hielt er Abstand zum 5,5-m-Schneidwerk). Jetzt 0,6 m Abstand zur Maschine selbst; der Weg hin führt weiter um die ganze Maschine samt Schneidwerk
+- Problembericht eines Überladers: wo er zu seinem Platz unter dem Rohr steht (vor, seitlich, wie schief), Tempo, Rohr und Überladen des Dreschers, Restweg, neue Anfahrten, worauf er wartet
+Änderungen 1.0.5.9:
+- Überlader stand quer neben einem stehenden Drescher und "überlud" für immer: nahe an seinem Platz hielt er sich für ausgerichtet, egal wohin er zeigte. Jetzt nur in Richtung des Dreschers; quer nimmt er einen neuen Weg hinein (gerades Heranfahren), ein paar Mal, dann folgt er so
+Änderungen 1.0.5.8:
+- Überlader kreiste hinter einem stehenden Drescher: alle paar Sekunden ein neuer Weg von der Mitte des letzten aus. Jetzt nur, wenn der Drescher ein gutes Stück weiter ist
+- Überlader fuhr auf dem Weg hin in den Drescher (steckte fest): seine Wege führen um den bedienten Drescher herum (Maschine und Schneidwerk), wie um stehenden Bestand
+- Überlader: Rohrseite (Auto: wo das Rohr gemessen wird / Links / Rechts)
+- Der Motor eines stehenden Dreschers wird gestartet, wenn der Überlader sein Rohr öffnet (das Spiel bewegt das Rohr sonst nicht)
+Änderungen 1.0.5.7:
+- Überlader unter einem kurzen Rohr (Zuckerrohrernter): das Führerhaus des LKW fuhr in den Ernter. Sein Platz neben dem Drescher hält jetzt immer mindestens 0,6 m Abstand zu dessen breitestem Teil (dem Schneidwerk), egal wie weit das Rohr reicht oder wie der seitliche Versatz steht
+- Überlader beim Folgen unter dem Rohr: hält für alles andere im Weg (ein anderer LKW, ein Spieler); vorher nur auf dem Weg dorthin
+Änderungen 1.0.5.6:
+- Überlader an einem Drescher, den CourseCorrect gerade nicht fährt (angehalten, voll von selbst gestoppt, von dir gefahren): er stand unter dem Rohr und nichts kam. Jetzt öffnet er das Rohr des Dreschers und startet das Überladen in seinen Anhänger selbst, und klappt das Rohr beim Wegfahren wieder ein
+Änderungen 1.0.5.5:
+- Überlader: Seitlicher Versatz (weiter weg vom Drescher +, näher -, Schritte 0,25 m) und Versatz vor/zurück (vor +, zurück -, Schritte 0,5 m) für seinen Platz unter dem Rohr, auch während der Arbeit; Klick auf den Wert setzt 0
+- Überlader mit langem Auflieger hinter einem Drescher: er fuhr im Kreis (jeder neue Weg eine Schleife um seinen weiten Wendekreis). Schon ungefähr hinter seinem Platz, folgt er von dort
+Änderungen 1.0.5.4:
+- Überlade-LKW mit Sattelauflieger: ihre Wege mit dem engen Wendekreis der Zugmaschine (4,4 m) ließen den Auflieger einknicken, der LKW blieb stecken. Jetzt weit genug für das Gezogene (12-m-Auflieger: 9 m), und ein längeres gerades Heranfahren hinter dem Drescher
+Änderungen 1.0.5.3:
+- Fahrzeugwechsel mit Tab: das Panel wechselt mit (gleicher Reiter, minimiert bleibt minimiert), statt sich zu schließen; beim Aussteigen schließt es
+- Problembericht eines Überladers: die Stationen, die Abladen bei anbietet, und warum die übrigen des Spiels fehlen
+Änderungen 1.0.5.2:
+- Ein Ernter blieb für seinen neben der Bahn wartenden Überlader stehen (die gemessene Arbeitsbreite des LKW, 10 m, ließ ihn im Weg scheinen). Helfer ohne Kurs zählen jetzt mit ihrer eigenen Größe und dem, was sie ziehen
+- Problembericht und Overlay: ein stehender Helfer sagt, warum (Regen, AutoDrive hält ihn, die Geräte können nicht weiter und welches, Absenken, Pause...)
+- Ein Überlader (Ballensammler, Siloverdichter, Lader), der beim Speichern arbeitete, startet nach dem Laden wieder als solcher, mit seinen Einstellungen. Er startete stattdessen den Feldkurs, den das Fahrzeug auch hatte (ein LKW fuhr einen alten 10-m-Kurs übers Feld). Ältere Spielstände: der letzte Auftrag des Spiels zeigt es
+Änderungen 1.0.5.1:
+- AutoDrive-LKW im Weg: nach 20 s Warten fuhr der Helfer in ihn hinein. Jetzt fährt er nur bis kurz davor und wartet, bis er wegfährt. Sein Anhänger zählt mit (nur der LKW wurde beachtet), und in einen fahrenden AutoDrive-LKW fährt er auch nicht. Die Front des Helfers wird gemessen (das Schneidwerk eines Ernters reicht weiter als die Nase eines Traktors)
+Änderungen 1.0.5.0:
+- Überlader wartet auf der Bahn eines Dreschers (auf dessen Vorgewende gestartet): der aufgehaltene Drescher ruft ihn sofort, auch unter seinem Ruf-Füllstand; er nimmt, was da ist, und beide fahren weiter (beide warteten für immer). Der Drescher lässt seinen Überlader weiter vorbei, solange er von vorn herankommt
+- Das Log nennt unseren eigenen Überlader nicht mehr AutoDrives ("has stood in our way for 20 s: going on" alle 20 s)
+Änderungen 1.0.4.9:
+- Helfer, die auf andere warten (Überlader auf einen Drescher, Silo verdichtet, Wickler auf die Presse): Motor nach 10 s aus, um Kraftstoff zu sparen, wieder an, sobald sie fahren müssen
+- Überlader: Abladen bei, Abfahren bei Füllstand und das neue Bestand im Weg (Umfahren / Durchfahren) lassen sich während der Arbeit ändern
+- Kurskarte: gezoomt mit der Maus verschieben (bleibt dort bis zum nächsten Zoom)
+Änderungen 1.0.4.8:
+- Eckige Ecken neben einer abgeschrägten Feldecke: das Manöver richtete sich nach den Punkten neben der Ecke (dort nach innen gedrückt) statt nach den Kanten: schiefe Wende, weites Zurücksetzen quer über die Bahnen (bis 45 m in den Bestand), die Ecke teils ausgelassen. Jetzt nach den Kanten, kurz zurück entlang der Kante
+- Der Status oben im Panel verdeckt den Fahrzeugnamen nicht mehr (gekürzt, oder weggelassen, wenn kein Platz ist)
+- Zoom der Kurskarte: – und + auf der Karte oder das Mausrad darüber; bis 8-mal näher, folgt dem Fahrzeug
+- Minimiertes Panel: Knöpfe Start / Pause / Stopp. Strg+J gibt die Maus ans kleine Panel (zum Klicken) und zurück ans Spiel; das + holt das ganze Panel zurück
+Änderungen 1.0.4.7:
+- Los / Hinfahren / die Warteschlange: AutoDrive bringt ihn zum Marker des Felds (einer am Feldrand mit dem Namen des Felds, z. B. Field 42b WAIT), nicht zum nächsten Marker am Kursanfang (ein Silo neben dem Feld, wo er alles ausklappte). AutoDrive-Marker: Automatisch zeigt, welcher das ist
+- Minimieren (das – oben im Panel): nur Kopf, Fortschritt und Kurskarte bleiben, die Maus gehört wieder dem Spiel; Strg+J holt das ganze Panel zurück
+- Start- und Ende-Fahnen an den Kurslinien in der Welt (grün und rot wie auf der Karte im Panel), solange das Panel offen ist (auch minimiert)
+Änderungen 1.0.4.6:
+- Start bei: Nächster mit einer Erntemaschine: schon abgeerntete Bahnen werden ausgelassen, sie beginnt auf der nächsten mit stehendem Bestand (sie fuhr eine schon gedroschene Bahn ab)
+Änderungen 1.0.4.5:
+- Wechsel von einer Vorgewendebahn zur nächsten mit einer langen Erntemaschine: weit ausschwenkend in der S-Kurve hielt sie das für Abdrängen von ihrer Linie, hob aus und fuhr quer übers Feld zurück, ein Streifen blieb stehen. In der Nähe dieser Wechsel nicht mehr
+Änderungen 1.0.4.4:
+- Eckige Ecken mit einer langen Erntemaschine: nach dem Zurücksetzen abgesenkt noch ein paar Meter neben der nächsten Bahn, hielt sie das für Abdrängen von ihrer Linie, hob aus und fuhr zurück, die Ecke blieb stehen. Jetzt nur, wenn sie auf ihrer Linie war und davon abgedrängt wurde, und nicht am Halt einer Ecke
+Änderungen 1.0.4.3:
+- Wird für ein Fahrzeug mit einem CourseCorrect-Kurs auf dessen Feld der Helfer des Spiels eingestellt (die Helfer-Taste startet den im Spielstand gemerkten Feldarbeit-Auftrag des Spiels, AutoDrive mit dem Helfer des Spiels): CourseCorrect fährt stattdessen den Kurs. Neue Einstellung Spielhelfer hier (Einstellungen, Fahren; Meine Vorgaben): CourseCorrect fährt (Vorgabe) oder Helfer des Spiels
+Änderungen 1.0.4.2:
+- Problembericht einer Erntemaschine: wie AutoDrive sie sieht (Ziel, Ruf-Füllstand, Bunker, Rohr, arbeitend oder untätig, der geschickte LKW) und jeder AutoDrive-Überlader mit seinem Ziel, um zu sehen, warum kein LKW kommt
+Änderungen 1.0.4.1:
+- Der Problembericht nennt den Helferauftrag, der das Fahrzeug fährt, und sagt, wenn es nicht der von CourseCorrect ist (der Helfer des Spiels, eines anderen Mods)
+Änderungen 1.0.4.0:
+- Eckige Ecken mit einem Vorsatz vorne: sie setzt vor dem Weiterfahren 2 m weiter zurück (sie hielt noch zu früh und ließ den Anfang der nächsten Bahn stehen)
+Änderungen 1.0.3.9:
+- Beim Ausheben (Einstellungen, Fahren; Meine Vorgaben): Ausschalten (wie bisher) oder Weiterlaufen: beim Wenden und von einer Bahn zur nächsten laufen die Geräte weiter
+- Eckige Ecken mit einem Vorsatz vorne: sie erntet bis dahin, wo sie zurücksetzt (die letzten Meter vor der Ecke blieben stehen)
+Änderungen 1.0.3.8:
+- Eckige Ecken mit einem Vorsatz vorne (Erntemaschinen): sie setzt weit genug zurück, dass der Vorsatz an der Ecke anfängt (die ersten 4 m nach jeder Ecke blieben stehen)
+- Beim Arbeiten von der Spur geschoben (ein LKW im Weg): sie fährt zurück, wo sie die Spur verlassen hat, statt 30 m weiter vorne (so viel fehlte)
+- Der Problembericht sagt, was das Fahrzeug fährt (CourseCorrect, der Helfer des Spiels, AutoDrive)
+Änderungen 1.0.3.1 bis 1.0.3.7:
+- Eine volle Erntemaschine ohne Überlader sagt das (rote Meldung, Benachrichtigung): einen Überlader starten oder einem AutoDrive-LKW dasselbe erste Ziel geben
+- Ein stehender AutoDrive-LKW im Weg (z. B. nach dem Überladen, wenn die Erntemaschine wendet) wird abgewartet, höchstens 20 s
+- Höhe der Kurslinien (Meine Vorgaben): die Kurslinien in der Welt am Boden oder 1, 2,5 oder 4 m hoch, um sie über hohem Bestand zu sehen
+- Abgesenkt, aber nicht eingeschaltet (das Spiel lehnte es ab, z. B. weil das Rohr nach dem Überladen noch fuhr): es wird erneut versucht, statt für immer stehen zu bleiben
+- Behoben: ein Fehler beim Speichern (eine noch nicht gesetzte Einstellung), durch den der Rest des Fahrzeugs ungespeichert bleiben konnte
+- Der Problembericht enthält den Feldumriss (ein vom Boden gelesenes Feld lässt sich so nachbauen)
+- Von einer Vorgewendebahn zur nächsten bleibt das Gerät unten (ausgeschaltet), statt ausgehoben zu werden, und der Wechsel ist kurz (er fuhr bis zu 100 m an der fertigen Bahn entlang); eine Erntemaschine läuft dabei weiter
+- Überlader rufen bei, die Geschwindigkeiten, das Absenken / Ausheben und Bei Regen lassen sich ändern, während der Helfer arbeitet
+- Überladen während der Fahrt: ab dem Ruf-Füllstand schwenkt das Rohr aus (wenn Überlader da sind), so leert AutoDrives LKW ihn unterwegs
+- Fährt ein LKW voll weg und ist noch Korn im Drescher, ruft der Drescher sofort den nächsten
+- Erntemaschine mit AutoDrive-Überlader: bleibt nach dem Überladen nicht mehr neben ihm stehen (das Rohr bleibt draußen, bis der Bunker leer ist; ein Anhalten, bei dem nichts mehr herauskommt, dauert höchstens 15 s)
+- Überlader: nach dem Leeren eines Dreschers bleibt er nicht mehr neben ihm stehen (beide warteten aufeinander): er lässt den Drescher vorfahren und fährt zurück zu seinem Warteplatz, oder zum Abladen, wenn der Anhänger keine weitere Ladung mehr fasst
+- Start abseits des Kursfelds: fragt, und AutoDrive bringt ihn hin (eingeklappt, CP an) und er startet bei Ankunft
+- Die Farben des Panels wie vorgesehen (im Spiel war es blasser und grau)
+- Hilfe im Panel (das ?): wie man es benutzt, zum Thema, wo man gerade ist
+- Warteschlange: die eingereihten Kurse der Reihe nach, verschieben, losfahren, entfernen, leeren
+- Los: schickt den Traktor jetzt zu einem gespeicherten Kurs; die Geräte werden eingeklappt, AutoDrive fährt ihn zum Ziel des Kurses und startet CourseCorrect dort
+- AutoDrive-Ziel pro Kurs (Einstellungen, Fahren)
+- Behoben: Ein Helfer mit ausgeklapptem Gerät startete nicht ("nicht im Transportmodus")
+- Symbol neu gezeichnet]]></de>
     </description>
     <iconFilename>icon_courseCorrect.dds</iconFilename>
     <multiplayer supported="true"/>
@@ -59,10 +279,12 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.]]></de>
         <sourceFile filename="scripts/events/GuidanceCourseEvent.lua"/>
         <sourceFile filename="scripts/events/GuidancePauseEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceSettingEvent.lua"/>
+        <sourceFile filename="scripts/events/GuidanceGoEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceLibraryEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceQueueEvent.lua"/>
         <sourceFile filename="scripts/gui/GuidanceDraw.lua"/>
         <sourceFile filename="scripts/gui/GuidanceMap.lua"/>
+        <sourceFile filename="scripts/gui/GuidanceHelp.lua"/>
         <sourceFile filename="scripts/gui/GuidanceHud.lua"/>
         <sourceFile filename="scripts/gui/GuidanceDebug.lua"/>
     </extraSourceFiles>

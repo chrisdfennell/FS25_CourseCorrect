@@ -3,8 +3,12 @@ through the mod's own drive loop (GuidanceVehicle:onUpdate -> the game's drive-t
 the tractor):
 
 - unloader: a combine harvests field 9's rows (turning at each end), its tank filling; grain flows only while the
-  trailer's fill point is under the pipe. The unloader must come, follow under the pipe, take a load, leave full
-  and stop (no station) for the player.
+  trailer's fill point is under the pipe. The unloader must come, follow under the pipe, take a load, let the
+  combine pull away and go back to where it waits (never standing beside it), come again, then leave once the
+  trailer has no room for another load and stop (no station) for the player. And a combine of ours doesn't stop for
+  the unloader that has just emptied it (it would wait for each other for ever).
+- AutoDrive's hold: a harvester AutoDrive holds while its tank empties stands; held with the last 1 % not coming out
+  it goes on after 15 s (AutoDrive waits for the last litre: both would stand for ever).
 - bale collector: bales on the field, a 4-bale loader: every bale picked up, the stacks unloaded where it started.
 - chopper: a forage harvester (no tank) with a trailer beside or behind it, held while nothing is under its spout:
   the trailer filled, then stops full.
@@ -151,6 +155,7 @@ function runUnloader(flat, rowsFlat, homeX, homeZ)
     local row, s, turning = 1, 0, 0
     local transferred, followSteps, alignedSteps, maxOff = 0, 0, 0, 0
     local combineWaited = 0
+    local states, returned, clearStandMax, clearStand = {}, false, 0, 0
     while tractor.job ~= nil and steps < 60000 do
         steps = steps + 1
         -- the combine
@@ -185,6 +190,12 @@ function runUnloader(flat, rowsFlat, homeX, homeZ)
         local fx, fz = tn.x - math.cos(tn.h) * 7, tn.z - math.sin(tn.h) * 7
         local off = dist(fx, fz, pipeNode.x, pipeNode.z)
         local d = tractor.spec_guidance.driver
+        if d then
+            states[d.state] = true
+            if d.state == "wait" and trailer.level > 0 and dist(tn.x, tn.z, homeX, homeZ) < 15 then returned = true end
+            clearStand = d.state == "clear" and clearStand + dt or 0
+            clearStandMax = math.max(clearStandMax, clearStand)
+        end
         if d and d.state == "follow" then
             followSteps = followSteps + 1
             if off < 2 then alignedSteps = alignedSteps + 1 end
@@ -201,7 +212,73 @@ function runUnloader(flat, rowsFlat, homeX, homeZ)
     return {transferred = transferred, trailer = trailer.level, followSteps = followSteps, aligned = alignedSteps,
             steps = steps, finished = tractor.job == nil, message = STOP_MESSAGE and STOP_MESSAGE.name or tostring(STOP_MESSAGE),
             homeDist = dist(tn.x, tn.z, homeX, homeZ), combineWaited = combineWaited,
+            cleared = states.clear == true, returned = returned, clearStand = clearStandMax,
             info = tractor:getGuidanceInfoTexts()[1] and tractor:getGuidanceInfoTexts()[1].name or ""}
+end
+
+--- A combine of ours with an unloader standing beside it, inside its lane check: does it stop for it? (just emptied
+--- by it: no; any other: yes)
+function combineStopsFor(justEmptied)
+    local combine = makeVehicle(0, 0, 0, "Combine")
+    local truck = makeVehicle(4, 5.5, 0, "Truck")
+    local unloader = {state = "clear", course = {plan = {workWidth = 3}}, leftCombine = justEmptied and combine or nil}
+    truck.spec_guidance.driver = unloader
+    g_currentMission.vehicleSystem = {vehicles = {combine, truck}}
+    local me = setmetatable({vehicle = combine, course = {plan = {workWidth = 12}}}, {__index = GuidanceFieldworkDriver})
+    local speed = me:giveWay(100, 6, 0, 0, 0, false)
+    return speed == 0
+end
+
+--- Two trucks: the first leaves full with grain still in the combine (50 %, under its call level): does the second
+--- come at once? (before: no)
+function nextTruckCalled()
+    local combine = makeVehicle(100, 100, 0, "Combine")
+    combine.spec_combine = {fillUnitIndex = 1}
+    combine.spec_pipe = {numStates = 2, currentState = 2}
+    function combine:getFillUnitCapacity() return 10000 end
+    function combine:getFillUnitFillLevel() return 5000 end
+    combine.children = {combine}
+    local od = {course = {plan = {callUnloaderAt = 80}}}
+    function od:isWaitingForUnload() return false end
+    combine.spec_guidance.driver = od
+    local function truck(x, level)
+        local t = makeVehicle(x, 90, 0, "Truck")
+        local trailer = {spec_trailer = {}, level = level, capacity = 20000}
+        function trailer:getFillUnits() return {{}} end
+        function trailer:getFillUnitCapacity() return self.capacity end
+        function trailer:getFillUnitFillLevel() return self.level end
+        function trailer:getFillUnitExactFillRootNode() return {lx = 0, lz = -7} end
+        t.children = {t, trailer}
+        return t
+    end
+    local t1, t2 = truck(92, 20000), truck(60, 0)
+    g_currentMission.vehicleSystem = {vehicles = {combine, t1, t2}}
+    startHelper(t1, GuidanceUnloadJob, {unloadX = 0, unloadZ = 0, fullLevel = 0.97})
+    startHelper(t2, GuidanceUnloadJob, {unloadX = 0, unloadZ = 0, fullLevel = 0.97})
+    local d1, d2 = t1.spec_guidance.driver, t2.spec_guidance.driver
+    d1.field, d2.field = nil, nil
+    local before = d2:pickCombine() == combine
+    d1:setServing(combine)
+    d1.state = "follow"
+    d1:getDriveData(100)
+    local after = d2:pickCombine() == combine
+    return before, after, d1.state
+end
+
+--- AutoDrive holding a harvester every frame for 60 s: how long it stood. draining: its tank emptying meanwhile.
+function adHeldFor(draining)
+    local h = {spec_combine = {fillUnitIndex = 1}, level = 20000}
+    function h:getFillUnitFillLevel() return self.level end
+    local me = setmetatable({vehicle = makeVehicle(0, 0, 0, "Harvester"), harvester = h, holdUntil = 0},
+        {__index = GuidanceFieldworkDriver})
+    local t0, stood = g_time or 0, 0
+    for _ = 1, 600 do
+        g_time = (g_time or 0) + 100
+        if draining then h.level = math.max(0, h.level - 30) end
+        me:holdForAutoDrive(200)
+        if g_time < me.holdUntil then stood = stood + 100 end
+    end
+    return stood / 1000
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -851,6 +928,18 @@ def main():
           f"took {r['transferred']:.0f} l (trailer {r['trailer']:.0f} l), under the pipe {100 * aligned:.0f}% of its "
           f"following, {r['steps'] / 600:.0f} min, back {r['homeDist']:.0f} m from where it started, "
           f"stopped: {r['info']}")
+    before, after, state1 = G.nextTruckCalled()
+    check("next truck", not before and after and state1 == "leave",
+          f"combine at 50 % (calls at 80): the second truck comes before {before}; once the first leaves full "
+          f"({state1}): {after}")
+    stuck, draining = G.adHeldFor(False), G.adHeldFor(True)
+    check("AutoDrive hold", 14 <= stuck <= 16.5 and draining >= 59,
+          f"held with nothing coming out: stood {stuck:.1f} s, then on; held while it empties: {draining:.1f} s of 60")
+    check("unloader after a load", r["cleared"] and r["returned"] and r["clearStand"] <= 20000 + 200
+          and G.combineStopsFor(False) and not G.combineStopsFor(True),
+          f"let the combine pull away ({r['clearStand'] / 1000:.0f} s), back where it waits: {r['returned']}; the "
+          f"combine stops for another unloader beside it: {G.combineStopsFor(False)}, for the one that just emptied "
+          f"it: {G.combineStopsFor(True)}")
 
     # bales: 6 inside field 9, the collector starts at its first corner
     import random

@@ -7,7 +7,7 @@ Guidance = {
     MOD_NAME = g_currentModName,
     MOD_DIR = g_currentModDirectory,
     SPEC_NAME = g_currentModName .. ".guidance",
-    VERSION = "1.0.0.0",
+    VERSION = "1.0.6.7",
     -- the name players see
     TITLE = "CourseCorrect",
     -- the mod's name before 0.5: its data is read once, and it must not be loaded as well
@@ -73,6 +73,7 @@ Guidance.NOTIFY = {
     FUEL_IS_LOW = "INGAME_NOTIFICATION_INFO",
     NEXT_FIELD_WAITING = "INGAME_NOTIFICATION_INFO",
     WAITING_RAIN = "INGAME_NOTIFICATION_INFO",
+    NO_UNLOADER = "INGAME_NOTIFICATION_CRITICAL",
 }
 
 --- Tells the player (if it is their farm's vehicle) that a helper got a status: finished, full, stuck...
@@ -173,6 +174,36 @@ AIJobTypeManager.getJobTypeIndex = Utils.overwrittenFunction(AIJobTypeManager.ge
         end
         return ix
     end)
+
+--- The vehicle the game's own field work helper (its job type FIELDWORK, not another mod's helper built on it) is
+--- being started for, or nil
+function Guidance.gameFieldWorkVehicle(job)
+    if Guidance.disabled or job == nil or job.vehicleParameter == nil or job.vehicleParameter.getVehicle == nil then
+        return nil
+    end
+    local ok, typeName = Guidance.try(function()
+        local m = g_currentMission.aiJobTypeManager
+        local jobType = m:getJobTypeByIndex(m:getJobTypeIndex(job))
+        return jobType and jobType.name
+    end)
+    if not ok or typeName ~= "FIELDWORK" then
+        return nil
+    end
+    return job.vehicleParameter:getVehicle()
+end
+
+-- the game's own field work helper hired for a vehicle with a CourseCorrect course at its field (the hire key starts
+-- the job the savegame remembers; AutoDrive set to the game's helper): CourseCorrect works the course instead
+AISystem.startJob = Utils.overwrittenFunction(AISystem.startJob, function(system, superFunc, job, farmId, ...)
+    local vehicle = Guidance.gameFieldWorkVehicle(job)
+    if vehicle ~= nil and vehicle.guidanceTakeOver ~= nil then
+        local ok, took = Guidance.try(function() return vehicle:guidanceTakeOver() end)
+        if ok and took then
+            return
+        end
+    end
+    return superFunc(system, job, farmId, ...)
+end)
 
 -----------------------------------------------------------------------------------------------------------------------
 -- Mod event listener

@@ -75,9 +75,12 @@
         <text name="guidance_phase_shovelNoTrailer" text="Parada: ningún remolque con sitio cerca del montón"/>
         <text name="guidance_phase_shovelNoHeap" text="Parada: no hay montón delante (aparca mirando a él)"/>
         <text name="guidance_phase_balesWaitBaler" text="Esperando a la empacadora"/>
+        <text name="guidance_phase_unloadClear" text="Deja que la cosechadora se aleje"/>
+        <text name="guidance_phase_unloadReturn" text="Volviendo a su lugar de espera"/>
         <text name="guidance_orchard_name" text="Huerto %d"/>
         <text name="guidance_warn_convoyNarrow" text="Demasiado estrecho para un convoy de %d: queda un %d%% sin trabajar. Prueba Siguiente surco libre o Franjas."/>
         <text name="guidance_info_WAITING_RAIN" text="Esperando a que pare la lluvia (cosechar ahora reduce el rendimiento)"/>
+        <text name="guidance_info_NO_UNLOADER" text="Lleno, sin descargador: inicia un descargador de CourseCorrect en este campo o da a un camión de AutoDrive el mismo primer destino que a esta cosechadora"/>
         <text name="guidance_set_rainWait" text="Con lluvia"/>
         <text name="guidance_rain_wait" text="Esperar"/>
         <text name="guidance_rain_go" text="Seguir"/>
@@ -86,6 +89,57 @@
         <text name="guidance_set_edgeObstacles" text="Obstáculos junto al borde"/>
         <text name="guidance_edge_over" text="Pasar por encima"/>
         <text name="guidance_edge_round" text="Rodear"/>
+        <text name="guidance_set_adMarker" text="Marcador de AutoDrive"/>
+        <text name="guidance_admarker_nearest" text="Automático"/>
+        <text name="guidance_saved_go" text="Ir"/>
+        <text name="guidance_go_sent" text="%s: en camino (AutoDrive hasta el marcador, empieza allí)"/>
+        <text name="guidance_saved_marker" text="AutoDrive: %s"/>
+        <text name="guidance_queue_title" text="Cola · %d"/>
+        <text name="guidance_queue_manage" text="Gestionar"/>
+        <text name="guidance_queue_open" text="Cola (%d)"/>
+        <text name="guidance_queue_back" text="Atrás"/>
+        <text name="guidance_queue_total" text="%s en total"/>
+        <text name="guidance_queue_hint" text="En este orden: al terminar un recorrido se carga el siguiente y va hasta él (AutoDrive hasta su marcador si está lejos)."/>
+        <text name="guidance_queue_empty" text="Nada en cola. Añade recorridos con Poner en cola en la pestaña Guardados."/>
+        <text name="guidance_queue_up" text="Subir"/>
+        <text name="guidance_queue_down" text="Bajar"/>
+        <text name="guidance_queue_remove" text="Quitar"/>
+        <text name="guidance_queue_clearAll" text="Quitar todo"/>
+        <text name="guidance_queue_gone" text="(un recorrido borrado)"/>
+        <text name="guidance_help_title" text="Ayuda"/>
+        <text name="guidance_help_topics" text="Temas"/>
+        <text name="guidance_away_go" text="No está en %s (a %s). AutoDrive puede llevarlo (%s), con los aperos plegados, y empieza al llegar."/>
+        <text name="guidance_away_noMarker" text="No está en %s (a %s) y no hay marcador de AutoDrive cerca: llévalo tú o elige un marcador (Ajustes, Conducción)."/>
+        <text name="guidance_away_cancel" text="Cancelar"/>
+        <text name="guidance_away_goBtn" text="Ir allí"/>
+        <text name="guidance_away_startAnyway" text="Empezar igualmente"/>
+        <text name="guidance_set_lineHeight" text="Altura de las líneas"/>
+        <text name="guidance_lineHeight_ground" text="En el suelo"/>
+        <text name="guidance_set_keepRunning" text="Al levantar"/>
+        <text name="guidance_keepRunning_off" text="Apagar"/>
+        <text name="guidance_keepRunning_on" text="Seguir en marcha"/>
+        <text name="guidance_set_takeOver" text="Ayudante del juego aquí"/>
+        <text name="guidance_takeOver_on" text="Conduce CourseCorrect"/>
+        <text name="guidance_takeOver_off" text="El ayudante del juego"/>
+        <text name="guidance_mini_noCourse" text="Aún no hay ruta"/>
+        <text name="guidance_mini_hintBack" text="Ctrl+J: el ratón de vuelta al juego · + todo el panel"/>
+        <text name="guidance_mini_hint" text="Ctrl+J: el ratón para estos botones · + todo el panel"/>
+        <text name="guidance_world_start" text="Inicio"/>
+        <text name="guidance_world_end" text="Fin"/>
+        <text name="guidance_set_avoidCrop" text="Cultivo en el camino"/>
+        <text name="guidance_avoidCrop_on" text="Rodear"/>
+        <text name="guidance_avoidCrop_off" text="Atravesar"/>
+        <text name="guidance_set_unloadSide" text="Desplazamiento lateral"/>
+        <text name="guidance_set_unloadAlong" text="Desplazamiento adelante/atrás"/>
+        <text name="guidance_set_pipeSide" text="Lado del tubo"/>
+        <text name="guidance_pipeSide_auto" text="Auto (medido)"/>
+        <text name="guidance_pipeSide_left" text="Izquierda"/>
+        <text name="guidance_pipeSide_right" text="Derecha"/>
+        <text name="guidance_set_unloadCombine" text="Cosechadora"/>
+        <text name="guidance_unloadCombine_any" text="Cualquiera en su campo"/>
+        <text name="guidance_unloadCombine_field" text="campo %s"/>
+        <text name="guidance_unloadCombine_gone" text="(no encontrada)"/>
+        <text name="guidance_unloadGo" text="A %s en el campo %s: AutoDrive lo lleva, el descargador empieza al llegar"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>
@@ -183,7 +237,7 @@
         <text name="guidance_saved_renamePrompt" text="Nombre de la ruta"/>
         <text name="guidance_saved_line" text="Campo %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Campo %d"/>
-        <text name="guidance_folder_back" text="&lt; Todos los campos"/>
+        <text name="guidance_folder_back" text="Todos los campos"/>
         <text name="guidance_folder_count" text="%d rutas"/>
         <text name="guidance_folder_one" text="1 ruta"/>
         <text name="guidance_folder_here" text="estás aquí"/>

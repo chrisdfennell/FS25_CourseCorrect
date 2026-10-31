@@ -75,9 +75,12 @@
         <text name="guidance_phase_shovelNoTrailer" text="Stopped: no trailer with room near the heap"/>
         <text name="guidance_phase_shovelNoHeap" text="Stopped: no heap ahead (park facing it)"/>
         <text name="guidance_phase_balesWaitBaler" text="Waiting for the baler"/>
+        <text name="guidance_phase_unloadClear" text="Letting the combine pull away"/>
+        <text name="guidance_phase_unloadReturn" text="Back to its waiting place"/>
         <text name="guidance_orchard_name" text="Orchard %d"/>
         <text name="guidance_warn_convoyNarrow" text="Too narrow for a convoy of %d: about %d%% stays unworked. Try Next free row or Strips."/>
         <text name="guidance_info_WAITING_RAIN" text="Waiting for the rain to stop (harvesting now loses yield)"/>
+        <text name="guidance_info_NO_UNLOADER" text="Full, no unloader: start a CourseCorrect unloader on this field, or give an AutoDrive truck the same first target as this harvester"/>
         <text name="guidance_set_rainWait" text="In the rain"/>
         <text name="guidance_rain_wait" text="Wait"/>
         <text name="guidance_rain_go" text="Carry on"/>
@@ -86,6 +89,57 @@
         <text name="guidance_set_edgeObstacles" text="Obstacles near the edge"/>
         <text name="guidance_edge_over" text="Drive over"/>
         <text name="guidance_edge_round" text="Work round"/>
+        <text name="guidance_set_adMarker" text="AutoDrive marker"/>
+        <text name="guidance_admarker_nearest" text="Automatic"/>
+        <text name="guidance_saved_go" text="Go"/>
+        <text name="guidance_go_sent" text="%s: on the way (AutoDrive to its marker, starts there)"/>
+        <text name="guidance_saved_marker" text="AutoDrive: %s"/>
+        <text name="guidance_queue_title" text="Queue · %d"/>
+        <text name="guidance_queue_manage" text="Manage"/>
+        <text name="guidance_queue_open" text="Queue (%d)"/>
+        <text name="guidance_queue_back" text="Back"/>
+        <text name="guidance_queue_total" text="%s in all"/>
+        <text name="guidance_queue_hint" text="Worked in this order: when a course is finished, the next is loaded and driven to (AutoDrive to its marker when it's far)."/>
+        <text name="guidance_queue_empty" text="Nothing queued. Add courses with Queue on the Saved tab."/>
+        <text name="guidance_queue_up" text="Up"/>
+        <text name="guidance_queue_down" text="Down"/>
+        <text name="guidance_queue_remove" text="Remove"/>
+        <text name="guidance_queue_clearAll" text="Clear all"/>
+        <text name="guidance_queue_gone" text="(a deleted course)"/>
+        <text name="guidance_help_title" text="Help"/>
+        <text name="guidance_help_topics" text="Topics"/>
+        <text name="guidance_away_go" text="Not on %s (%s away). AutoDrive can take it there (%s), the implements folded, and it starts on arrival."/>
+        <text name="guidance_away_noMarker" text="Not on %s (%s away), and no AutoDrive marker near it: drive it there, or pick a marker (Settings, Driving)."/>
+        <text name="guidance_away_cancel" text="Cancel"/>
+        <text name="guidance_away_goBtn" text="Go there"/>
+        <text name="guidance_away_startAnyway" text="Start anyway"/>
+        <text name="guidance_set_lineHeight" text="Course line height"/>
+        <text name="guidance_lineHeight_ground" text="On the ground"/>
+        <text name="guidance_set_keepRunning" text="When lifted"/>
+        <text name="guidance_keepRunning_off" text="Switch off"/>
+        <text name="guidance_keepRunning_on" text="Keep running"/>
+        <text name="guidance_set_takeOver" text="Game's helper here"/>
+        <text name="guidance_takeOver_on" text="CourseCorrect drives"/>
+        <text name="guidance_takeOver_off" text="The game's helper"/>
+        <text name="guidance_mini_noCourse" text="No course yet"/>
+        <text name="guidance_mini_hintBack" text="Ctrl+J: the mouse back to the game · + the whole panel"/>
+        <text name="guidance_mini_hint" text="Ctrl+J: the mouse for these buttons · + the whole panel"/>
+        <text name="guidance_world_start" text="Start"/>
+        <text name="guidance_world_end" text="End"/>
+        <text name="guidance_set_avoidCrop" text="Crop on the way"/>
+        <text name="guidance_avoidCrop_on" text="Go round"/>
+        <text name="guidance_avoidCrop_off" text="Drive through"/>
+        <text name="guidance_set_unloadSide" text="Side offset"/>
+        <text name="guidance_set_unloadAlong" text="Front/back offset"/>
+        <text name="guidance_set_pipeSide" text="Pipe side"/>
+        <text name="guidance_pipeSide_auto" text="Auto (measured)"/>
+        <text name="guidance_pipeSide_left" text="Left"/>
+        <text name="guidance_pipeSide_right" text="Right"/>
+        <text name="guidance_set_unloadCombine" text="Combine"/>
+        <text name="guidance_unloadCombine_any" text="Any on its field"/>
+        <text name="guidance_unloadCombine_field" text="field %s"/>
+        <text name="guidance_unloadCombine_gone" text="(not found)"/>
+        <text name="guidance_unloadGo" text="To %s on field %s: AutoDrive takes it there, the unloader starts on arrival"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -183,7 +237,7 @@
         <text name="guidance_saved_renamePrompt" text="Name of the course"/>
         <text name="guidance_saved_line" text="Field %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Field %d"/>
-        <text name="guidance_folder_back" text="&lt; All fields"/>
+        <text name="guidance_folder_back" text="All fields"/>
         <text name="guidance_folder_count" text="%d courses"/>
         <text name="guidance_folder_one" text="1 course"/>
         <text name="guidance_folder_here" text="you are here"/>

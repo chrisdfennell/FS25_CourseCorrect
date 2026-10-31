@@ -22,11 +22,19 @@ Driver.TURN_SPEED = 10 -- km/h, turns and connections
 Driver.REVERSE_SPEED = 5
 Driver.LATERAL_ACCEL = 1.2 -- m/s², limits speed in curves
 Driver.STUCK_TIME = 20000 -- ms without progress while we want to move
-Driver.PREPARE_TIMEOUT = 20000 -- ms not ready to drive and nothing getting it ready (an implement that can't unfold)
+Driver.PREPARE_MIN = 1000 -- ms after "prepare for work" before we look (the unfolding starts a moment later)
+Driver.PREPARE_TIMEOUT = 60000 -- ms we wait for implements folding at the start; then we go anyway
 Driver.LOST_DISTANCE = 15 -- m off the course
 Driver.LOST_TIME = 5000
 Driver.REJOIN_AHEAD = 30 -- m along the course a lost helper comes back on (past what threw it off)
 Driver.REJOINS = 3 -- times it may do that before it gives up
+Driver.PUSHED_DISTANCE = 4 -- m off its line while working (pushed off by a truck...): back to where it left it
+Driver.PUSHED_TIME = 2000
+Driver.CUSP_MARGIN = 2 -- m more it backs up for a header in front (it turns to forward a little before the point)
+Driver.CORNER_REACH = 6 -- m a header in front works on past the work's end, up to where it backs up (square corners)
+Driver.SAME_SPOT = 10 -- m: thrown off again this near where it came back on: on further along instead
+Driver.PUSHED_CUSP = 10 -- m: this near a change of direction it is off its line on purpose (stopping past the corner)
+Driver.PUSHED_LANE = 20 -- m: this near a move from one headland pass to the next (a long harvester swings wide there)
 Driver.LOWER_TIMEOUT = 10000
 Driver.FILL_CHECK_INTERVAL = 1000
 Driver.OFFSET_CHECK_INTERVAL = 500
@@ -38,6 +46,9 @@ Driver.GIVE_WAY_GAP = 4 -- m kept between us (our front) and the back of another
 Driver.GIVE_WAY_SLOW = 18 -- m further than that we start slowing down
 Driver.GIVE_WAY_OVERLAP = 0.5 -- m the work widths may overlap side by side (neighbouring passes) without a clash
 Driver.GIVE_WAY_SHOW = 3000 -- ms waiting before the status says so
+Driver.AD_WAIT = 20000 -- ms we wait for a standing AutoDrive vehicle in our way (it may wait for us), then go on up to it
+Driver.PIPE_OUT_FOR_UNLOADER = 60 -- m: our unloader coming this near, the pipe goes out (it sees its side)
+Driver.TOUCH_GAP = 1.5 -- m short of anything in our way we stop at the latest (an AutoDrive truck, its trailer)
 -- one that gives us the right of way but stands in our way: we never come nearer than this (middle to middle: both
 -- fronts and a bit), and it backs up to let us by (straight back, at most ROOM_BACK m, at ROOM_SPEED km/h)
 Driver.HARD_GAP = 2 * 5 + 2
@@ -48,6 +59,7 @@ Driver.ROOM_RETURN = 20000 -- ms after that the way back to our path isn't "lost
 Driver.CUSP_DISTANCE = 0.5 -- m from a change of direction counts as there
 Driver.UNLOAD_RESUME_LEVEL = 0.9 -- a waiting combine goes on below this, once nothing is under the pipe
 Driver.PIPE_CLOSE_DELAY = 3000
+Driver.HOLD_STALL = 15000 -- ms AutoDrive may hold us with nothing coming out of the tank before we go on regardless
 Driver.TOW_COMPENSATION = true -- towed implements: the tractor swings wide in bends so the implement stays on the line
 Driver.TOW_GAIN = 1.2 -- how strongly the tractor corrects for how far the towed implement is off the line
 
@@ -114,9 +126,11 @@ function Driver.new(vehicle, course, startIx, startPoint)
             if pt.laneStart then self.laneStartPoint = pt break end
         end
     end
-    -- turns where the implements stay down, switched off (if the player wants that and nothing is a plow)
-    self.keepEnabled = course.plan.keepLowered and self:canKeepLowered()
-    self.keepGaps = self.keepEnabled and self:findKeepGaps() or {}
+    -- turns where the implements stay down, switched off (if the player wants that and nothing is a plow); the moves
+    -- from one headland pass to the next always (nothing a plow)
+    self.canKeep = self:canKeepLowered()
+    self.keepEnabled = course.plan.keepLowered and self.canKeep
+    self.keepGaps = self:findKeepGaps()
     self.switchedOff = nil
     Guidance.debug("%s: driver started at waypoint %d, width %.1f, radius %.1f, front %.1f, back %.1f, side %.1f%s",
         Guidance.vehicleName(vehicle), startIx or 1, self.info.workWidth, self.info.turnRadius,
@@ -205,8 +219,10 @@ function Driver:buildPath(startIx, startPoint)
     table.insert(path, {x = first.x, z = first.z, t = first.t, work = false, ix = startIx})
     for i = nextIx, #wps do
         local wp = wps[i]
-        table.insert(path, {x = wp.x, z = wp.z, t = wp.t, work = wp.work, rev = wp.rev, keep = wp.keep, ix = i})
+        table.insert(path, {x = wp.x, z = wp.z, t = wp.t, work = wp.work, rev = wp.rev, keep = wp.keep, lane = wp.lane,
+                            ix = i})
     end
+    self:reachBackAtCusps(path)
     -- drop points too close together, they only confuse the heading checks
     local cleaned = {path[1]}
     for i = 2, #path do
@@ -262,7 +278,8 @@ function Driver:findKeepGaps()
         while i <= #pts and pts[i].d <= from + 1e-6 do i = i + 1 end
         while i <= #pts and pts[i].d < to - 1e-6 do
             n = n + 1
-            if not pts[i].keep or pts[i].rev then ok = false end
+            local kept = (pts[i].keep and self.keepEnabled) or (pts[i].lane and self.canKeep)
+            if not kept or pts[i].rev then ok = false end
             i = i + 1
         end
         if ok and n > 0 then
@@ -270,6 +287,67 @@ function Driver:findKeepGaps()
         end
     end
     return gaps
+end
+
+--- Where it stops backing up and drives on into work (a square corner, a three-point turn before a row): the work
+--- area has to start at the work, not past it. One ahead of the steering point (a harvester's header: its back this
+--- far ahead) would start that far in and leave that much standing; so it backs up that much further. (An implement
+--- behind the tractor is already behind the work start there.)
+function Driver:reachBackAtCusps(path)
+    local back = self.info and self.info.backOffset or 0
+    if back <= 0.3 then return path end
+    -- and the other way round: where it drives on past the work before backing up (into a square corner), the work
+    -- is cut short there to keep the nose of a tractor on the field; with the header in front the nose is the
+    -- header, so it works on up to where it backs up (else the last metres before the corner stay standing)
+    for i = 2, #path - 1 do
+        if not path[i].rev and path[i + 1].rev and not path[i].work then
+            local k, d = i, 0
+            while k > 1 and not path[k].work and not path[k].rev and d <= Driver.CORNER_REACH do
+                d = d + math.sqrt((path[k].x - path[k - 1].x) ^ 2 + (path[k].z - path[k - 1].z) ^ 2)
+                k = k - 1
+            end
+            if path[k].work and d <= Driver.CORNER_REACH then
+                for j = k + 1, i do path[j].work = true end
+            end
+        end
+    end
+    for i = 2, #path - 1 do
+        local p, prev = path[i], path[i - 1]
+        if p.rev and not path[i + 1].rev then
+            -- how far on from here the work starts (forward, before any more backing up)
+            local d, start = 0, nil
+            for k = i + 1, #path do
+                local q = path[k]
+                if q.rev or d > back then break end
+                if q.work then start = d break end
+                d = d + math.sqrt((q.x - path[k - 1].x) ^ 2 + (q.z - path[k - 1].z) ^ 2)
+                if path[k + 1] and path[k + 1].work then start = d break end
+            end
+            -- back along the line it then drives forward on (it stays on its lane)
+            local nxt = path[i + 1]
+            local dx, dz = nxt.x - p.x, nxt.z - p.z
+            local len = math.sqrt(dx * dx + dz * dz)
+            if start ~= nil and start < back and len > 0.05 and prev ~= nil then
+                -- (and a bit more: it turns to forward a little before the point, and stops short of it)
+                local extra = back - start + Driver.CUSP_MARGIN
+                p.x, p.z = p.x - dx / len * extra, p.z - dz / len * extra
+            end
+        end
+    end
+    return path
+end
+
+--- An implement part-way through folding or unfolding (not resting in its middle, lifted position)
+function Driver:isFolding()
+    for _, v in pairs(allVehicles(self.vehicle)) do
+        local spec = v.spec_foldable
+        local t = spec and spec.hasFoldingParts and spec.foldAnimTime
+        if t and t > 0.001 and t < 0.999 and (spec.foldMiddleAnimTime == nil
+                or math.abs(t - spec.foldMiddleAnimTime) > 0.001) then
+            return true
+        end
+    end
+    return false
 end
 
 --- Plows have to come up to turn over, and seeders that sow whenever they are down (nothing to switch off) must
@@ -288,18 +366,65 @@ function Driver:canKeepLowered()
 end
 
 function Driver:isInKeepGap(s)
+    -- (raised early / lowered late by the player's timing: the gap reaches that much further)
+    local plan = self.course.plan
+    local early = math.max(0, -(plan.raiseLate or 0)) + 0.5
+    local late = math.max(0, plan.lowerLate or 0) + math.max(0, (self.info.frontOffset or 0) - (self.info.backOffset or 0)) + 0.5
     for _, gap in ipairs(self.keepGaps) do
-        if s > gap.from and s < gap.to then
+        if s > gap.from - early and s < gap.to + late then
             return true
         end
     end
     return false
 end
 
+--- Down, but the game says the implements can't go on working. Mostly one isn't switched on: the game switches on
+--- only as they are lowered, and refuses that while e.g. a harvester's pipe is still moving (just after unloading);
+--- nothing asks again, so it would stand there for ever. Asked again every second (the game's own "go on"), after
+--- 3 s switched on directly; after 10 s it says so in the log. (A forage harvester waiting for a trailer, a baler
+--- wrapping: switched on already, nothing changes.)
+function Driver:askTurnOn(dt)
+    local before = self.turnOnWait or 0
+    self.turnOnWait = before + (dt or 0)
+    if math.floor(self.turnOnWait / 1000) == math.floor(before / 1000) then return end
+    self.vehicle:raiseAIEvent("onAIFieldWorkerContinue", "onAIImplementContinue")
+    local off = {}
+    for _, v in pairs(allVehicles(self.vehicle)) do
+        if v.getIsTurnedOn and v.setIsTurnedOn and not v:getIsTurnedOn() then
+            local can = v.getCanBeTurnedOn == nil or v:getCanBeTurnedOn()
+            if can and self.turnOnWait > 3000 then v:setIsTurnedOn(true) end
+            off[#off + 1] = Guidance.vehicleName(v) .. (can and "" or " (the game won't switch it on now)")
+        end
+    end
+    if self.turnOnWait > 10000 and not self.turnOnLogged then
+        self.turnOnLogged = true
+        Guidance.info("%s: lowered but the game holds it (can't go on working); switched off: %s",
+            Guidance.vehicleName(self.vehicle), #off > 0 and table.concat(off, ", ") or "none")
+    end
+end
+
+--- Which of the combination the game says can't go on working, and whether it is switched on (for the report)
+function Driver.whyNotWorking(vehicle)
+    local out = {}
+    for _, v in pairs(allVehicles(vehicle)) do
+        local ok, can = Guidance.try(function()
+            return v.getCanAIImplementContinueWork == nil or v:getCanAIImplementContinueWork()
+        end)
+        if ok and can == false then
+            local on = v.getIsTurnedOn and (v:getIsTurnedOn() and "on" or "off") or "-"
+            out[#out + 1] = Guidance.vehicleName(v) .. ", switched " .. on
+        end
+    end
+    return #out > 0 and table.concat(out, "; ") or "none of them says why"
+end
+
 --- Leaves the implements down but switches off what is switched on (seeding, spraying, mowing stop)
 function Driver:switchOffImplements()
     Guidance.debug("%s: turning with the implements down, switched off", Guidance.vehicleName(self.vehicle))
     self.switchedOff = {}
+    -- a harvester keeps running (it harvests what it drives over; switched off, the game holds it as one that can't
+    -- go on working); so does everything when the player wants it kept running
+    if self.harvester or self.course.plan.keepRunning then return end
     for _, v in pairs(allVehicles(self.vehicle)) do
         if v ~= self.vehicle and v.getIsTurnedOn and v.setIsTurnedOn and v:getIsTurnedOn() then
             v:setIsTurnedOn(false)
@@ -360,28 +485,15 @@ function Driver:getDriveData(dt, vX, vY, vZ)
         vehicle:raiseAIEvent("onAIFieldWorkerPrepareForWork", "onAIImplementPrepareForWork")
         self.state = Driver.STATE_PREPARE
     elseif self.state == Driver.STATE_PREPARE then
-        -- the implements unfolding (and the like): the game says when it can go, as for its own helper. Measured
-        -- again then: folded, the work area isn't where it will be.
-        local ready, blocking = true, nil
-        if vehicle.getIsAIReadyToDrive then ready, blocking = vehicle:getIsAIReadyToDrive() end
-        if ready then
+        -- implements unfolding for work: wait until they're done (the game's field helper waits for the same), then
+        -- measure them again (folded, the work area isn't where it will be). Not the game's "ready to drive": that
+        -- is for the road and wants them folded. Something that never finishes folding doesn't stop us: we go.
+        self.prepareTime = (self.prepareTime or 0) + dt
+        if self.prepareTime >= Driver.PREPARE_MIN and (not self:isFolding() or self.prepareTime > Driver.PREPARE_TIMEOUT) then
             self.info = GuidanceVehicleInfo.get(vehicle)
             self.state = Driver.STATE_DRIVING
-            if (self.prepareTime or 0) > 0 then
-                Guidance.debug("%s: ready to drive after %.1f s, front %.1f, back %.1f",
-                    Guidance.vehicleName(vehicle), self.prepareTime / 1000, self.info.frontOffset, self.info.backOffset)
-            end
-        else
-            self.prepareTime = (self.prepareTime or 0) + dt
-            local preparing = vehicle.getIsAIPreparingToDrive and vehicle:getIsAIPreparingToDrive()
-            self.prepareStall = preparing and 0 or (self.prepareStall or 0) + dt
-            if self.prepareStall > Driver.PREPARE_TIMEOUT then
-                Guidance.info("%s: not ready to drive (%s), giving up", Guidance.vehicleName(vehicle),
-                    Guidance.vehicleName(blocking or vehicle))
-                local message = AIMessageErrorCouldNotPrepare and AIMessageErrorCouldNotPrepare.new(blocking or vehicle)
-                    or AIMessageErrorBlockedByObject.new()
-                self:stop(message, "IS_STUCK")
-            end
+            Guidance.debug("%s: ready after %.1f s, front %.1f, back %.1f", Guidance.vehicleName(vehicle),
+                self.prepareTime / 1000, self.info.frontOffset, self.info.backOffset)
         end
     elseif self.state == Driver.STATE_WAIT_LOWER then
         self.lowerTimer = self.lowerTimer + dt
@@ -489,7 +601,7 @@ function Driver:checkConnectionsAhead()
                         end
                         follower:replaceRange(a, b, new)
                         self.turns = self:findTurns()
-                        self.keepGaps = self.keepEnabled and self:findKeepGaps() or {}
+                        self.keepGaps = self:findKeepGaps()
                     end
                 end
             end
@@ -585,6 +697,8 @@ end
 
 function Driver:updateDriving(dt)
     local follower = self.follower
+    -- (why it stands, for the problem report and the overlay)
+    self.stopReason = nil
     if self.teamRows then
         self:updateTeamRows()
     end
@@ -627,34 +741,43 @@ function Driver:updateDriving(dt)
         self:lowerImplements()
         self.state = Driver.STATE_WAIT_LOWER
         self.lowerTimer = 0
+        self.stopReason = "lowering the implements"
         return 0
     elseif not shouldWork and self.lowered and not self.switchedOff then
         if self:isInKeepGap(follower.s + self.info.backOffset) then
             self:switchOffImplements()
         else
-            self:raiseImplements()
+            self:raiseImplements(true)
         end
     elseif not shouldWork and self.switchedOff and not self:isInKeepGap(follower.s + self.info.backOffset) then
         -- left the turn some other way (stopped, restarted): up after all
         self:switchOnImplements()
-        self:raiseImplements()
+        self:raiseImplements(true)
     end
+    self:keepImplementsRunning(dt)
 
     self:updateTurnProgress()
 
     -- AutoDrive asked us to hold on a moment (its unloader is getting into place)
     if g_time ~= nil and g_time < self.holdUntil then
+        self.stopReason = self.chopperWaiting and "nothing under its spout" or "AutoDrive asked it to hold (its unloader getting into place)"
         return 0
     end
     -- harvesting in the rain loses yield (the game's rule, till a while after it stops): stand where we are, on again
     -- when the game would harvest at full yield (not in the middle of a turn)
     if self:isRaining() then
+        self.stopReason = "waiting for the rain to stop"
         return 0
     end
     -- the implements can't go on right now (a forage harvester with nothing under its pipe, a baler wrapping)
-    if self.lowered and not self.vehicle:getCanAIFieldWorkerContinueWork() then
+    -- (not while down but switched off between passes on purpose: then the game says it can't, and it would stand
+    -- there for ever)
+    if self.lowered and not self.switchedOff and not self.vehicle:getCanAIFieldWorkerContinueWork() then
+        self:askTurnOn(dt)
+        self.stopReason = "the game says the implements can't go on working (" .. Driver.whyNotWorking(self.vehicle) .. ")"
         return 0
     end
+    self.turnOnWait = nil
 
     -- speed: the implement's limit while working, slower in curves and turns
     local speed
@@ -685,8 +808,10 @@ function Driver:updateDriving(dt)
 end
 
 --- Something that isn't a Guidance helper we stop for, if it is in our way: a vehicle a player drives, another
---- mod's or the game's helper, anything moving; not AutoDrive's (it keeps clear itself: an unloader drives right
---- beside a combine), not our own combination, nothing parked
+--- mod's or the game's helper, anything moving: "wait" (we stop a gap short and wait). AutoDrive's: standing, waited
+--- for AD_WAIT (it may be waiting for us to turn); moving (an unloader drives right beside a combine, it keeps clear
+--- itself), or after that wait: "close", never driven into, but not waited for further off. Not our own
+--- combination, nothing parked: false
 function Driver.isObstacle(self, other)
     if other == self.vehicle or other.isDeleted or other.rootNode == nil then
         return false
@@ -695,11 +820,23 @@ function Driver.isObstacle(self, other)
         return false
     end
     if other.ad and other.ad.stateModule and other.ad.stateModule.isActive and other.ad.stateModule:isActive() then
-        return false
+        local moving = other.getLastSpeed ~= nil and other:getLastSpeed() > 1
+        if moving or (self.adIgnored and self.adIgnored[other]) then return "close" end
+        return "wait"
     end
-    if other.getIsControlled and other:getIsControlled() then return true end
-    if other.getIsAIActive and other:getIsAIActive() then return true end
-    return other.getLastSpeed ~= nil and other:getLastSpeed() > 2
+    if other.getIsControlled and other:getIsControlled() then return "wait" end
+    if other.getIsAIActive and other:getIsAIActive() then return "wait" end
+    return other.getLastSpeed ~= nil and other:getLastSpeed() > 2 and "wait" or false
+end
+
+--- A vehicle and the vehicles hitched to it (trailers, implements): the ones with a place in the world
+function Driver.partsOf(other)
+    local parts = {}
+    for _, v in ipairs(other.getChildVehicles and other:getChildVehicles() or {other}) do
+        if v.rootNode ~= nil and not v.isDeleted then parts[#parts + 1] = v end
+    end
+    if #parts == 0 then parts[1] = other end
+    return parts
 end
 
 --- Where the players on foot are: list of {x, z}
@@ -742,12 +879,21 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
         local dirX, dirZ = math.cos(h), math.sin(h)
         if reversing then dirX, dirZ = -dirX, -dirZ end
         local half = (self.course.plan.workWidth or 6) / 2 - Driver.GIVE_WAY_OVERLAP / 2
-        --- something at ox, oz, otherHalf wide to each side, 'back' m long behind its middle: in our way?
-        local function check(other, ox, oz, otherHalf, back)
+        -- how far our front reaches ahead of the steering point (a harvester's header: further than a tractor's nose)
+        local front = math.max(GuidanceCourseGenerator.VEHICLE_FRONT, (self.info and self.info.frontOffset or 0) + 1)
+        --- something at ox, oz, otherHalf wide to each side, 'back' m long behind its middle: in our way? closeOnly:
+        --- not waited for further off, only never driven into
+        local function check(other, ox, oz, otherHalf, back, closeOnly)
             local dx, dz = ox - x, oz - z
             local ahead = dx * dirX + dz * dirZ
             local side = math.abs(dx * dirZ - dz * dirX)
-            local gap = Driver.GIVE_WAY_GAP + GuidanceCourseGenerator.VEHICLE_FRONT + back
+            if closeOnly then
+                if ahead > 0 and ahead < front + back + Driver.TOUCH_GAP and side < half + otherHalf then
+                    limit, blockedBy = 0, other
+                end
+                return
+            end
+            local gap = Driver.GIVE_WAY_GAP + front + back
             if ahead > 0 and ahead < gap + Driver.GIVE_WAY_SLOW and side < half + otherHalf then
                 local f = math.max(0, math.min(1, (ahead - gap) / Driver.GIVE_WAY_SLOW))
                 local speed = maxSpeed * f
@@ -760,10 +906,14 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
         local ignore = self.ignoreForGiveWay
         for _, other in pairs(vehicles) do
             local otherDriver = other ~= self.vehicle and other.spec_guidance and other.spec_guidance.driver
-            if not otherDriver and other ~= ignore and Driver.isObstacle(self, other) then
-                local ox, _, oz = getWorldTranslation(other.rootNode)
-                local size = other.size or {}
-                check(other, ox, oz, (size.width or 3) / 2, (size.length or 6) / 2)
+            local kind = not otherDriver and other ~= ignore and Driver.isObstacle(self, other)
+            if kind then
+                -- the vehicle and what it pulls (a truck's trailer reaches far behind it)
+                for _, part in ipairs(Driver.partsOf(other)) do
+                    local ox, _, oz = getWorldTranslation(part.rootNode)
+                    local size = part.size or {}
+                    check(other, ox, oz, (size.width or 3) / 2, (size.length or 6) / 2, kind == "close")
+                end
             end
         end
         for _, player in ipairs(Driver.playersOnFoot()) do
@@ -772,10 +922,22 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
         for _, other in pairs(vehicles) do
             local spec = other ~= self.vehicle and other.spec_guidance or nil
             local od = spec and spec.driver
-            -- (a combine and its unloader alongside never wait for each other)
-            local paired = other == ignore or (od and od.combine == self.vehicle) or (od and self.combine == other)
+            -- (a combine and its unloader alongside never wait for each other, nor while it pulls away from the one
+            -- that has just emptied it)
+            -- (our unloader still on its way to us, e.g. from standing on our line: not yet, it may be in front)
+            local paired = other == ignore
+                or (od and ((od.combine == self.vehicle and od.state ~= "approach") or od.leftCombine == self.vehicle))
+                or (od and self.combine == other)
             local yields = od and waitsFor(od, self.vehicle)
-            if od and od ~= self and od.state ~= Driver.STATE_DONE and other.rootNode and not paired
+            -- a helper without a course (unloader, bale collector...): in our way by its own size and what it pulls,
+            -- not by a work width (a truck measured "10 m wide" stood in our way from beside our line)
+            if od and od ~= self and spec.helperDriver == od and not paired and other.rootNode then
+                for _, part in ipairs(Driver.partsOf(other)) do
+                    local ox, _, oz = getWorldTranslation(part.rootNode)
+                    local size = part.size or {}
+                    check(other, ox, oz, (size.width or 3) / 2, (size.length or 6) / 2, false)
+                end
+            elseif od and od ~= self and od.state ~= Driver.STATE_DONE and other.rootNode and not paired
                     and not self:isConvoyPartner(od) and yields then
                 -- it gives us the right of way, but we don't drive into it: stop short of it (it makes room)
                 local ox, _, oz = getWorldTranslation(other.rootNode)
@@ -809,6 +971,7 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
     end
     local was = self.blockedBy
     self.blockedBy = limit == 0 and blockedBy or nil
+    Driver.watchAutoDriveBlock(self, self.blockedBy)
     -- since when we wait for that one (who waited first makes room when two stand in each other's way)
     if self.blockedBy == nil then
         self.blockedSince = nil
@@ -822,6 +985,49 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
         self.vehicle:guidanceSetInfoText("GIVING_WAY", showing)
     end
     return limit
+end
+
+--- A standing AutoDrive vehicle holding us up: after AD_WAIT we stop waiting for it further off (it may be waiting
+--- for us, e.g. for our turn) and go on up to it, never into it; until it moves or is left behind
+function Driver:watchAutoDriveBlock(blockedBy)
+    -- (every vehicle has AutoDrive's data: one of our own helpers isn't AutoDrive's)
+    local ad = blockedBy ~= nil and type(blockedBy) == "table" and blockedBy.ad ~= nil and blockedBy.rootNode ~= nil
+        and not (blockedBy.spec_guidance and blockedBy.spec_guidance.driver)
+    local now = g_time or 0
+    local standing = ad and not (blockedBy.getLastSpeed ~= nil and blockedBy:getLastSpeed() > 1)
+    if ad and self.adIgnored and self.adIgnored[blockedBy] then
+        -- right in front of us after all: we stand, once said
+        self.adBlock = nil
+        if not self.adTouchSaid then
+            self.adTouchSaid = true
+            Guidance.info("%s: AutoDrive's %s stands right in front of us: waiting till it moves", Guidance.vehicleName(self.vehicle),
+                Guidance.vehicleName(blockedBy))
+        end
+    elseif standing then
+        if self.adBlock ~= blockedBy then self.adBlock, self.adBlockSince = blockedBy, now end
+        if now - self.adBlockSince > Driver.AD_WAIT then
+            self.adIgnored = self.adIgnored or {}
+            self.adIgnored[blockedBy] = true
+            self.adBlock = nil
+            Guidance.info("%s: AutoDrive's %s has stood in our way for %d s: going on up to it", Guidance.vehicleName(self.vehicle),
+                Guidance.vehicleName(blockedBy), Driver.AD_WAIT / 1000)
+        end
+    else
+        self.adBlock = nil
+    end
+    if blockedBy == nil then self.adTouchSaid = nil end
+    -- (one that moves again, or is far away: waited for again next time)
+    if self.adIgnored then
+        local x, _, z = getWorldTranslation(self.vehicle.rootNode)
+        for v in pairs(self.adIgnored) do
+            local gone = v.isDeleted or v.rootNode == nil
+            if not gone then
+                local vx, _, vz = getWorldTranslation(v.rootNode)
+                gone = (v.getLastSpeed ~= nil and v:getLastSpeed() > 1) or (vx - x) ^ 2 + (vz - z) ^ 2 > 50 * 50
+            end
+            if gone then self.adIgnored[v] = nil end
+        end
+    end
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -1083,8 +1289,10 @@ function Driver:appendPasses()
     table.insert(new, {x = first.x, z = first.z, t = first.t, work = false, ix = 1})
     for i = 2, #wps do
         local wp = wps[i]
-        table.insert(new, {x = wp.x, z = wp.z, t = wp.t, work = wp.work, rev = wp.rev, keep = wp.keep, ix = i})
+        table.insert(new, {x = wp.x, z = wp.z, t = wp.t, work = wp.work, rev = wp.rev, keep = wp.keep, lane = wp.lane,
+                           ix = i})
     end
+    self:reachBackAtCusps(new)
     self:appendPath(new)
 end
 
@@ -1198,14 +1406,46 @@ function Driver:lowerImplements()
     self.lowered = true
 end
 
-function Driver:raiseImplements()
+--- Lifted with When lifted: Keep running: what was switched on stays on (switched on again where the game switched
+--- it off as it lifted it, now or a moment later); till it is lowered again or the helper stops
+function Driver:keepImplementsRunning(dt)
+    local list = self.keepOn
+    if list == nil then return end
+    if self.lowered or not self.course.plan.keepRunning then
+        self.keepOn = nil
+        return
+    end
+    self.keepOnTimer = (self.keepOnTimer or 0) + (dt or 0)
+    if self.keepOnTimer < 500 then return end
+    self.keepOnTimer = 0
+    for _, v in ipairs(list) do
+        if not v.isDeleted and not v:getIsTurnedOn() and (v.getCanBeTurnedOn == nil or v:getCanBeTurnedOn()) then
+            v:setIsTurnedOn(true)
+        end
+    end
+end
+
+--- Lifts the implements. working: lifted during the work (a turn, from one pass to the next), not at its end: then
+--- with the player's When lifted: Keep running they stay switched on (the game switches them off as it lifts them)
+function Driver:raiseImplements(working)
+    if not working then self.keepOn = nil end
     if not self.lowered then
         return
     end
     Guidance.debug("%s: raising at %.1f m", Guidance.vehicleName(self.vehicle), self.follower.s)
+    local running
+    if working and self.course.plan.keepRunning then
+        running = {}
+        for _, v in pairs(allVehicles(self.vehicle)) do
+            if v.getIsTurnedOn and v.setIsTurnedOn and v:getIsTurnedOn() then running[#running + 1] = v end
+        end
+    end
     for _, implement in pairs(self.vehicle:getAttachedAIImplements()) do
         implement.object:aiImplementEndLine()
     end
+    self.keepOn = running
+    if running then self.keptOnBefore = running end
+    self.keepOnTimer = math.huge
     for _, v in pairs(allVehicles(self.vehicle)) do
         if Driver.isVineTool(v) then Driver.setVineToolWorking(v, false) end
     end
@@ -1278,6 +1518,35 @@ function Driver:hold(ms)
     if g_time ~= nil then
         self.holdUntil = math.max(self.holdUntil, g_time + (ms or 200))
     end
+end
+
+--- AutoDrive holding us (every frame while its unloader is beside us): stand still, while that gets the tank emptied.
+--- Held on with nothing coming out of the tank (AutoDrive waits for the last litre, its trailer can't drive on): after
+--- HOLD_STALL we go on regardless, else both stand there for ever; till it lets go and holds again.
+function Driver:holdForAutoDrive(ms)
+    if g_time == nil then return end
+    local h = self.harvester
+    local level = 0
+    if h and h.spec_combine and h.getFillUnitFillLevel then level = h:getFillUnitFillLevel(h.spec_combine.fillUnitIndex) or 0 end
+    local watch = self.adHold
+    if watch == nil or g_time - watch.last > 2000 then
+        watch = {since = g_time, level = level}
+        self.adHold = watch
+    end
+    watch.last = g_time
+    if level < watch.level - 1 then
+        -- (grain still coming out: worth standing for)
+        watch.since, watch.level = g_time, level
+    end
+    if g_time - watch.since > Driver.HOLD_STALL then
+        if not watch.ignored then
+            watch.ignored = true
+            Guidance.info("%s: AutoDrive holds us, but nothing has come out of the tank for %d s: going on",
+                Guidance.vehicleName(self.vehicle), Driver.HOLD_STALL / 1000)
+        end
+        return
+    end
+    self:hold(ms)
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -1354,7 +1623,8 @@ function Driver:hasOwnUnloaders()
     for _, v in pairs(vehicles or {}) do
         local d = v ~= self.vehicle and v.spec_guidance and v.spec_guidance.driver
         if d and GuidanceUnloadDriver and getmetatable(d) and getmetatable(d).__index == GuidanceUnloadDriver
-                and not d.done and (d.field == nil or d:isOnField(x, z)) then
+                and not d.done and (d.field == nil or d:isOnField(x, z)
+                    or (d.job and d.job.unloadCombine == GuidanceVehicle.vehicleKey(self.vehicle))) then
             return true
         end
     end
@@ -1403,9 +1673,21 @@ function Driver:updatePipe(dt)
     end
     -- our unloader alongside: out with it, and the combine fills the trailer under it by itself
     local unloaderHere = self.unloader ~= nil and self.unloader.state == "follow"
+    -- (on its way and near: out already, so it sees which side the pipe is on before it lines up)
+    local unloaderComing = false
+    if self.unloader ~= nil and self.unloader.state == "approach" and self.unloader.vehicle.rootNode then
+        local ux, _, uz = getWorldTranslation(self.unloader.vehicle.rootNode)
+        local cx, _, cz = getWorldTranslation(self.vehicle.rootNode)
+        unloaderComing = (ux - cx) ^ 2 + (uz - cz) ^ 2 < Driver.PIPE_OUT_FOR_UNLOADER ^ 2
+    end
     if unloaderHere and spec and spec.automaticDischarge == false then spec.automaticDischarge = true end
-    if self.state == Driver.STATE_WAIT_UNLOAD or unloaderHere
-            or (somethingUnder and harvesterFillLevel(harvester) > 0.01) then
+    -- at the call level, with unloaders about: out (not in turns), so an unloader on the move (AutoDrive's active
+    -- unloading) lines up under it and the tank is emptied as we go
+    local level = harvesterFillLevel(harvester)
+    local calling = level >= (self.course.plan.callUnloaderAt or 80) / 100 and not self:isManeuvering()
+        and self:unloadersAbout(dt)
+    if self.state == Driver.STATE_WAIT_UNLOAD or unloaderHere or unloaderComing or calling
+            or (somethingUnder and level > 0) then
         setPipe(harvester, true)
         self.pipeIdleTimer = 0
     else
@@ -1414,6 +1696,16 @@ function Driver:updatePipe(dt)
             setPipe(harvester, false)
         end
     end
+end
+
+--- Are there unloaders for us (ours on the field, AutoDrive's)? Looked at every few seconds.
+function Driver:unloadersAbout(dt)
+    self.unloadersTimer = (self.unloadersTimer or math.huge) + (dt or 0)
+    if self.unloadersTimer > 3000 then
+        self.unloadersTimer = 0
+        self.unloadersKnown = self:hasAutoDriveUnloaders()
+    end
+    return self.unloadersKnown == true
 end
 
 --- Full, waiting for an unloader: go on once it has taken enough and driven off (or the tank is empty)
@@ -1444,6 +1736,7 @@ function Driver:stop(message, infoText)
     end
     self.state = Driver.STATE_DONE
     self:raiseImplements()
+    self:switchOffKept()
     if infoText then
         self.vehicle:guidanceSetInfoText(infoText, true)
     end
@@ -1469,6 +1762,29 @@ function Driver:checkStuck(dt, maxSpeed)
     end
     -- (backing up to make room takes us off the course on purpose)
     local returning = self.returnUntil ~= nil and (g_time or 0) < self.returnUntil
+    -- where it last was on its line while working (to come back to there, not further along, when pushed off)
+    local tracked = not self.convoy and not self.teamRows and (self.sideOffset or 0) == 0
+    local working = self.lowered and not self.switchedOff and self.turnIx == nil and not self.follower:isReversing()
+    -- pushed off: it was on its line on this stretch and got off it; not still getting onto it after a turn or
+    -- backing up (a long harvester ends up metres off the next line at a square corner), not at a corner's stop
+    if not working then
+        self.onLine = false
+    end
+    if tracked and working and self.follower.crossTrack < 1.5 then
+        self:rememberSpot()
+        self.onLine = true
+    end
+    if tracked and working and self.onLine and self.follower.crossTrack > Driver.PUSHED_DISTANCE
+            and self.follower:getDistanceToCusp() > Driver.PUSHED_CUSP and not self:nearLaneMove(Driver.PUSHED_LANE)
+            and not self.makingRoom and not returning then
+        self.pushedTimer = (self.pushedTimer or 0) + dt
+        if self.pushedTimer > Driver.PUSHED_TIME then
+            self.pushedTimer = 0
+            if self:backToSpot() then return end
+        end
+    else
+        self.pushedTimer = 0
+    end
     if self.follower.crossTrack > Driver.LOST_DISTANCE and not self.makingRoom and not returning then
         self.lostTimer = self.lostTimer + dt
         if self.lostTimer > Driver.LOST_TIME then
@@ -1490,6 +1806,11 @@ end
 --- own lane in a convoy), the implements up until it is there. False when the course ends before that.
 function Driver:rejoin()
     local f = self.follower
+    -- first back to where it left its line (it would miss what it was pushed past), on further along only if it gets
+    -- thrown off there again
+    if self:backToSpot() then
+        return true
+    end
     if not self.convoy then
         -- a way from here onto our own path further along (the rows a team member took stay as they are)
         local j
@@ -1542,10 +1863,76 @@ function Driver:rejoin()
     end
     self.turns = self:findTurns()
     self.turnIx = nil
-    self.keepGaps = self.keepEnabled and self:findKeepGaps() or {}
+    self.keepGaps = self:findKeepGaps()
     self.lastS = nil
     self.stuckTimer = 0
     return true
+end
+
+--- On or within dist (m, along the path) of a move from one headland pass to the next
+function Driver:nearLaneMove(dist)
+    local f = self.follower
+    local pts = f.points
+    for k = f.ix, 1, -1 do
+        local pt = pts[k]
+        if pt.d < f.s - dist then break end
+        if pt.lane then return true end
+    end
+    for k = f.ix + 1, #pts do
+        local pt = pts[k]
+        if pt.d > f.s + dist then break end
+        if pt.lane then return true end
+    end
+    return false
+end
+
+--- The spot on its line it last worked at: the course waypoint it was heading for, and where it was
+function Driver:rememberSpot()
+    local f = self.follower
+    for k = f.ix + 1, math.min(#f.points, f.ix + 3) do
+        local pt = f.points[k]
+        if pt.ix then
+            local vx, vz, vh = vehiclePose(self.vehicle)
+            local x, z = self:workPoint(vx, vz, vh)
+            self.spot = {ix = pt.ix, x = x, z = z}
+            return
+        end
+    end
+end
+
+--- Pushed or thrown off its line: a way back to the spot it last worked at, and on along the course from there,
+--- the implements up until it is back. Not twice for the same spot (something keeps throwing it off there: the
+--- usual rejoin further along then). False when there is no such spot.
+function Driver:backToSpot()
+    local spot = self.spot
+    if spot == nil or self.convoy or self.teamRows or self.course.waypoints[spot.ix] == nil or spot.ix <= 1 then
+        return false
+    end
+    local last = self.lastSpot
+    if last and (last.x - spot.x) ^ 2 + (last.z - spot.z) ^ 2 < Driver.SAME_SPOT ^ 2 then
+        return false
+    end
+    self.lastSpot = {x = spot.x, z = spot.z}
+    self.rejoins = (self.rejoins or 0) + 1
+    Guidance.info("%s: %.0f m off its line, back to where it left it", Guidance.vehicleName(self.vehicle),
+        self.follower.crossTrack)
+    self:raiseImplements()
+    self.follower = GuidancePathFollower.new(self:buildPath(spot.ix, {x = spot.x, z = spot.z}))
+    self.spot = nil
+    self.turns = self:findTurns()
+    self.turnIx = nil
+    self.keepGaps = self:findKeepGaps()
+    self.lastS = nil
+    self.stuckTimer = 0
+    self.lostTimer = 0
+    return true
+end
+
+--- The helper stops: what it kept running while lifted goes off (as the game does with the rest)
+function Driver:switchOffKept()
+    for _, v in ipairs(self.keptOnBefore or {}) do
+        if not v.isDeleted and v.getIsTurnedOn and v:getIsTurnedOn() then v:setIsTurnedOn(false) end
+    end
 end
 
 function Driver:noteRejoin()
@@ -1633,6 +2020,11 @@ function Driver:updateFillLevels(dt)
             self.vehicle:guidanceSetInfoText("NEEDS_UNLOADING", true)
             self.unloadIdleTimer = 0
             self.state = Driver.STATE_WAIT_UNLOAD
+        elseif self.harvester then
+            -- a harvester with nobody to unload it: stopped, and the player told why (what would make one come)
+            Guidance.info("%s: full and no unloader for it (no CourseCorrect unloader on the field, no AutoDrive truck "
+                .. "with the same first target as this harvester): stopped", Guidance.vehicleName(self.vehicle))
+            self:stop(AIMessageGuidanceIsFull.new(), "NO_UNLOADER")
         else
             self:stop(AIMessageGuidanceIsFull.new(), "NEEDS_UNLOADING")
         end

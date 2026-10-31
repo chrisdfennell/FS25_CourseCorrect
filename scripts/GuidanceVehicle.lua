@@ -11,7 +11,7 @@ GuidanceVehicle.OLD_SAVE_KEY = "vehicles.vehicle(?).FS25_Guidance.guidance"
 -- status texts; the names are the ones AutoDrive's ticker knows from Courseplay
 -- (sent as bits: only add at the end)
 GuidanceVehicle.INFO_TEXTS = {"NEEDS_UNLOADING", "NEEDS_FILLING", "FUEL_IS_LOW", "FUEL_IS_EMPTY", "IS_STUCK", "FINISHED",
-                              "NEXT_FIELD_WAITING", "GIVING_WAY", "WAITING_RAIN"}
+                              "NEXT_FIELD_WAITING", "GIVING_WAY", "WAITING_RAIN", "NO_UNLOADER"}
 
 -- the next field of the queue: closer than this the helper drives there itself, else AutoDrive takes it
 GuidanceVehicle.QUEUE_NEAR = 150
@@ -27,6 +27,7 @@ function GuidanceVehicle.initSpecialization()
     GuidancePlan.registerXMLPaths(schema, GuidanceVehicle.SAVE_KEY .. ".settings")
     schema:register(XMLValueType.INT, GuidanceVehicle.SAVE_KEY .. "#progressIx", "Guidance: course waypoint to continue at")
     schema:register(XMLValueType.BOOL, GuidanceVehicle.SAVE_KEY .. "#active", "Guidance: the helper was working when saved")
+    schema:register(XMLValueType.STRING, GuidanceVehicle.SAVE_KEY .. "#helper", "Guidance: the helper without a course working when saved (unload, bales, silo, shovel)")
     schema:register(XMLValueType.STRING, GuidanceVehicle.SAVE_KEY .. "#queue", "Guidance: saved courses to work next (ids)")
     if GuidanceVehicle.OLD_SAVE_KEY ~= GuidanceVehicle.SAVE_KEY then
         local old = GuidanceVehicle.OLD_SAVE_KEY
@@ -43,6 +44,50 @@ function GuidanceVehicle.registerEvents(vehicleType)
         for _, name in ipairs({"onCpFinished", "onCpEmpty", "onCpFull", "onCpFuelEmpty", "onCpBroken"}) do
             SpecializationUtil.registerEvent(vehicleType, name)
         end
+    end
+end
+
+function GuidanceVehicle.registerOverwrittenFunctions(vehicleType)
+    -- (a helper that switched its engine off to save fuel: the game must not start it again by itself)
+    if vehicleType.functions == nil or vehicleType.functions.getCanMotorRun ~= nil then
+        SpecializationUtil.registerOverwrittenFunction(vehicleType, "getCanMotorRun", GuidanceVehicle.getCanMotorRun)
+    end
+end
+
+function GuidanceVehicle:getCanMotorRun(superFunc, ...)
+    local spec = self[GuidanceVehicle.SPEC]
+    if spec and spec.engineOff and spec.helperDriver ~= nil then
+        return false
+    end
+    return superFunc(self, ...)
+end
+
+GuidanceVehicle.ENGINE_OFF_AFTER = 10000 -- ms a helper stands with nothing to do before its engine goes off
+-- the helpers' phases of waiting for the others: the engine may go off
+GuidanceVehicle.IDLE_PHASES = {unloadWait = true, siloWait = true, balesWaitBaler = true}
+
+--- (server) A helper without a course standing with nothing to do (an unloader waiting for a combine, a wrapper
+--- for the baler...): the engine off after a while to save fuel, on again as soon as it has to move
+function GuidanceVehicle.saveFuel(self, spec, dt, maxSpeed)
+    if self.startMotor == nil or self.stopMotor == nil or self.getMotorState == nil or MotorState == nil then
+        return
+    end
+    -- only where it waits for the others (not under a combine's pipe while the combine stands a moment)
+    local waiting = GuidanceVehicle.IDLE_PHASES[self:getGuidanceHelperPhase() or ""]
+    if not waiting or (maxSpeed or 0) > 0.1 or self:getLastSpeed() > 0.5 then
+        spec.idleTime = 0
+        if spec.engineOff then
+            spec.engineOff = false
+            Guidance.try(self.startMotor, self)
+            Guidance.debug("%s: engine on again", Guidance.vehicleName(self))
+        end
+        return
+    end
+    spec.idleTime = (spec.idleTime or 0) + dt
+    if not spec.engineOff and spec.idleTime > GuidanceVehicle.ENGINE_OFF_AFTER and self:getMotorState() ~= MotorState.OFF then
+        spec.engineOff = true
+        Guidance.try(self.stopMotor, self)
+        Guidance.debug("%s: standing with nothing to do, engine off to save fuel", Guidance.vehicleName(self))
     end
 end
 
@@ -84,6 +129,11 @@ function GuidanceVehicle.registerFunctions(vehicleType)
     f("getGuidanceWorkSpeed", GuidanceVehicle.getGuidanceWorkSpeed)
     f("getGuidanceTimes", GuidanceVehicle.getGuidanceTimes)
     f("guidanceSetQueue", GuidanceVehicle.guidanceSetQueue)
+    f("guidanceGoTo", GuidanceVehicle.guidanceGoTo)
+    f("guidanceAtCourseField", GuidanceVehicle.guidanceAtCourseField)
+    f("guidanceTakeOver", GuidanceVehicle.guidanceTakeOver)
+    f("guidanceCropTest", GuidanceVehicle.guidanceCropTest)
+    f("guidanceGoUnloader", GuidanceVehicle.guidanceGoUnloader)
     if Guidance.providesAutoDriveInterface() then
         -- what AutoDrive calls to hand a vehicle over to Courseplay and back
         f("cpStartStopDriver", GuidanceVehicle.cpStartStopDriver)
@@ -159,6 +209,22 @@ function GuidanceVehicle:onPostLoad(savegame)
             self:raiseActive()
         end
     end
+    -- an unloader, bale collector... working when saved: started again as that (not as the course it may also have)
+    local helperKind = savegame.xmlFile:getValue(key .. "#helper")
+    -- (saved before 1.0.5.2 "working", without which: the game's own last job tells, e.g. GUIDANCE_UNLOAD)
+    if helperKind == nil and GuidanceHelperJob and savegame.key and savegame.xmlFile:getValue(key .. "#active", false) then
+        local ok, lastType = Guidance.try(savegame.xmlFile.getString, savegame.xmlFile,
+            savegame.key .. ".aiJobVehicle.lastJob#type")
+        for kind, d in pairs(GuidanceHelperJob.KINDS) do
+            if ok and lastType == d.name then helperKind = kind end
+        end
+    end
+    if self.isServer and helperKind and GuidanceHelperJob and GuidanceHelperJob.KINDS[helperKind]
+            and spec.settings.autoResume ~= false then
+        spec.resumeHelper = helperKind
+        spec.resumeAfterLoad = 0
+        self:raiseActive()
+    end
     -- saved while a helper worked: the game sets its helper flag again, without a helper. Clear it soon after.
     if self.isServer and self.spec_aiFieldWorker and self.spec_aiFieldWorker.isActive then
         spec.staleHelperTime = 0
@@ -176,7 +242,12 @@ function GuidanceVehicle:saveToXMLFile(xmlFile, key, usedModNames)
     if spec.plan then
         spec.plan:saveToXMLFile(xmlFile, key .. ".plan")
         xmlFile:setValue(key .. "#progressIx", spec.progressIx or 1)
-        xmlFile:setValue(key .. "#active", self:getIsGuidanceActive())
+        -- (the course's helper only: an unloader working is saved as that, below)
+        xmlFile:setValue(key .. "#active", self:getIsGuidanceActive() and self:getGuidanceHelperKind() == nil)
+    end
+    local helperKind = self:getGuidanceHelperKind()
+    if helperKind then
+        xmlFile:setValue(key .. "#helper", helperKind)
     end
     if #spec.queue > 0 then
         xmlFile:setValue(key .. "#queue", table.concat(spec.queue, " "))
@@ -517,9 +588,15 @@ function GuidanceVehicle:guidanceApplySettings(values)
     end
 end
 
+-- settings the working helper takes as they are changed (they don't change the course): while it works they are
+-- changed like the start settings, the course stays
+GuidanceVehicle.LIVE_SETTINGS = {callUnloaderAt = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true,
+                                 lowerLate = true, raiseLate = true, rainWait = true, keepRunning = true}
+
 -- settings only for starting the helper: changing them doesn't make the course again
 GuidanceVehicle.START_SETTINGS = {startMode = true, refillX = true, refillZ = true, unloadX = true, unloadZ = true,
-                                  unloadFull = true, unloadMode = true, rainWait = true, refillEdge = true}
+                                  unloadFull = true, unloadMode = true, avoidCrop = true, unloadSide = true, unloadAlong = true, unloadPipeSide = true, unloadCombine = true, rainWait = true, refillEdge = true,
+                                  adMarker = true}
 
 --- A setting only for starting: kept in the settings and the course's plan (the course stays as it is, and where it
 --- got to), sent to the server and the other players
@@ -527,15 +604,36 @@ function GuidanceVehicle:guidanceSetStartSetting(name, value, noEventSend)
     local spec = getSpec(self)
     spec.settings[name] = value
     if spec.plan then spec.plan[name] = value end
+    -- (the server: a new call level goes to AutoDrive too)
+    if name == "callUnloaderAt" and g_server ~= nil and spec.driver and spec.driver.harvester
+            and GuidanceFieldworkDriver and self:getIsGuidanceActive() then
+        GuidanceFieldworkDriver.setCallUnloaderLevel(self, spec.driver.harvester, value)
+    end
+    -- (the server: an unloader at work takes where it unloads and how full it leaves at once)
+    if g_server ~= nil and GuidanceVehicle.UNLOAD_JOB_KEYS[name] and self:getGuidanceHelperKind() == "unload" then
+        local job = self.getJob and self:getJob()
+        if job then
+            if name == "unloadFull" then
+                job.fullLevel = value / 100
+                if spec.driver and spec.driver.leaveLevel then spec.driver.leaveLevel = value / 100 end
+            else
+                job[name] = value
+            end
+        end
+    end
     if not noEventSend then
         GuidanceSettingEvent.sendEvent(self, name, value)
     end
 end
 
+-- the unloader's settings its running job takes as they are changed
+GuidanceVehicle.UNLOAD_JOB_KEYS = {unloadX = true, unloadZ = true, unloadMode = true, unloadFull = true, avoidCrop = true,
+                                   unloadSide = true, unloadAlong = true, unloadPipeSide = true, unloadCombine = true}
+
 --- Changes a setting (from the HUD) and makes the course again if there is one
 function GuidanceVehicle:guidanceChangeSetting(name, value)
     local spec = getSpec(self)
-    if GuidanceVehicle.START_SETTINGS[name] then
+    if GuidanceVehicle.START_SETTINGS[name] or (GuidanceVehicle.LIVE_SETTINGS[name] and self:getIsGuidanceActive()) then
         self:guidanceSetStartSetting(name, value)
         return
     end
@@ -581,7 +679,7 @@ GuidanceVehicle.HELPER_PHASES = {"unloadWait", "unloadDrive", "unloadFollow", "u
                                  "balesFind", "balesPick", "balesHome", "balesUnload", "siloDrive", "siloWait",
                                  "balesCantWrap", "unloadToTruck", "unloadOverload", "unloadToHeap", "unloadHeap",
                                  "shovelLoad", "shovelToTrailer", "shovelTip", "shovelBack", "shovelEmpty",
-                                 "shovelNoTrailer", "shovelNoHeap", "balesWaitBaler"}
+                                 "shovelNoTrailer", "shovelNoHeap", "balesWaitBaler", "unloadClear", "unloadReturn"}
 -- why a helper stopped by itself: still shown after the job
 GuidanceVehicle.END_PHASES = {balesCantWrap = true, shovelEmpty = true, shovelNoTrailer = true, shovelNoHeap = true}
 
@@ -686,6 +784,13 @@ end
 
 GuidanceVehicle.RESUME_DELAY = 8000 -- ms after loading before a helper that was working starts again
 
+--- What a helper without a course is started with, from the settings (where an unloader unloads...)
+function GuidanceVehicle.helperValues(s)
+    return {unloadX = s.unloadX or 0, unloadZ = s.unloadZ or 0, fullLevel = (s.unloadFull or 97) / 100,
+            unloadMode = s.unloadMode or 0, avoidCrop = s.avoidCrop ~= false, unloadSide = s.unloadSide or 0,
+            unloadAlong = s.unloadAlong or 0, unloadPipeSide = s.unloadPipeSide or 0, unloadCombine = s.unloadCombine or ""}
+end
+
 --- Server: a helper that was working when the game was saved starts again where it was, once everything has
 --- loaded (and the game's leftover helper flag is cleared). Not if another helper has the vehicle.
 function GuidanceVehicle.updateResume(self, spec, dt)
@@ -698,6 +803,15 @@ function GuidanceVehicle.updateResume(self, spec, dt)
         return
     end
     spec.resumeAfterLoad = nil
+    local kind = spec.resumeHelper
+    spec.resumeHelper = nil
+    if kind then
+        if not self:getIsHelperDriving() then
+            Guidance.info("%s: was working when saved (%s), carries on", Guidance.vehicleName(self), kind)
+            self:guidanceStartHelper(kind, GuidanceVehicle.helperValues(spec.settings))
+        end
+        return
+    end
     if spec.course and not self:getIsHelperDriving() then
         Guidance.info("%s: was working when saved, carries on", Guidance.vehicleName(self))
         self:guidanceStart(spec.course:getResumeIx(spec.progressIx))
@@ -797,9 +911,53 @@ function GuidanceVehicle:guidanceGetStart()
         local node = self.getAIDirectionNode and self:getAIDirectionNode() or self.rootNode
         local x, _, z = getWorldTranslation(node)
         local dx, _, dz = localDirectionToWorld(node, 0, 0, 1)
-        return course:getNearest(x, z, math.atan2(dz, dx))
+        local ix, point, skipped = course:getNearest(x, z, math.atan2(dz, dx), self:guidanceCropTest(course))
+        if skipped then
+            Guidance.info("%s: start at nearest: the passes nearest to it are harvested already, it starts on the "
+                .. "nearest one with crop (waypoint %d)", Guidance.vehicleName(self), ix)
+        end
+        return ix, point
     end
     return course:getResumeIx(spec.progressIx)
+end
+
+GuidanceVehicle.CROP_AHEAD = 40 -- m of the course on from a start looked at for crop
+GuidanceVehicle.CROP_ENOUGH = 4 -- m of crop in them: work left there
+
+--- A harvester: a test whether a start on its course (waypoint ix, maybe a point on the way to it) has crop standing
+--- ahead, so Start at: Nearest leaves out the passes already harvested. nil for anything else, or when the game
+--- can't tell where the crop is.
+function GuidanceVehicle:guidanceCropTest(course)
+    if GuidanceFieldworkDriver == nil or GuidanceFieldworkDriver.findHarvester(self) == nil
+            or GuidanceFruitProbe == nil then
+        return nil
+    end
+    local ok, probe = Guidance.try(GuidanceFruitProbe.new, course.outline or {})
+    if not ok or probe == nil or #probe.fruitIndexes == 0 then
+        return nil
+    end
+    return function(ix, point)
+        local okCrop, crop = Guidance.try(course.cropAhead, course, probe, ix, point, GuidanceVehicle.CROP_AHEAD)
+        return not okCrop or crop >= GuidanceVehicle.CROP_ENOUGH
+    end
+end
+
+--- Server: the game's own field work helper is being hired for this vehicle (the hire key starts the job the
+--- savegame remembers, the game's helper menu, AutoDrive with its helper set to the game's). With a course for the
+--- field it is at and Game's helper: CourseCorrect, CourseCorrect works the course instead (where the start setting
+--- says). True when it did; false: the game's helper goes ahead.
+function GuidanceVehicle:guidanceTakeOver()
+    local spec = getSpec(self)
+    if spec.course == nil or spec.settings.takeOver == false or self:getIsHelperDriving()
+            or not self:guidanceAtCourseField() then
+        return false
+    end
+    if not self:guidanceStart(self:guidanceGetStart()) then
+        return false
+    end
+    Guidance.info("%s: the game's own helper was hired, CourseCorrect works its course instead",
+        Guidance.vehicleName(self))
+    return true
 end
 
 --- Start (where the "start at" setting says) or stop
@@ -845,7 +1003,7 @@ GuidanceVehicle.TIME_RATIO_MIN = 0.6
 GuidanceVehicle.TIME_RATIO_MAX = 2.5
 -- waiting for these isn't driving the course
 GuidanceVehicle.WAITING_TEXTS = {"NEEDS_UNLOADING", "NEEDS_FILLING", "FUEL_IS_EMPTY", "IS_STUCK", "FINISHED",
-                                 "NEXT_FIELD_WAITING", "GIVING_WAY", "WAITING_RAIN"}
+                                 "NEXT_FIELD_WAITING", "GIVING_WAY", "WAITING_RAIN", "NO_UNLOADER"}
 
 --- km/h the helper works at (the implements' limit)
 function GuidanceVehicle:getGuidanceWorkSpeed()
@@ -990,31 +1148,324 @@ local function autoDrive()
     return ad
 end
 
---- The AutoDrive marker nearest to x, z (id, distance), or nil
-local function nearestMarker(x, z)
+--- AutoDrive's markers: list of {id, name, x, z}, or nil without AutoDrive
+function GuidanceVehicle.autoDriveMarkers()
     local ad = autoDrive()
     if ad == nil or ad.GetAvailableDestinations == nil then return nil end
     local ok, destinations = Guidance.try(ad.GetAvailableDestinations, ad)
     if not ok or destinations == nil then return nil end
-    local best, bestD
+    local list = {}
     for id, d in pairs(destinations) do
-        local dist = math.sqrt((d.x - x) ^ 2 + (d.z - z) ^ 2)
-        if bestD == nil or dist < bestD then best, bestD = id, dist end
+        list[#list + 1] = {id = id, name = d.name or tostring(id), x = d.x, z = d.z}
     end
-    return best, bestD
+    table.sort(list, function(a, b) return a.name < b.name end)
+    return list
+end
+
+GuidanceVehicle.MARKER_AT_FIELD = 15 -- m from the field's edge a marker is the field's own (its WAIT point, gateway)
+
+--- The number of the map field a plan's field is (a field read from the ground: the map field it lies on), or nil
+local function mapFieldNumber(plan)
+    local id = plan.fieldId or 0
+    if id > 0 then return id end
+    local recorded = id < 0 and GuidanceLibrary and GuidanceLibrary.getField(id)
+    if recorded and (recorded.baseField or 0) > 0 then return recorded.baseField end
+    return nil
+end
+
+--- The AutoDrive marker that takes a vehicle to the course: the one its plan names, else, within QUEUE_MARKER_RANGE
+--- of its start: one at the field's edge named after the field ("Field 42b WAIT"), one at the field's edge, any one;
+--- the nearest to the start of the first kind there is (not a silo or shop beside the field when the field has a
+--- marker of its own). Its id and name, or nil
+function GuidanceVehicle.markerFor(plan, course)
+    local markers = GuidanceVehicle.autoDriveMarkers()
+    if markers == nil or course == nil or course.waypoints[1] == nil then return nil end
+    if (plan.adMarker or "") ~= "" then
+        for _, m in ipairs(markers) do
+            if m.name == plan.adMarker then return m.id, m.name end
+        end
+        Guidance.info("AutoDrive marker '%s' not found, taking the nearest", plan.adMarker)
+    end
+    return GuidanceVehicle.markerNear(markers, course.outline, mapFieldNumber(plan), course.waypoints[1],
+        GuidanceVehicle.QUEUE_MARKER_RANGE)
+end
+
+--- Of AutoDrive's markers within range m of ref {x, z}: one at the edge of the field (outline: list of {x, z}) named
+--- after it (number), else one at its edge, else any; the nearest to ref of the first kind there is. Id and name, or nil
+function GuidanceVehicle.markerNear(markers, outline, number, ref, range)
+    local first = ref
+    local poly
+    if outline and #outline >= 3 then
+        poly = {}
+        for i, p in ipairs(outline) do poly[i] = {x = p.x, y = p.z} end
+    end
+    local pattern = number and ("%f[%d]" .. number .. "%f[%D]")
+    local best, bestCost
+    for _, m in ipairs(markers or {}) do
+        local d = math.sqrt((m.x - first.x) ^ 2 + (m.z - first.z) ^ 2)
+        if d <= range then
+            local cost = d + 2000
+            local p = {x = m.x, y = m.z}
+            if poly and (GuidanceGeo.pointInPolygon(p, poly)
+                    or GuidanceGeo.distToPolygon(p, poly) <= GuidanceVehicle.MARKER_AT_FIELD) then
+                cost = d + 1000
+                if pattern and tostring(m.name):find(pattern) then cost = d end
+            end
+            if bestCost == nil or cost < bestCost then best, bestCost = m, cost end
+        end
+    end
+    if best then return best.id, best.name end
+    return nil
+end
+
+--- A vehicle's key that survives a save (the game's unique id), for picking it in a setting
+function GuidanceVehicle.vehicleKey(v)
+    return v and (v.uniqueId or Guidance.vehicleName(v)) or ""
+end
+
+--- The vehicle with that key, or nil
+function GuidanceVehicle.vehicleByKey(key)
+    if key == nil or key == "" then return nil end
+    local vehicles = g_currentMission and g_currentMission.vehicleSystem and g_currentMission.vehicleSystem.vehicles
+    for _, v in pairs(vehicles or {}) do
+        if not v.isDeleted and GuidanceVehicle.vehicleKey(v) == key then return v end
+    end
+    return nil
+end
+
+--- The field a vehicle works on: its outline (list of {x, z}) and its map field number (or nil); from its course,
+--- else where it stands. nil when it isn't on a field
+function GuidanceVehicle.fieldOfVehicle(v)
+    local course = v.getGuidanceCourse and v:getGuidanceCourse()
+    if course and course.outline and #course.outline >= 3 then
+        local plan = v.getGuidancePlan and v:getGuidancePlan()
+        return course.outline, plan and mapFieldNumber(plan)
+    end
+    if v.rootNode == nil or GuidanceCourse.getFieldIdAt == nil then return nil end
+    local x, _, z = getWorldTranslation(v.rootNode)
+    local id = GuidanceCourse.getFieldIdAt(x, z)
+    local outline = id and GuidanceCourse.getFieldOutline(id)
+    if outline == nil or #outline < 3 then return nil end
+    local number = id > 0 and id or nil
+    if id < 0 then
+        local recorded = GuidanceLibrary.getField(id)
+        if recorded and (recorded.baseField or 0) > 0 then number = recorded.baseField end
+    end
+    return outline, number
+end
+
+--- Is a vehicle at a field (on it or within FIELD_NEAR m)?
+function GuidanceVehicle.isAtField(v, outline)
+    local poly = {}
+    for i, p in ipairs(outline) do poly[i] = {x = p.x, y = p.z} end
+    local x, _, z = getWorldTranslation(v.rootNode)
+    return GuidanceGeo.pointInPolygon({x = x, y = z}, poly)
+        or GuidanceGeo.distToPolygon({x = x, y = z}, poly) <= GuidanceVehicle.FIELD_NEAR
+end
+
+GuidanceVehicle.GO_UNLOADER = -1 -- (guidanceGoTo: the unloader to the field of the combine picked for it)
+GuidanceVehicle.COMBINE_MARKER_RANGE = 1000 -- m from the combine its field's AutoDrive marker may be
+
+--- Server: an unloader set to serve one combine (Combine: picked), started away from that combine's field: AutoDrive
+--- takes it to that field's marker (implements folded) and it starts there. At the field already: started here.
+--- True when under way (or started)
+function GuidanceVehicle:guidanceGoUnloader()
+    local spec = getSpec(self)
+    local combine = GuidanceVehicle.vehicleByKey(spec.settings.unloadCombine)
+    local outline, number
+    if combine then outline, number = GuidanceVehicle.fieldOfVehicle(combine) end
+    if combine == nil or outline == nil or GuidanceVehicle.isAtField(self, outline) then
+        return self:guidanceStartHelper("unload", GuidanceVehicle.helperValues(spec.settings))
+    end
+    local cx, _, cz = getWorldTranslation(combine.rootNode)
+    local marker, name = GuidanceVehicle.markerNear(GuidanceVehicle.autoDriveMarkers(), outline, number, {x = cx, z = cz},
+        GuidanceVehicle.COMBINE_MARKER_RANGE)
+    if marker == nil or not GuidanceVehicle.autoDriveToMarker(self, marker, name) then
+        Guidance.info("%s: no AutoDrive marker for the field of %s (field %s): drive it there", Guidance.vehicleName(self),
+            Guidance.vehicleName(combine), tostring(number or "?"))
+        self:guidanceSetInfoText("NEXT_FIELD_WAITING", true)
+        return false
+    end
+    spec.goHelper = "unload"
+    Guidance.info("%s: AutoDrive takes it to '%s' (field %s of %s), the unloader starts there", Guidance.vehicleName(self),
+        tostring(name), tostring(number or "?"), Guidance.vehicleName(combine))
+    return true
+end
+
+GuidanceVehicle.FOLD_TIMEOUT = 30000 -- ms the implements may take to fold before AutoDrive sets off anyway
+
+--- Server: the implements ready for the road before AutoDrive takes the vehicle: switched off, raised, folded (the
+--- game's fold, as its own helper and AutoDrive do it)
+function GuidanceVehicle.foldForRoad(self)
+    for _, v in ipairs(self.getChildVehicles and self:getChildVehicles() or {}) do
+        if v ~= self then
+            if v.getIsTurnedOn and v.setIsTurnedOn and v:getIsTurnedOn() then Guidance.try(v.setIsTurnedOn, v, false) end
+            local attacher = v.getAttacherVehicle and v:getAttacherVehicle()
+            if attacher and attacher.getAttacherJointIndexFromObject and attacher.setJointMoveDown then
+                local ix = attacher:getAttacherJointIndexFromObject(v)
+                if ix then Guidance.try(attacher.setJointMoveDown, attacher, ix, false, false) end
+            end
+            local spec = v.spec_foldable
+            if spec and spec.hasFoldingParts and v.setFoldState then
+                local fold = -(spec.turnOnFoldDirection or 1)
+                if spec.foldMoveDirection ~= fold and (v.getIsFoldAllowed == nil or v:getIsFoldAllowed(fold, false)) then
+                    Guidance.try(v.setFoldState, v, fold, false)
+                end
+            end
+        end
+    end
+end
+
+--- Are the implements folded (those that may fold)?
+function GuidanceVehicle.isFoldedForRoad(self)
+    for _, v in ipairs(self.getChildVehicles and self:getChildVehicles() or {}) do
+        local spec = v ~= self and v.spec_foldable
+        if spec and spec.hasFoldingParts and spec.foldAnimTime then
+            local fold = -(spec.turnOnFoldDirection or 1)
+            local foldedAt = fold > 0 and 1 or 0
+            local mayFold = v.getIsFoldAllowed == nil or v:getIsFoldAllowed(fold, false)
+            if mayFold and math.abs(spec.foldAnimTime - foldedAt) > 0.01 then return false end
+        end
+    end
+    return true
+end
+
+--- Server: AutoDrive is to take the vehicle to its course's marker. First the implements are folded for the road;
+--- then (updateQueue) AutoDrive sets off with its helper ("CP") button switched on: on arrival AutoDrive presses it
+--- and starts us (as it would Courseplay). True when that is under way.
+function GuidanceVehicle.autoDriveTo(self)
+    local spec = getSpec(self)
+    local ad = autoDrive()
+    local sm = self.ad and self.ad.stateModule
+    if ad == nil or sm == nil or spec.course == nil then return false end
+    local marker, name = GuidanceVehicle.markerFor(spec.plan, spec.course)
+    if marker == nil then return false end
+    return GuidanceVehicle.autoDriveToMarker(self, marker, name)
+end
+
+--- Server: AutoDrive is to take the vehicle to a marker (see autoDriveTo)
+function GuidanceVehicle.autoDriveToMarker(self, marker, name)
+    local spec = getSpec(self)
+    if autoDrive() == nil or self.ad == nil or self.ad.stateModule == nil then return false end
+    GuidanceVehicle.foldForRoad(self)
+    spec.adMarkerId, spec.adMarkerName = marker, name
+    spec.queueState, spec.queueSince = "folding", g_time or 0
+    return true
+end
+
+--- Server: the implements folded (or it took too long): AutoDrive sets off, its helper button on
+function GuidanceVehicle.autoDriveSetOff(self)
+    local spec = getSpec(self)
+    local ad = autoDrive()
+    local sm = self.ad and self.ad.stateModule
+    if ad == nil or sm == nil then
+        spec.queueState = nil
+        self:guidanceSetInfoText("NEXT_FIELD_WAITING", true)
+        return
+    end
+    local before = sm.getStartHelper and sm:getStartHelper()
+    local marker = spec.adMarkerId
+    local ok = Guidance.try(function()
+        sm:setMode(ad.MODE_DRIVETO)
+        -- (only where AutoDrive's "CP" is us: with Courseplay installed it would start Courseplay)
+        if Guidance.providesAutoDriveInterface() and sm.setStartHelper then
+            local states = ADStateModule or (FS25_AutoDrive and FS25_AutoDrive.ADStateModule)
+            if sm.setUsedHelper then sm:setUsedHelper(states and states.HELPER_CP or nil) end
+            sm:setStartHelper(true)
+        end
+        ad:StartDriving(self, marker, marker)
+    end)
+    if not ok then
+        spec.queueState = nil
+        self:guidanceSetInfoText("NEXT_FIELD_WAITING", true)
+        return
+    end
+    Guidance.info("%s: AutoDrive takes it to '%s'; it starts us there", Guidance.vehicleName(self),
+        tostring(spec.adMarkerName))
+    spec.queueState, spec.queueSince, spec.queueSeenDriving = "autodrive", g_time or 0, false
+    spec.adHelperBefore = before == true
+    -- (AutoDrive starts us with "continue": from the course's start setting then)
+    spec.goStart = true
+end
+
+GuidanceVehicle.FIELD_NEAR = 40 -- m off its field a vehicle is still "at" it (the field edge, a gateway)
+
+--- Is the vehicle at its course's field (on it, or within FIELD_NEAR m)? And how far from it it is (m)
+function GuidanceVehicle:guidanceAtCourseField()
+    local course = getSpec(self).course
+    local outline = course and course.outline
+    if outline == nil or #outline < 3 then return true, 0 end
+    local poly = {}
+    for i, p in ipairs(outline) do poly[i] = {x = p.x, y = p.z} end
+    local x, _, z = getWorldTranslation(self.rootNode)
+    if GuidanceGeo.pointInPolygon({x = x, y = z}, poly) then return true, 0 end
+    local d = GuidanceGeo.distToPolygon({x = x, y = z}, poly)
+    return d <= GuidanceVehicle.FIELD_NEAR, d
+end
+
+--- The vehicle sent to a saved course (entryId; 0: the course it has): loaded, and there by itself when close, else
+--- the implements folded and AutoDrive takes it to the course's marker and starts us on arrival. On a client it asks
+--- the server.
+function GuidanceVehicle:guidanceGoTo(entryId, noEventSend)
+    if g_server == nil then
+        if not noEventSend then GuidanceGoEvent.sendEvent(self, entryId) end
+        return
+    end
+    local spec = getSpec(self)
+    if entryId == GuidanceVehicle.GO_UNLOADER then
+        self:guidanceGoUnloader()
+        return
+    end
+    if entryId ~= 0 then
+        local entry = GuidanceLibrary.getEntry(entryId)
+        if entry == nil then return end
+        if self:getIsGuidanceActive() then self:guidanceStop() end
+        self:guidanceSetPlan(entry.plan:copy())
+    end
+    self:guidanceSetInfoText("FINISHED", false)
+    self:guidanceSetInfoText("NEXT_FIELD_WAITING", false)
+    if spec.course == nil then return end
+    local x, _, z = getWorldTranslation(self.rootNode)
+    local first = spec.course.waypoints[1]
+    if math.sqrt((first.x - x) ^ 2 + (first.z - z) ^ 2) <= GuidanceVehicle.QUEUE_NEAR then
+        self:guidanceStart(self:guidanceGetStart())
+    elseif not GuidanceVehicle.autoDriveTo(self) then
+        self:guidanceSetInfoText("NEXT_FIELD_WAITING", true)
+    end
 end
 
 --- Server: after a course is done, on to the next one of the queue
 function GuidanceVehicle.updateQueue(self)
     local spec = getSpec(self)
+    if spec.queueState == "folding" then
+        -- the implements folding for the road: AutoDrive sets off once they are
+        if GuidanceVehicle.isFoldedForRoad(self) or (g_time or 0) > (spec.queueSince or 0) + GuidanceVehicle.FOLD_TIMEOUT then
+            GuidanceVehicle.autoDriveSetOff(self)
+        end
+        return
+    end
     if spec.queueState == "autodrive" then
-        -- AutoDrive is taking us there: once it has stopped, start
+        -- AutoDrive is taking us there: once it has stopped, it has started us (its helper button); if it didn't
+        -- (stopped short of the marker, Courseplay installed), we start ourselves. Its button back as it was.
         local active = self.ad and self.ad.stateModule and self.ad.stateModule:isActive()
         if active then
             spec.queueSeenDriving = true
         elseif spec.queueSeenDriving or (g_time or 0) > (spec.queueSince or 0) + 5000 then
             spec.queueState = nil
-            self:guidanceStart(1)
+            if not self:getIsHelperDriving() then
+                -- (an unloader sent to its combine's field: the unloader, not the course)
+                if spec.goHelper then
+                    self:guidanceStartHelper(spec.goHelper, GuidanceVehicle.helperValues(spec.settings))
+                else
+                    self:guidanceStart(self:guidanceGetStart())
+                end
+            end
+            spec.goHelper = nil
+            spec.goStart = nil
+            local sm = self.ad and self.ad.stateModule
+            if sm and sm.setStartHelper and not spec.adHelperBefore then
+                Guidance.try(sm.setStartHelper, sm, false)
+            end
         end
         return
     end
@@ -1043,18 +1494,9 @@ function GuidanceVehicle.updateQueue(self)
         self:guidanceStart(1)
         return
     end
-    local marker, markerDistance = nearestMarker(first.x, first.z)
-    local ad = autoDrive()
-    if marker and markerDistance <= GuidanceVehicle.QUEUE_MARKER_RANGE and self.ad and self.ad.stateModule then
-        local ok = Guidance.try(function()
-            self.ad.stateModule:setMode(ad.MODE_DRIVETO)
-            ad:StartDriving(self, marker, marker)
-        end)
-        if ok then
-            Guidance.info("%s: AutoDrive takes it to the next field", Guidance.vehicleName(self))
-            spec.queueState, spec.queueSince, spec.queueSeenDriving = "autodrive", g_time or 0, false
-            return
-        end
+    -- AutoDrive to the course's marker, starting us there
+    if GuidanceVehicle.autoDriveTo(self) then
+        return
     end
     -- no way to get there by itself: the player has to
     self:guidanceSetInfoText("NEXT_FIELD_WAITING", true)
@@ -1075,8 +1517,19 @@ end
 --- AutoDrive brings the vehicle back after unloading / refilling and continues where we stopped
 function GuidanceVehicle:startCpAtLastWp()
     local spec = getSpec(self)
-    if spec.course == nil then
+    if spec.course == nil and spec.goHelper == nil then
         return false
+    end
+    -- AutoDrive brought an unloader to its combine's field: the unloader
+    if spec.goHelper then
+        local kind = spec.goHelper
+        spec.goHelper, spec.goStart = nil, nil
+        return self:guidanceStartHelper(kind, GuidanceVehicle.helperValues(spec.settings))
+    end
+    -- AutoDrive brought it to a new course (Go, the queue): where the start setting says
+    if spec.goStart then
+        spec.goStart = nil
+        return self:guidanceStart(self:guidanceGetStart())
     end
     return self:guidanceStart(spec.course:getResumeIx(spec.progressIx))
 end
@@ -1118,7 +1571,9 @@ end
 
 function GuidanceVehicle:holdCpHarvesterTemporarily(ms)
     local driver = activeDriver(self)
-    if driver then
+    if driver and driver.holdForAutoDrive then
+        driver:holdForAutoDrive(ms)
+    elseif driver and driver.hold then
         driver:hold(ms)
     end
 end
@@ -1301,6 +1756,7 @@ function GuidanceVehicle:onUpdate(dt)
         return
     end
     driver.debugTarget = {tx, tz, maxSpeed}
+    GuidanceVehicle.saveFuel(self, spec, dt, maxSpeed)
     maxSpeed = math.min(maxSpeed or 0, self:getCruiseControlMaxSpeed() or math.huge)
     local ty = getTerrainHeightAtWorldPos(g_currentMission.terrainRootNode, tx, 0, tz)
     local node = self:getAISteeringNode()

@@ -75,9 +75,12 @@
         <text name="guidance_phase_shovelNoTrailer" text="Gestopt: geen aanhanger met plaats bij de hoop"/>
         <text name="guidance_phase_shovelNoHeap" text="Gestopt: geen hoop vooruit (parkeer ervoor)"/>
         <text name="guidance_phase_balesWaitBaler" text="Wacht op de pers"/>
+        <text name="guidance_phase_unloadClear" text="Laat de maaidorser wegrijden"/>
+        <text name="guidance_phase_unloadReturn" text="Terug naar de wachtplek"/>
         <text name="guidance_orchard_name" text="Boomgaard %d"/>
         <text name="guidance_warn_convoyNarrow" text="Te smal voor een konvooi van %d: ongeveer %d%% blijft onbewerkt. Probeer Volgende vrije rij of Stroken."/>
         <text name="guidance_info_WAITING_RAIN" text="Wacht tot de regen stopt (nu oogsten kost opbrengst)"/>
+        <text name="guidance_info_NO_UNLOADER" text="Vol, geen overlader: start een CourseCorrect-overlader op dit veld, of geef een AutoDrive-truck dezelfde eerste bestemming als deze oogstmachine"/>
         <text name="guidance_set_rainWait" text="Bij regen"/>
         <text name="guidance_rain_wait" text="Wachten"/>
         <text name="guidance_rain_go" text="Doorgaan"/>
@@ -86,6 +89,57 @@
         <text name="guidance_set_edgeObstacles" text="Obstakels bij de rand"/>
         <text name="guidance_edge_over" text="Overheen rijden"/>
         <text name="guidance_edge_round" text="Omheen werken"/>
+        <text name="guidance_set_adMarker" text="AutoDrive-markering"/>
+        <text name="guidance_admarker_nearest" text="Automatisch"/>
+        <text name="guidance_saved_go" text="Ga"/>
+        <text name="guidance_go_sent" text="%s: onderweg (AutoDrive naar de markering, start daar)"/>
+        <text name="guidance_saved_marker" text="AutoDrive: %s"/>
+        <text name="guidance_queue_title" text="Wachtrij · %d"/>
+        <text name="guidance_queue_manage" text="Beheren"/>
+        <text name="guidance_queue_open" text="Wachtrij (%d)"/>
+        <text name="guidance_queue_back" text="Terug"/>
+        <text name="guidance_queue_total" text="%s in totaal"/>
+        <text name="guidance_queue_hint" text="In deze volgorde: als een route klaar is, wordt de volgende geladen en ernaartoe gereden (AutoDrive naar de markering als het ver is)."/>
+        <text name="guidance_queue_empty" text="Niets in de wachtrij. Voeg routes toe met In wachtrij op het tabblad Opgeslagen."/>
+        <text name="guidance_queue_up" text="Omhoog"/>
+        <text name="guidance_queue_down" text="Omlaag"/>
+        <text name="guidance_queue_remove" text="Verwijderen"/>
+        <text name="guidance_queue_clearAll" text="Alles verwijderen"/>
+        <text name="guidance_queue_gone" text="(een verwijderde route)"/>
+        <text name="guidance_help_title" text="Help"/>
+        <text name="guidance_help_topics" text="Onderwerpen"/>
+        <text name="guidance_away_go" text="Niet op %s (%s verderop). AutoDrive kan hem erheen brengen (%s), werktuigen ingeklapt, en hij start bij aankomst."/>
+        <text name="guidance_away_noMarker" text="Niet op %s (%s verderop) en geen AutoDrive-markering in de buurt: rijd erheen of kies een markering (Instellingen, Rijden)."/>
+        <text name="guidance_away_cancel" text="Annuleren"/>
+        <text name="guidance_away_goBtn" text="Erheen"/>
+        <text name="guidance_away_startAnyway" text="Toch starten"/>
+        <text name="guidance_set_lineHeight" text="Hoogte van de lijnen"/>
+        <text name="guidance_lineHeight_ground" text="Op de grond"/>
+        <text name="guidance_set_keepRunning" text="Bij heffen"/>
+        <text name="guidance_keepRunning_off" text="Uitschakelen"/>
+        <text name="guidance_keepRunning_on" text="Laten draaien"/>
+        <text name="guidance_set_takeOver" text="Spelhelper hier"/>
+        <text name="guidance_takeOver_on" text="CourseCorrect rijdt"/>
+        <text name="guidance_takeOver_off" text="De helper van het spel"/>
+        <text name="guidance_mini_noCourse" text="Nog geen koers"/>
+        <text name="guidance_mini_hintBack" text="Ctrl+J: de muis terug naar het spel · + het hele paneel"/>
+        <text name="guidance_mini_hint" text="Ctrl+J: de muis voor deze knoppen · + het hele paneel"/>
+        <text name="guidance_world_start" text="Start"/>
+        <text name="guidance_world_end" text="Einde"/>
+        <text name="guidance_set_avoidCrop" text="Gewas onderweg"/>
+        <text name="guidance_avoidCrop_on" text="Omrijden"/>
+        <text name="guidance_avoidCrop_off" text="Doorrijden"/>
+        <text name="guidance_set_unloadSide" text="Zijwaartse verschuiving"/>
+        <text name="guidance_set_unloadAlong" text="Verschuiving voor/achter"/>
+        <text name="guidance_set_pipeSide" text="Pijpzijde"/>
+        <text name="guidance_pipeSide_auto" text="Auto (gemeten)"/>
+        <text name="guidance_pipeSide_left" text="Links"/>
+        <text name="guidance_pipeSide_right" text="Rechts"/>
+        <text name="guidance_set_unloadCombine" text="Combine"/>
+        <text name="guidance_unloadCombine_any" text="Elke op zijn veld"/>
+        <text name="guidance_unloadCombine_field" text="veld %s"/>
+        <text name="guidance_unloadCombine_gone" text="(niet gevonden)"/>
+        <text name="guidance_unloadGo" text="Naar %s op veld %s: AutoDrive brengt hem, de overlaadwagen start daar"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -183,7 +237,7 @@
         <text name="guidance_saved_renamePrompt" text="Naam van de route"/>
         <text name="guidance_saved_line" text="Veld %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Veld %d"/>
-        <text name="guidance_folder_back" text="&lt; Alle velden"/>
+        <text name="guidance_folder_back" text="Alle velden"/>
         <text name="guidance_folder_count" text="%d routes"/>
         <text name="guidance_folder_one" text="1 route"/>
         <text name="guidance_folder_here" text="je bent hier"/>

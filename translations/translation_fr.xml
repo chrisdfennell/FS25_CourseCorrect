@@ -75,9 +75,12 @@
         <text name="guidance_phase_shovelNoTrailer" text="Arrêté : aucune remorque avec de la place près du tas"/>
         <text name="guidance_phase_shovelNoHeap" text="Arrêté : pas de tas devant (garez-vous face à lui)"/>
         <text name="guidance_phase_balesWaitBaler" text="Attend la presse"/>
+        <text name="guidance_phase_unloadClear" text="Laisse partir la moissonneuse"/>
+        <text name="guidance_phase_unloadReturn" text="Retour à sa place d'attente"/>
         <text name="guidance_orchard_name" text="Verger %d"/>
         <text name="guidance_warn_convoyNarrow" text="Trop étroit pour un convoi de %d : environ %d%% restent non travaillés. Essayez Prochain rang libre ou Bandes."/>
         <text name="guidance_info_WAITING_RAIN" text="Attend la fin de la pluie (récolter maintenant réduit le rendement)"/>
+        <text name="guidance_info_NO_UNLOADER" text="Plein, pas de transbordeur : démarrez un transbordeur CourseCorrect sur ce champ, ou donnez à un camion AutoDrive la même première destination que cette récolteuse"/>
         <text name="guidance_set_rainWait" text="Sous la pluie"/>
         <text name="guidance_rain_wait" text="Attendre"/>
         <text name="guidance_rain_go" text="Continuer"/>
@@ -86,6 +89,57 @@
         <text name="guidance_set_edgeObstacles" text="Obstacles près du bord"/>
         <text name="guidance_edge_over" text="Passer dessus"/>
         <text name="guidance_edge_round" text="Contourner"/>
+        <text name="guidance_set_adMarker" text="Marqueur AutoDrive"/>
+        <text name="guidance_admarker_nearest" text="Automatique"/>
+        <text name="guidance_saved_go" text="Aller"/>
+        <text name="guidance_go_sent" text="%s : en route (AutoDrive jusqu'au marqueur, démarre là-bas)"/>
+        <text name="guidance_saved_marker" text="AutoDrive : %s"/>
+        <text name="guidance_queue_title" text="File d'attente · %d"/>
+        <text name="guidance_queue_manage" text="Gérer"/>
+        <text name="guidance_queue_open" text="File d'attente (%d)"/>
+        <text name="guidance_queue_back" text="Retour"/>
+        <text name="guidance_queue_total" text="%s au total"/>
+        <text name="guidance_queue_hint" text="Dans cet ordre : quand un parcours est terminé, le suivant est chargé et rejoint (AutoDrive jusqu'à son marqueur s'il est loin)."/>
+        <text name="guidance_queue_empty" text="Rien en attente. Ajoutez des parcours avec Mettre en file dans l'onglet Enregistrés."/>
+        <text name="guidance_queue_up" text="Monter"/>
+        <text name="guidance_queue_down" text="Descendre"/>
+        <text name="guidance_queue_remove" text="Retirer"/>
+        <text name="guidance_queue_clearAll" text="Tout retirer"/>
+        <text name="guidance_queue_gone" text="(un parcours supprimé)"/>
+        <text name="guidance_help_title" text="Aide"/>
+        <text name="guidance_help_topics" text="Sujets"/>
+        <text name="guidance_away_go" text="Pas sur %s (à %s). AutoDrive peut l'y emmener (%s), outils repliés, et il démarre à l'arrivée."/>
+        <text name="guidance_away_noMarker" text="Pas sur %s (à %s), et aucun marqueur AutoDrive à proximité : conduisez-le, ou choisissez un marqueur (Paramètres, Conduite)."/>
+        <text name="guidance_away_cancel" text="Annuler"/>
+        <text name="guidance_away_goBtn" text="Y aller"/>
+        <text name="guidance_away_startAnyway" text="Démarrer quand même"/>
+        <text name="guidance_set_lineHeight" text="Hauteur des lignes"/>
+        <text name="guidance_lineHeight_ground" text="Au sol"/>
+        <text name="guidance_set_keepRunning" text="Une fois levé"/>
+        <text name="guidance_keepRunning_off" text="Arrêter"/>
+        <text name="guidance_keepRunning_on" text="Laisser tourner"/>
+        <text name="guidance_set_takeOver" text="Ouvrier du jeu ici"/>
+        <text name="guidance_takeOver_on" text="CourseCorrect conduit"/>
+        <text name="guidance_takeOver_off" text="L'ouvrier du jeu"/>
+        <text name="guidance_mini_noCourse" text="Pas encore de parcours"/>
+        <text name="guidance_mini_hintBack" text="Ctrl+J : la souris au jeu · + tout le panneau"/>
+        <text name="guidance_mini_hint" text="Ctrl+J : la souris pour ces boutons · + tout le panneau"/>
+        <text name="guidance_world_start" text="Départ"/>
+        <text name="guidance_world_end" text="Fin"/>
+        <text name="guidance_set_avoidCrop" text="Culture sur le chemin"/>
+        <text name="guidance_avoidCrop_on" text="Contourner"/>
+        <text name="guidance_avoidCrop_off" text="Traverser"/>
+        <text name="guidance_set_unloadSide" text="Décalage latéral"/>
+        <text name="guidance_set_unloadAlong" text="Décalage avant/arrière"/>
+        <text name="guidance_set_pipeSide" text="Côté de la vis"/>
+        <text name="guidance_pipeSide_auto" text="Auto (mesuré)"/>
+        <text name="guidance_pipeSide_left" text="Gauche"/>
+        <text name="guidance_pipeSide_right" text="Droite"/>
+        <text name="guidance_set_unloadCombine" text="Moissonneuse"/>
+        <text name="guidance_unloadCombine_any" text="Toute sur son champ"/>
+        <text name="guidance_unloadCombine_field" text="champ %s"/>
+        <text name="guidance_unloadCombine_gone" text="(introuvable)"/>
+        <text name="guidance_unloadGo" text="Vers %s au champ %s : AutoDrive l'y emmène, le déchargeur démarre à l'arrivée"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
         <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>
@@ -183,7 +237,7 @@
         <text name="guidance_saved_renamePrompt" text="Nom du parcours"/>
         <text name="guidance_saved_line" text="Champ %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Champ %d"/>
-        <text name="guidance_folder_back" text="&lt; Tous les champs"/>
+        <text name="guidance_folder_back" text="Tous les champs"/>
         <text name="guidance_folder_count" text="%d parcours"/>
         <text name="guidance_folder_one" text="1 parcours"/>
         <text name="guidance_folder_here" text="vous êtes ici"/>

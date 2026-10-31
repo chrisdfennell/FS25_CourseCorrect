@@ -75,9 +75,12 @@
         <text name="guidance_phase_shovelNoTrailer" text="Fermo: nessun rimorchio con spazio vicino al mucchio"/>
         <text name="guidance_phase_shovelNoHeap" text="Fermo: nessun mucchio davanti (parcheggia davanti)"/>
         <text name="guidance_phase_balesWaitBaler" text="Aspetta la rotopressa"/>
+        <text name="guidance_phase_unloadClear" text="Lascia allontanare la mietitrebbia"/>
+        <text name="guidance_phase_unloadReturn" text="Torna al punto di attesa"/>
         <text name="guidance_orchard_name" text="Frutteto %d"/>
         <text name="guidance_warn_convoyNarrow" text="Troppo stretto per un convoglio di %d: circa il %d%% resta non lavorato. Prova Prossima fila libera o Strisce."/>
         <text name="guidance_info_WAITING_RAIN" text="Aspetta che smetta di piovere (trebbiare ora riduce la resa)"/>
+        <text name="guidance_info_NO_UNLOADER" text="Pieno, nessun scaricatore: avvia uno scaricatore CourseCorrect su questo campo o dai a un camion AutoDrive la stessa prima destinazione di questa mietitrice"/>
         <text name="guidance_set_rainWait" text="Con la pioggia"/>
         <text name="guidance_rain_wait" text="Aspetta"/>
         <text name="guidance_rain_go" text="Continua"/>
@@ -86,6 +89,57 @@
         <text name="guidance_set_edgeObstacles" text="Ostacoli vicino al bordo"/>
         <text name="guidance_edge_over" text="Passa sopra"/>
         <text name="guidance_edge_round" text="Aggira"/>
+        <text name="guidance_set_adMarker" text="Marcatore AutoDrive"/>
+        <text name="guidance_admarker_nearest" text="Automatico"/>
+        <text name="guidance_saved_go" text="Vai"/>
+        <text name="guidance_go_sent" text="%s: in viaggio (AutoDrive fino al marcatore, parte lì)"/>
+        <text name="guidance_saved_marker" text="AutoDrive: %s"/>
+        <text name="guidance_queue_title" text="Coda · %d"/>
+        <text name="guidance_queue_manage" text="Gestisci"/>
+        <text name="guidance_queue_open" text="Coda (%d)"/>
+        <text name="guidance_queue_back" text="Indietro"/>
+        <text name="guidance_queue_total" text="%s in tutto"/>
+        <text name="guidance_queue_hint" text="In quest'ordine: finito un percorso, si carica il successivo e lo raggiunge (AutoDrive fino al marcatore se è lontano)."/>
+        <text name="guidance_queue_empty" text="Niente in coda. Aggiungi percorsi con In coda nella scheda Salvati."/>
+        <text name="guidance_queue_up" text="Su"/>
+        <text name="guidance_queue_down" text="Giù"/>
+        <text name="guidance_queue_remove" text="Togli"/>
+        <text name="guidance_queue_clearAll" text="Svuota"/>
+        <text name="guidance_queue_gone" text="(un percorso eliminato)"/>
+        <text name="guidance_help_title" text="Aiuto"/>
+        <text name="guidance_help_topics" text="Argomenti"/>
+        <text name="guidance_away_go" text="Non su %s (a %s). AutoDrive può portarlo lì (%s), attrezzi ripiegati, e parte all'arrivo."/>
+        <text name="guidance_away_noMarker" text="Non su %s (a %s) e nessun marcatore AutoDrive vicino: portalo tu o scegli un marcatore (Impostazioni, Guida)."/>
+        <text name="guidance_away_cancel" text="Annulla"/>
+        <text name="guidance_away_goBtn" text="Vai lì"/>
+        <text name="guidance_away_startAnyway" text="Avvia comunque"/>
+        <text name="guidance_set_lineHeight" text="Altezza delle linee"/>
+        <text name="guidance_lineHeight_ground" text="A terra"/>
+        <text name="guidance_set_keepRunning" text="Quando sollevato"/>
+        <text name="guidance_keepRunning_off" text="Spegni"/>
+        <text name="guidance_keepRunning_on" text="Lascia acceso"/>
+        <text name="guidance_set_takeOver" text="Aiutante del gioco qui"/>
+        <text name="guidance_takeOver_on" text="Guida CourseCorrect"/>
+        <text name="guidance_takeOver_off" text="L'aiutante del gioco"/>
+        <text name="guidance_mini_noCourse" text="Nessun percorso ancora"/>
+        <text name="guidance_mini_hintBack" text="Ctrl+J: il mouse di nuovo al gioco · + tutto il pannello"/>
+        <text name="guidance_mini_hint" text="Ctrl+J: il mouse per questi pulsanti · + tutto il pannello"/>
+        <text name="guidance_world_start" text="Inizio"/>
+        <text name="guidance_world_end" text="Fine"/>
+        <text name="guidance_set_avoidCrop" text="Coltura sul percorso"/>
+        <text name="guidance_avoidCrop_on" text="Aggirare"/>
+        <text name="guidance_avoidCrop_off" text="Attraversare"/>
+        <text name="guidance_set_unloadSide" text="Spostamento laterale"/>
+        <text name="guidance_set_unloadAlong" text="Spostamento avanti/indietro"/>
+        <text name="guidance_set_pipeSide" text="Lato del tubo"/>
+        <text name="guidance_pipeSide_auto" text="Auto (misurato)"/>
+        <text name="guidance_pipeSide_left" text="Sinistra"/>
+        <text name="guidance_pipeSide_right" text="Destra"/>
+        <text name="guidance_set_unloadCombine" text="Mietitrebbia"/>
+        <text name="guidance_unloadCombine_any" text="Qualsiasi nel suo campo"/>
+        <text name="guidance_unloadCombine_field" text="campo %s"/>
+        <text name="guidance_unloadCombine_gone" text="(non trovata)"/>
+        <text name="guidance_unloadGo" text="Verso %s nel campo %s: AutoDrive lo porta, lo scaricatore parte all'arrivo"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: avvia"/>
         <text name="guidance_action_stop" text="CourseCorrect: ferma"/>
@@ -183,7 +237,7 @@
         <text name="guidance_saved_renamePrompt" text="Nome del percorso"/>
         <text name="guidance_saved_line" text="Campo %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Campo %d"/>
-        <text name="guidance_folder_back" text="&lt; Tutti i campi"/>
+        <text name="guidance_folder_back" text="Tutti i campi"/>
         <text name="guidance_folder_count" text="%d percorsi"/>
         <text name="guidance_folder_one" text="1 percorso"/>
         <text name="guidance_folder_here" text="sei qui"/>

@@ -34,8 +34,10 @@ function runSmoke(flat, mode)
     end
     local implement = {object = {
         getAIMarkers = function() return leftMarker, rightMarker, backMarker end,
-        aiImplementStartLine = function()
+        aiImplementStartLine = function(self)
             LOWERED = (LOWERED or 0) + 1
+            -- (as the game: switched on as it is lowered, off as it is lifted)
+            if self and self.setIsTurnedOn and GAME_TURNS_OFF then self.turnedOn = true end
             -- where: the front of the work area against the start of the nearest worked stretch (+ late)
             if DRIVER then
                 local f = DRIVER.follower
@@ -46,8 +48,9 @@ function runSmoke(flat, mode)
                 if best then table.insert(LOWER_AT, best) end
             end
         end,
-        aiImplementEndLine = function()
+        aiImplementEndLine = function(self)
             RAISED = (RAISED or 0) + 1
+            if self and self.setIsTurnedOn and GAME_TURNS_OFF then self.turnedOn = false end
             if DRIVER then
                 local f = DRIVER.follower
                 local pos, best = f.s + DRIVER.info.backOffset, nil
@@ -90,7 +93,10 @@ function runSmoke(flat, mode)
     function v:raiseAIEvent(a, b) table.insert(self.raisedEvents, a) end
     function v:raiseStateChange() end
     function v:getAINeedsTrafficCollisionBox() return false end
-    function v:getCanAIFieldWorkerContinueWork() return true end
+    -- (as the game: an implement switched off can't go on working; a harvester's header off holds it)
+    function v:getCanAIFieldWorkerContinueWork() return implement.object.turnedOn ~= false end
+    -- a harvester (tank and pipe): keeps running between headland passes
+    if mode == "harvester" or mode == "fullHarvester" then v.spec_pipe = {numStates = 1} end
     function v:getLastSpeed() return self.speed end
     function v:getSpeedLimit() return 12 end
     function v:getCruiseControlMaxSpeed() return 30 end
@@ -111,6 +117,10 @@ function runSmoke(flat, mode)
     vt.listeners.onLoad(v, nil)
 
     if mode == "keep" then v:getGuidanceSettings().keepLowered = true end
+    GAME_TURNS_OFF = mode == "keepRunning" or mode == "liftOff"
+    if mode == "keepRunning" then v:getGuidanceSettings().keepRunning = true end
+    LIFTED_ON, LIFTED_OFF = 0, 0
+    if GAME_TURNS_OFF then RAISED, LOWERED = 0, 0 end
     LOWER_AT, RAISE_AT, DRIVER = {}, {}, nil
     if mode == "early" then
         v:getGuidanceSettings().lowerLate, v:getGuidanceSettings().raiseLate = -3, 3
@@ -189,7 +199,70 @@ function runSmoke(flat, mode)
         local tx, tz, fwd, maxSpeed = driver:getDriveData(dt, node.x, 0, node.z)
         local speed = math.min(maxSpeed or 0, 12) / 3.6
         if mode == "stuck" and steps > 50 then speed = 0 end
-        if mode == "full" and steps == 6000 then tank.level = 1000 end
+        -- lifted while working: running or not
+        if GAME_TURNS_OFF and (RAISED or 0) > 0 and driver.state == GuidanceFieldworkDriver.STATE_DRIVING
+                and not driver.lowered then
+            if implement.object.turnedOn then LIFTED_ON = LIFTED_ON + 1 else LIFTED_OFF = LIFTED_OFF + 1 end
+        end
+        -- the game refused to switch the implement on as it was lowered (after unloading, its pipe still moving)
+        if mode == "refused" and steps == 3000 then implement.object.turnedOn = false end
+        -- pushed 6 m sideways while working (a truck in the way): back to where it left its line, not further along
+        if mode == "pushed" and PUSHED_HOLD and steps <= PUSHED_HOLD.untilStep then
+            -- (held there a moment, the truck still in the way)
+            node.x, node.z = PUSHED_HOLD.x, PUSHED_HOLD.z
+        end
+        if mode == "pushed" and steps >= 3000 and PUSHED_AT == nil and driver.lowered and driver.turnIx == nil then
+            PUSHED_AT = {node.x, node.z}
+            node.x, node.z = node.x - math.sin(node.h) * 6, node.z + math.cos(node.h) * 6
+            PUSHED_HOLD = {x = node.x, z = node.z, untilStep = steps + 30}
+            local info = Guidance.info
+            Guidance.info = function(fmt, ...)
+                if tostring(fmt):find("back to where it left it", 1, true) and driver.lastSpot then
+                    BACK_TO = {driver.lastSpot.x, driver.lastSpot.z}
+                end
+                return info(fmt, ...)
+            end
+        end
+        -- lowered still metres off its next line (a long harvester backing up at a square corner): it drives onto
+        -- the line, it isn't "pushed off" (that would lift it and drive back, leaving the corner)
+        if mode == "offLine" and steps >= 3000 and not OFF_WRAPPED then
+            OFF_WRAPPED, OFF_BACKS = true, 0
+            local lower = driver.lowerImplements
+            driver.lowerImplements = function(d, ...)
+                local r = lower(d, ...)
+                if OFF_HOLD == nil and d.turnIx == nil then
+                    node.x, node.z = node.x - math.sin(node.h) * 5, node.z + math.cos(node.h) * 5
+                    OFF_HOLD = {x = node.x, z = node.z, untilStep = steps + 25}
+                end
+                return r
+            end
+            local info = Guidance.info
+            Guidance.info = function(fmt, ...)
+                if tostring(fmt):find("back to where it left it", 1, true) then OFF_BACKS = OFF_BACKS + 1 end
+                return info(fmt, ...)
+            end
+        end
+        -- swinging wide in a move from one headland pass to the next (a long harvester): not "pushed off" either
+        if mode == "laneSwing" and OFF_HOLD == nil and driver.lowered and driver.turnIx == nil then
+            local f = driver.follower
+            local pt = f.points[f.ix + 1]
+            if pt and pt.lane then
+                if not OFF_WRAPPED then
+                    OFF_WRAPPED, OFF_BACKS = true, 0
+                    local info = Guidance.info
+                    Guidance.info = function(fmt, ...)
+                        if tostring(fmt):find("back to where it left it", 1, true) then OFF_BACKS = OFF_BACKS + 1 end
+                        return info(fmt, ...)
+                    end
+                end
+                node.x, node.z = node.x - math.sin(node.h) * 5, node.z + math.cos(node.h) * 5
+                OFF_HOLD = {x = node.x, z = node.z, untilStep = steps + 25}
+            end
+        end
+        if (mode == "offLine" or mode == "laneSwing") and OFF_HOLD and steps <= OFF_HOLD.untilStep then
+            node.x, node.z = OFF_HOLD.x, OFF_HOLD.z
+        end
+        if (mode == "full" or mode == "fullHarvester") and steps == 6000 then tank.level = 1000 end
         if mode == "pause" then
             if steps == 3000 then v:guidanceSetPaused(true) end
             if steps == 3050 then PAUSE_AT = {node.x, node.z} end
@@ -283,6 +356,18 @@ function runSmoke(flat, mode)
     if mode == "stuck" then
         local infos = v:getCpActiveInfoTexts()
         return steps, STOP_MESSAGE and STOP_MESSAGE.name or "none", infos[1] and infos[1].name or "none"
+    elseif mode == "keepRunning" or mode == "liftOff" then
+        return STOP_MESSAGE and STOP_MESSAGE.name or "none", LIFTED_ON, LIFTED_OFF
+    elseif mode == "pushed" then
+        local back = BACK_TO and math.sqrt((BACK_TO[1] - PUSHED_AT[1]) ^ 2 + (BACK_TO[2] - PUSHED_AT[2]) ^ 2) or -1
+        return STOP_MESSAGE and STOP_MESSAGE.name or "none", back
+    elseif mode == "offLine" or mode == "laneSwing" then
+        return STOP_MESSAGE and STOP_MESSAGE.name or "none", OFF_BACKS or -1, OFF_HOLD ~= nil
+    elseif mode == "fullHarvester" then
+        -- full with nobody to unload it: stopped, and the status says why
+        local names = {}
+        for _, info in ipairs(v:getGuidanceInfoTexts()) do names[#names + 1] = info.name end
+        return STOP_MESSAGE and STOP_MESSAGE.name or "none", table.concat(names, " ")
     elseif mode == "full" then
         local progress = v:getGuidanceProgress()
         local resumeIx = course:getResumeIx(progress)
@@ -318,6 +403,33 @@ def scenarios(lua, flat):
     good = stop == "AIMessageErrorBlockedByObject" and info == "IS_STUCK" and steps < 300
     print(f"stuck: gave up after {steps / 10:.0f} s with {stop}, status {info}: {'OK' if good else 'FAILED'}")
     ok = ok and good
+    stop_k1, on_k, off_k = lua.globals().runSmoke(lua.table_from(flat), "keepRunning")
+    stop_k0, on_0, off_0 = lua.globals().runSmoke(lua.table_from(flat), "liftOff")
+    good = (stop_k1 == "AIMessageSuccessFinishedJob" and stop_k0 == stop_k1 and on_k > 10 * max(1, off_k)
+            and off_0 > 10 * max(1, on_0))
+    print(f"when lifted, keep running: lifted and running {on_k / 10:.0f} s, off {off_k / 10:.0f} s; switch off (the "
+          f"game's way): running {on_0 / 10:.0f} s, off {off_0 / 10:.0f} s: {'OK' if good else 'FAILED'}")
+    ok = ok and good
+    stop_p, back_p = lua.globals().runSmoke(lua.table_from(flat), "pushed")
+    good = stop_p == "AIMessageSuccessFinishedJob" and 0 <= back_p < 5
+    print(f"pushed 6 m off its line while working: back to {back_p:.1f} m from where it was pushed, then "
+          f"{stop_p}: {'OK' if good else 'FAILED'}")
+    ok = ok and good
+    stop_o, backs_o, held_o = lua.globals().runSmoke(lua.table_from(flat), "offLine")
+    good = stop_o == "AIMessageSuccessFinishedJob" and backs_o == 0 and held_o
+    print(f"lowered 5 m off its next line (not pushed off it): drove back {backs_o} time(s), then {stop_o}: "
+          f"{'OK' if good else 'FAILED'}")
+    ok = ok and good
+    lua.execute("OFF_WRAPPED, OFF_HOLD, OFF_BACKS = nil, nil, nil")
+    stop_l, backs_l, held_l = lua.globals().runSmoke(lua.table_from(flat), "laneSwing")
+    good = stop_l == "AIMessageSuccessFinishedJob" and backs_l == 0 and held_l
+    print(f"5 m off in a move from one headland pass to the next (swinging wide): drove back {backs_l} time(s), "
+          f"then {stop_l}: {'OK' if good else 'FAILED'}")
+    ok = ok and good
+    stop_fh, infos_fh = lua.globals().runSmoke(lua.table_from(flat), "fullHarvester")
+    good = stop_fh == "GUIDANCE_IS_FULL" and "NO_UNLOADER" in infos_fh
+    print(f"full harvester, no unloader: stopped with {stop_fh}, status {infos_fh}: {'OK' if good else 'FAILED'}")
+    ok = ok and good
     steps, stop, full_event, progress, resume_ix, restart_ix = lua.globals().runSmoke(lua.table_from(flat), "full")
     good = stop == "GUIDANCE_IS_FULL" and full_event and restart_ix == resume_ix and resume_ix > 1
     print(f"full: stopped with {stop}, onCpFull={full_event}, at waypoint {progress}, AutoDrive restart at "
@@ -342,10 +454,11 @@ def main():
     print(f"{field}: {steps} steps ({steps / 600:.0f} min), lowered {lowered}x, raised {raised}x, stopped with {stop}, "
           f"onCpFinished={finished_event}, turn events={turn_events}, rows {rows}, headlands {headlands}, "
           f"{reversed_steps / 10:.0f} s backing up")
-    # every row and headland pass at least once; square corners add a lowering each
-    expected = rows + headlands
+    # every row at least once and the headland passes (down from one pass to the next: once); square corners add a
+    # lowering each
+    expected = rows + min(1, headlands)
     notes = list(lua.globals().NOTES.values())
-    ok = stop == "AIMessageSuccessFinishedJob" and finished_event and lowered == raised and lowered >= expected         and any("guidance_info_FINISHED" in n for n in notes)
+    ok = stop == "AIMessageSuccessFinishedJob" and finished_event and lowered == raised and lowered >= expected and lowered < rows + headlands         and any("guidance_info_FINISHED" in n for n in notes)
     print(f"notifications: {notes}")
     print("OK" if ok else "FAILED")
     lua_keep = fresh_lua(fields, field)
@@ -354,6 +467,21 @@ def main():
     good = stop_k == "AIMessageSuccessFinishedJob" and switched_off > 0 and lowered_k < lowered
     print(f"keep down in turns: lowered {lowered_k}x (was {lowered}), switched off {switched_off}x in turns, "
           f"{steps_k / 600:.0f} min (was {steps / 600:.0f}): {'OK' if good else 'FAILED'}")
+    ok = ok and good
+    # a harvester (its header switched off, the game says it can't go on): kept running from one headland pass to
+    # the next, never stuck there
+    lua_h = fresh_lua(fields, field)
+    steps_h, lowered_h, _, stop_h, _, _, _, _, switched_h, _ =         lua_h.globals().runSmoke(lua_h.table_from(flat), "harvester")
+    good = stop_h == "AIMessageSuccessFinishedJob" and switched_h == 0 and lowered_h <= lowered
+    print(f"harvester between headland passes: kept running (switched off {switched_h}x), lowered {lowered_h}x, "
+          f"finished: {stop_h}, {steps_h / 600:.0f} min: {'OK' if good else 'FAILED'}")
+    ok = ok and good
+    # down but not switched on (the game refused it as it was lowered): asked again, on it goes
+    lua_r = fresh_lua(fields, field)
+    steps_r, _, _, stop_r, _, _, _, _, _, _ = lua_r.globals().runSmoke(lua_r.table_from(flat), "refused")
+    good = stop_r == "AIMessageSuccessFinishedJob" and steps_r < steps + 100
+    print(f"switched off while down (switching on refused): finished {stop_r}, {(steps_r - steps) / 10:.0f} s longer: "
+          f"{'OK' if good else 'FAILED'}")
     ok = ok and good
     # lowering / raising early and late: same number of times, at the shifted places
     def median(t):

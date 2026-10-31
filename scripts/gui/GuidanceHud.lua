@@ -75,7 +75,16 @@ function Hud:isOpenFor(vehicle)
 end
 
 function Hud:toggle(vehicle)
-    if self:isOpenFor(vehicle) then
+    if self:isOpenFor(vehicle) and self.minimized then
+        -- minimised: the mouse to the small panel (its buttons) and back to the game; + for the whole panel
+        if self.miniMouse then
+            self:releaseMouse()
+            self.miniMouse = false
+        else
+            self:takeMouse()
+            self.miniMouse = true
+        end
+    elseif self:isOpenFor(vehicle) then
         self:close()
     else
         self:open(vehicle)
@@ -95,13 +104,17 @@ function Hud:open(vehicle)
         settings.prefsApplied = true
     end
     self.plot = nil
+    self:takeMouse()
+end
+
+--- The mouse for the panel: the cursor shown, the camera held still (it must not turn while we use the mouse)
+function Hud:takeMouse()
     if not g_inputBinding:getShowMouseCursor() then
         g_inputBinding:setShowMouseCursor(true)
         self.showedCursor = true
     end
-    -- the camera must not turn while we use the mouse on the panel
     self.lockedCameras = {}
-    local enterable = vehicle.spec_enterable
+    local enterable = self.vehicle and self.vehicle.spec_enterable
     if enterable and enterable.cameras then
         for _, camera in pairs(enterable.cameras) do
             if camera.isRotatable then
@@ -112,10 +125,8 @@ function Hud:open(vehicle)
     end
 end
 
-function Hud:close()
-    if not self.isOpen then
-        return
-    end
+--- The mouse back to the game: the camera turns again, the cursor goes (if we showed it)
+function Hud:releaseMouse()
     for _, camera in ipairs(self.lockedCameras or {}) do
         camera.isRotatable = true
     end
@@ -124,11 +135,41 @@ function Hud:close()
         g_inputBinding:setShowMouseCursor(false)
         self.showedCursor = false
     end
+end
+
+--- Minimised: only the header, the course map and start / pause / stop stay, and the mouse goes back to the game
+--- (drive, look round); the panel key gives it to the small panel and back, its + brings the whole panel back
+function Hud:minimize()
+    if not self.isOpen or self.minimized then
+        return
+    end
+    self.minimized = true
+    self.miniMouse = false
+    self.editing = false
+    self.focus = nil
+    self:releaseMouse()
+end
+
+function Hud:restore()
+    if not self.isOpen or not self.minimized then
+        return
+    end
+    self.minimized = false
+    if not self.miniMouse then self:takeMouse() end
+    self.miniMouse = false
+end
+
+function Hud:close()
+    if not self.isOpen then
+        return
+    end
+    self:releaseMouse()
     if self.dragging then
         self.dragging = nil
         self:savePosition()
     end
     self.isOpen = false
+    self.minimized, self.miniMouse = false, false
     self.vehicle = nil
     self.plot = nil
 end
@@ -145,9 +186,34 @@ function Hud:showMessage(text, isError, seconds)
     self.messageTimer = (seconds or 6) * 1000
 end
 
+--- The panel open for another vehicle (switched to with Tab): as it was (its tab, minimised), now for that one
+function Hud:switchTo(vehicle)
+    -- the old one's camera turns again; the new one's is held while the panel has the mouse
+    for _, camera in ipairs(self.lockedCameras or {}) do
+        camera.isRotatable = true
+    end
+    self.lockedCameras = nil
+    self.vehicle = vehicle
+    self.plot, self.mapCenter, self.editing, self.focus, self.offField, self.dragElement = nil, nil, false, nil, nil, nil
+    local settings = vehicle:getGuidanceSettings()
+    if settings and not settings.prefsApplied and vehicle:getGuidancePlan() == nil then
+        GuidancePrefs.applyTo(settings)
+        settings.prefsApplied = true
+    end
+    if not self.minimized or self.miniMouse then
+        self:takeMouse()
+    end
+end
+
 function Hud:update(dt)
     if self.isOpen and currentVehicle() ~= self.vehicle then
-        self:close()
+        -- Tab to another vehicle: the panel goes with it; out of the vehicle (or into one we can't drive): closed
+        local now = currentVehicle()
+        if now ~= nil and not now.isDeleted and now.getGuidanceCourse ~= nil then
+            self:switchTo(now)
+        else
+            self:close()
+        end
     end
     -- gone to another vehicle from the fleet: once the game has put us in, the panel opens again there
     local going = self.pendingEnter
@@ -274,6 +340,9 @@ function Hud:addElement(x, y, w, h, onClick)
 end
 
 function Hud:isHover(x, y, w, h)
+    if self.mouseX == nil or (self.minimized and not g_inputBinding:getShowMouseCursor()) then
+        return false
+    end
     return self.mouseX >= x and self.mouseX <= x + w and self.mouseY >= y and self.mouseY <= y + h
 end
 
@@ -301,6 +370,10 @@ function Hud:mouseEvent(posX, posY, isDown, isUp, button)
     if not self.isOpen then
         return
     end
+    -- minimised, the mouse is the game's (unless something else shows the cursor)
+    if self.minimized and not g_inputBinding:getShowMouseCursor() then
+        return
+    end
     -- the mouse moved: the controller's highlight goes
     if self.focus and (math.abs(posX - (self.mouseX or 0)) > 1e-4 or math.abs(posY - (self.mouseY or 0)) > 1e-4) then
         self.focus = nil
@@ -315,6 +388,17 @@ function Hud:mouseEvent(posX, posY, isDown, isUp, button)
         end
         return
     end
+    -- the zoomed map being moved
+    if self.mapPan then
+        local p = self.mapPan
+        -- (metres per screen unit: the map's width in metres over its width on the screen)
+        local perX = p.span / p.w
+        local perY = perX * g_screenHeight / g_screenWidth
+        self.mapCenter = {x = p.x - (posX - p.mouseX) * perX, z = p.z + (posY - p.mouseY) * perY, zoom = p.zoom,
+                          pinned = true}
+        if isUp and button == Input.MOUSE_BUTTON_LEFT then self.mapPan = nil end
+        return
+    end
     -- something being dragged (in the course editor)
     if self.dragElement then
         local e = self.dragElement
@@ -325,6 +409,44 @@ function Hud:mouseEvent(posX, posY, isDown, isUp, button)
             e.onDrag(posX, posY, "move")
         end
         return
+    end
+    -- an open list: the wheel scrolls it, a click picks an option or (anywhere else) closes it
+    local d = self.dropdown
+    if d and d.box then
+        local over = self:isHover(d.box.x, d.box.y, d.box.w, d.box.h)
+        local up = (isDown and button == Input.MOUSE_BUTTON_WHEEL_UP)
+        local down = (isDown and button == Input.MOUSE_BUTTON_WHEEL_DOWN)
+        if over and Input.MOUSE_BUTTON_WHEEL_UP and (up or down) then
+            d.scroll = (d.scroll or 0) + (up and -1 or 1)
+            return
+        end
+        if isDown and button == Input.MOUSE_BUTTON_LEFT then
+            for _, e in ipairs(self.popupElements or {}) do
+                if self:isHover(e.x, e.y, e.w, e.h) then
+                    e.onClick()
+                    return
+                end
+            end
+            -- (its own value again: the row's click closes it)
+            local onValue = self:isHover(d.x, d.y, d.w, d.rowH)
+            if not onValue then
+                self.dropdown = nil
+                return
+            end
+        end
+    end
+    -- the mouse wheel over the course map: zoom
+    local box = self.plotShown and not self.editing and self.plot and self.plot.box
+    if box and self:isHover(box.x, box.y, box.w, box.h) and Input.MOUSE_BUTTON_WHEEL_UP then
+        local up = (isDown and button == Input.MOUSE_BUTTON_WHEEL_UP)
+            or (Input.isMouseButtonPressed and Input.isMouseButtonPressed(Input.MOUSE_BUTTON_WHEEL_UP))
+        local down = (isDown and button == Input.MOUSE_BUTTON_WHEEL_DOWN)
+            or (Input.isMouseButtonPressed and Input.isMouseButtonPressed(Input.MOUSE_BUTTON_WHEEL_DOWN))
+        if (up or down) and (g_time or 0) >= (self.wheelTime or 0) + Hud.WHEEL_DELAY then
+            self.wheelTime = g_time or 0
+            self:zoomMap(up and 1 or -1)
+            return
+        end
     end
     if isDown and button == Input.MOUSE_BUTTON_LEFT then
         for _, e in ipairs(self.elements) do
@@ -339,6 +461,13 @@ function Hud:mouseEvent(posX, posY, isDown, isUp, button)
                 end
             end
         end
+        -- on the zoomed map: move the map (it stops following the vehicle till zoomed again)
+        local plot = self.plot
+        if box and plot and (plot.zoom or 1) > 1 and self.mapCenter and self:isHover(box.x, box.y, box.w, box.h) then
+            self.mapPan = {mouseX = posX, mouseY = posY, x = self.mapCenter.x, z = self.mapCenter.z,
+                           zoom = self.mapCenter.zoom, span = plot.span, w = box.w}
+            return
+        end
         -- anywhere else on the panel: pick it up
         local box = self.box
         if box and self:isHover(box.x, box.y, box.w, box.h) then
@@ -349,6 +478,16 @@ end
 
 --- Text vertically centred in a box of height h at y
 function Hud:textIn(x, y, h, size, text, color, align, bold)
+    -- under an open list: not drawn (the game draws all text after all boxes, it would show through the list)
+    local box = not self.drawingDropdown and self.dropdown and self.dropdown.box
+    if box then
+        local w = Draw.textWidth(size, text, bold)
+        local left = x
+        if align == RenderText.ALIGN_CENTER then left = x - w / 2 elseif align == RenderText.ALIGN_RIGHT then left = x - w end
+        if left < box.x + box.w and left + w > box.x and y < box.y + box.h and y + h > box.y then
+            return
+        end
+    end
     Draw.text(x, y + h / 2 - size * 0.36, size, text, color, align, bold)
 end
 
@@ -401,6 +540,12 @@ function Hud:getStatus(vehicle)
     return t("guidance_status_noCourse"), C.muted
 end
 
+--- "850 m", "1.2 km"
+local function formatDistance(m)
+    if m < 1000 then return string.format("%d m", math.floor(m / 10 + 0.5) * 10) end
+    return string.format("%.1f km", m / 1000)
+end
+
 local function formatDuration(seconds)
     local minutes = math.floor(seconds / 60 + 0.5)
     if minutes < 60 then
@@ -441,6 +586,8 @@ function Hud:getSettingRows(vehicle, scope, all)
     local rows = {}
     local function add(name, row)
         row.name = name
+        -- (changeable while the helper works)
+        row.live = scope == nil and GuidanceVehicle ~= nil and GuidanceVehicle.LIVE_SETTINGS[name] == true
         if shown(name) then table.insert(rows, row) end
     end
 
@@ -451,15 +598,15 @@ function Hud:getSettingRows(vehicle, scope, all)
         inc = change("workWidth", math.min(60, s.workWidth + 0.5)),
         click = (not s.autoWidth) and change("autoWidth", true) or nil,
     })
-    -- obstacles near the field edge: driven over (the warning says so) or worked round
+    -- obstacles near the field edge: driven over (the warning says so) or worked round (More settings)
     local edge = s.edgeObstacles or 0
     local edgeNext = edge == 1 and 0 or 1
-    add("edgeObstacles", {
+    if more then add("edgeObstacles", {
         label = t("guidance_set_edgeObstacles"),
         value = t(edge == 1 and "guidance_edge_round" or "guidance_edge_over")
             .. ((stats and (stats.notched or 0) > 0) and string.format(" · %d", stats.notched) or ""),
         dec = change("edgeObstacles", edgeNext), inc = change("edgeObstacles", edgeNext),
-    })
+    }) end
     -- a vineyard: on the rows or between them (automatic: on them with a grape harvester / pre-pruner)
     if stats and stats.pattern == "vines" then
         local mode = s.vineMode or 0
@@ -605,6 +752,19 @@ function Hud:getSettingRows(vehicle, scope, all)
             value = s.keepLowered and t("guidance_turns_keep") or t("guidance_turns_lift"),
             dec = toggle("keepLowered"), inc = toggle("keepLowered"),
         })
+        -- lifted while working: switched off (the game's way), or kept running
+        add("keepRunning", {
+            label = t("guidance_set_keepRunning"),
+            value = s.keepRunning and t("guidance_keepRunning_on") or t("guidance_keepRunning_off"),
+            dec = toggle("keepRunning"), inc = toggle("keepRunning"),
+        })
+        -- the game's own field work helper hired here (the hire key, AutoDrive set to the game's helper): CourseCorrect
+        -- works the course instead, or the game's helper does
+        add("takeOver", {
+            label = t("guidance_set_takeOver"),
+            value = s.takeOver ~= false and t("guidance_takeOver_on") or t("guidance_takeOver_off"),
+            dec = change("takeOver", s.takeOver == false), inc = change("takeOver", s.takeOver == false),
+        })
         -- the automatic headland is at least this wide (0: only what the turns need)
         local minWidth = math.floor((s.minHeadlandWidth or GuidancePlan.MIN_HEADLAND_DEFAULT) + 0.5)
         add("minHeadlandWidth", {
@@ -747,6 +907,41 @@ function Hud:getSettingRows(vehicle, scope, all)
             end
             add("refillX", {label = t("guidance_set_refill"), value = value, dec = pick(-1), inc = pick(1)})
         end
+        -- the AutoDrive marker that takes it to this course (Go, the queue): picked, or the nearest
+        local markers = GuidanceVehicle and GuidanceVehicle.autoDriveMarkers and GuidanceVehicle.autoDriveMarkers()
+        if markers and #markers > 0 then
+            local names = {""}
+            for _, mk in ipairs(markers) do names[#names + 1] = mk.name end
+            local cur = 1
+            for i, nm in ipairs(names) do
+                if nm == (s.adMarker or "") then cur = i end
+            end
+            local function pickMarker(step)
+                return function()
+                    local nm = names[(cur - 1 + step) % #names + 1]
+                    if scope then scope.set("adMarker", nm) else vehicle:guidanceChangeSetting("adMarker", nm) end
+                end
+            end
+            -- automatic: which one that is for this course
+            local auto = t("guidance_admarker_nearest")
+            local course = not scope and vehicle:getGuidanceCourse()
+            if cur == 1 and course then
+                local _, autoName = GuidanceVehicle.markerFor(course.plan, course)
+                if autoName then auto = auto .. " (" .. autoName .. ")" end
+            end
+            local markerLabels = {auto}
+            for i = 2, #names do markerLabels[i] = names[i] end
+            add("adMarker", {label = t("guidance_set_adMarker"),
+                             options = markerLabels, current = cur,
+                             select = function(i)
+                                 local nm = names[i]
+                                 if scope then scope.set("adMarker", nm) else vehicle:guidanceChangeSetting("adMarker", nm) end
+                             end,
+                             value = cur == 1 and auto or names[cur],
+                             dec = pickMarker(-1), inc = pickMarker(1), click = cur > 1 and function()
+                                 if scope then scope.set("adMarker", "") else vehicle:guidanceChangeSetting("adMarker", "") end
+                             end or nil})
+        end
         -- the work area off to one side of where the game says: the helper steers the other way
         local offset = s.toolOffsetX or 0
         local offsetText = t("guidance_offset_centre")
@@ -792,9 +987,62 @@ local function fit(text, size, width, bold)
         return text
     end
     while #text > 4 and Draw.textWidth(size, text .. "...", bold) > width do
-        text = text:sub(1, #text - 1)
+        -- the last whole character off (not half of an ä)
+        text = text:gsub("[%z\1-\127\194-\244][\128-\191]*$", "")
     end
     return text .. "..."
+end
+
+Hud.DROPDOWN_ROWS = 9 -- options shown at once in an open list (more: the mouse wheel scrolls)
+
+--- The open list of a row's options, under its value (above it near the bottom of the screen)
+function Hud:drawDropdown()
+    self.drawingDropdown = true
+    self:drawDropdownList()
+    self.drawingDropdown = false
+end
+
+function Hud:drawDropdownList()
+    local d = self.dropdown
+    local C = Hud.C
+    local m = self:metrics()
+    local itemH = d.rowH * 0.85
+    local shown = math.min(#d.options, Hud.DROPDOWN_ROWS)
+    d.scroll = math.max(0, math.min(d.scroll or 0, #d.options - shown))
+    local widest = d.w
+    for _, label in ipairs(d.options) do
+        widest = math.max(widest, Draw.textWidth(m.smallSize, label) + self:w(28))
+    end
+    local w = math.min(widest, m.width - 2 * m.pad)
+    local x = math.max(0, d.x + d.w - w)
+    local h = shown * itemH + self:h(8)
+    local y = d.y - h
+    if y < 0.01 then y = d.y + d.rowH end
+    d.box = {x = x, y = y, w = w, h = h}
+    Draw.roundRect(x - self:w(2), y - self:h(3), w + self:w(4), h + self:h(4), m.smallRadius, C.shadow)
+    Draw.roundRect(x, y, w, h, m.smallRadius, C.surface)
+    for k = 1, shown do
+        local ix = d.scroll + k
+        local iy = y + h - self:h(4) - k * itemH
+        local current = ix == d.current
+        local hover = self:isHover(x, iy, w, itemH)
+        if current or hover then
+            Draw.roundRect(x + self:w(4), iy + self:h(1), w - self:w(8), itemH - self:h(2), self:h(5),
+                current and C.accent or C.hover)
+        end
+        self:textIn(x + self:w(12), iy, itemH, m.smallSize, fit(d.options[ix], m.smallSize, w - self:w(24)),
+            current and {1, 1, 1, 1} or C.text, nil, current)
+        table.insert(self.popupElements, {x = x, y = iy, w = w, h = itemH, onClick = function()
+            self.dropdown = nil
+            if d.select then d.select(ix) end
+        end})
+    end
+    -- more than shown: a thin bar where the shown ones are
+    if #d.options > shown then
+        local barH = h * shown / #d.options
+        local barY = y + h - barH - (h - barH) * d.scroll / (#d.options - shown)
+        Draw.roundRect(x + w - self:w(4), barY, self:w(2), barH, self:h(1), C.muted)
+    end
 end
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -824,7 +1072,8 @@ end
 function Hud:drawFrame(m, contentH, subtitle, status, statusColor)
     local C = Hud.C
     local width = m.width
-    local height = m.headerH + m.tabsH + contentH + m.padY
+    local tabsH = self.minimized and 0 or m.tabsH
+    local height = m.headerH + tabsH + contentH + m.padY
     local x = self.posX or (1 - width - self:w(24))
     local top = self.posTop or 0.86
     x = math.max(0, math.min(1 - width, x))
@@ -844,9 +1093,38 @@ function Hud:drawFrame(m, contentH, subtitle, status, statusColor)
     local pillY = cy + (m.headerH - pillH) / 2
     local closeW = self:w(28)
     local closeX = x + width - m.pad - closeW
+    -- minimise (only the course map stays, the mouse back to the game) / the whole panel again
+    local miniX = closeX - self:w(4) - closeW
+    local miniHover = self:isHover(miniX, pillY, closeW, pillH)
+    if miniHover then Draw.roundRect(miniX, pillY, closeW, pillH, pillH / 2, C.hover) end
+    self:textIn(miniX + closeW / 2, pillY, pillH, m.textSize, self.minimized and "+" or "–",
+        miniHover and C.text or C.muted, RenderText.ALIGN_CENTER, true)
+    self:addElement(miniX, pillY, closeW, pillH, function()
+        if self.minimized then self:restore() else self:minimize() end
+    end)
+    -- help: the topic of where the panel is (again: back)
+    local helpX = miniX
+    if not self.minimized then
+        helpX = miniX - self:w(4) - closeW
+        local helpHover = self:isHover(helpX, pillY, closeW, pillH)
+        local helpOn = self.view == "help"
+        if helpHover or helpOn then Draw.roundRect(helpX, pillY, closeW, pillH, pillH / 2, helpOn and C.accent or C.hover) end
+        self:textIn(helpX + closeW / 2, pillY, pillH, m.textSize, "?", (helpHover or helpOn) and C.text or C.muted,
+            RenderText.ALIGN_CENTER, true)
+        self:addElement(helpX, pillY, closeW, pillH, function() self:openHelp() end)
+    end
+    if status then
+        -- as wide as the status, but not over the title or the vehicle's name under it (a long status is shortened;
+        -- with no room left it isn't shown here, the view says it too)
+        local leftW = math.max(Draw.textWidth(m.titleSize, Guidance.TITLE, true), Draw.textWidth(m.smallSize, subtitle or ""))
+        local room = helpX - self:w(6) - (x + m.pad + leftW + self:w(8))
+        local pillW = math.min(Draw.textWidth(m.smallSize, status) + self:w(30), room)
+        if pillW < self:w(70) then status = nil end
+        status = status and fit(status, m.smallSize, pillW - self:w(30))
+    end
     if status then
         local pillW = Draw.textWidth(m.smallSize, status) + self:w(30)
-        local pillX = closeX - self:w(6) - pillW
+        local pillX = helpX - self:w(6) - pillW
         Draw.roundRect(pillX, pillY, pillW, pillH, pillH / 2, C.pill)
         Draw.disc(pillX + self:w(13), pillY + pillH / 2, self:h(4), statusColor)
         self:textIn(pillX + self:w(22), pillY, pillH, m.smallSize, status, C.text)
@@ -855,6 +1133,9 @@ function Hud:drawFrame(m, contentH, subtitle, status, statusColor)
     if closeHover then Draw.roundRect(closeX, pillY, closeW, pillH, pillH / 2, C.hover) end
     self:textIn(closeX + closeW / 2, pillY, pillH, m.textSize, "×", closeHover and C.text or C.muted, RenderText.ALIGN_CENTER)
     self:addElement(closeX, pillY, closeW, pillH, function() self:close() end)
+    if self.minimized then
+        return x, cy
+    end
 
     -- tabs
     cy = cy - m.tabsH
@@ -865,7 +1146,9 @@ function Hud:drawFrame(m, contentH, subtitle, status, statusColor)
     Draw.roundRect(x + m.pad, tabY, tabsW, tabH, tabH / 2, C.chip)
     for k, tab in ipairs(Hud.TABS) do
         local tx = x + m.pad + (k - 1) * tabW
-        local view = self.view == "import" and "library" or (self.view or "vehicle")
+        local view = self.view or "vehicle"
+        if view == "help" then view = self.helpFrom or "vehicle" end
+        if view == "import" or view == "queue" then view = "library" end
         local selected = view == tab.view
         local hover = not selected and self:isHover(tx, tabY, tabW, tabH)
         if selected or hover then
@@ -909,7 +1192,13 @@ function Hud:draw()
         return
     end
     self.elements = {}
+    self.plotShown = false
+    self.dropdownSeen = false
     self:drawView()
+    -- an open list on top of everything (closed when its row isn't shown any more)
+    if self.dropdown and not self.dropdownSeen then self.dropdown = nil end
+    self.popupElements = {}
+    if self.dropdown then self:drawDropdown() end
     -- the controller's highlight
     local e = self.focus and self.elements[self.focus]
     if e then
@@ -925,8 +1214,17 @@ function Hud:draw()
 end
 
 function Hud:drawView()
+    if self.minimized then
+        return self:drawMini()
+    end
     if self.view == "import" then
         return self:drawImport()
+    end
+    if self.view == "queue" then
+        return self:drawQueue()
+    end
+    if self.view == "help" then
+        return self:drawHelp()
     end
     if self.view == "fleet" and self.fleetView == "log" then
         return self:drawWorkLog()
@@ -1019,14 +1317,34 @@ function Hud:drawSettingRows(x, cy, rows, editable)
         local chipY = cy + (rowH - chipH) / 2
         for _, chip in ipairs({{decX, "-", row.dec}, {incX, "+", row.inc}}) do
             local cx, label, fn = chip[1], chip[2], chip[3]
-            local usable = editable and fn ~= nil
+            local usable = (editable or row.live) and fn ~= nil
             local hover = usable and self:isHover(cx, chipY, chipW, chipH)
             Draw.roundRect(cx, chipY, chipW, chipH, chipH / 2, hover and C.hover or C.chip)
             self:textIn(cx + chipW / 2, chipY, chipH, textSize, label, usable and C.text or C.muted,
                 RenderText.ALIGN_CENTER, true)
             if usable then self:addElement(cx, chipY, chipW, chipH, fn) end
         end
-        local valueHover = editable and row.click and self:isHover(valueX, cy, valueW, rowH)
+        -- a row with options: its value opens a list of them to pick from (a dropdown)
+        local usableRow = editable or row.live
+        if usableRow and row.options and #row.options > 1 then
+            local id = row.label
+            local d = self.dropdown
+            if d and d.id == id then
+                self.dropdownSeen = true
+                d.x, d.y, d.w, d.rowH, d.options, d.current, d.select = valueX, cy, valueW, rowH, row.options, row.current, row.select
+            end
+            row.click = function()
+                if self.dropdown and self.dropdown.id == id then
+                    self.dropdown = nil
+                    return
+                end
+                local scroll = math.max(0, math.min((row.current or 1) - 3, #row.options - Hud.DROPDOWN_ROWS))
+                self.dropdown = {id = id, x = valueX, y = cy, w = valueW, rowH = rowH, options = row.options,
+                                 current = row.current, select = row.select, scroll = scroll}
+                self.dropdownSeen = true
+            end
+        end
+        local valueHover = (editable or row.live) and row.click and self:isHover(valueX, cy, valueW, rowH)
         -- a value too long for the space between the chips gets a little smaller (not below three quarters)
         local valueSize = textSize
         local room = valueW - self:w(8)
@@ -1036,7 +1354,7 @@ function Hud:drawSettingRows(x, cy, rows, editable)
         end
         self:textIn(valueX + valueW / 2, cy, rowH, valueSize, row.value, valueHover and C.accentHover or C.text,
             RenderText.ALIGN_CENTER, true)
-        if editable and row.click then self:addElement(valueX, cy, valueW, rowH, row.click) end
+        if (editable or row.live) and row.click then self:addElement(valueX, cy, valueW, rowH, row.click) end
     end
     return cy
 end
@@ -1079,6 +1397,141 @@ function Hud.startModes()
         {GuidancePlan.START_NEAREST, t("guidance_start_nearest")},
         {GuidancePlan.START_FIRST, t("guidance_start_first")},
     }
+end
+
+--- The progress bar through the course and how much of it is done (and how long it still takes), in a row h high
+function Hud:drawProgress(m, x, y, h, vehicle, course, doneFraction)
+    local C = Hud.C
+    local active = vehicle:getIsGuidanceActive()
+    local paused = active and vehicle:getIsGuidancePaused()
+    local barH = self:h(5)
+    local barY = y + (h - barH) / 2
+    local label = string.format("%d%%", math.floor(doneFraction * 100 + 0.5))
+    if active and doneFraction < 1 then
+        local _, left = self:estimateSeconds(vehicle, course)
+        label = label .. " · " .. t("guidance_progress_left", formatDuration(left))
+    end
+    local barW = m.width - 2 * m.pad - Draw.textWidth(m.smallSize, label) - self:w(10)
+    Draw.roundRect(x + m.pad, barY, barW, barH, barH / 2, C.track)
+    if doneFraction > 0 then
+        Draw.roundRect(x + m.pad, barY, math.max(barH, barW * doneFraction), barH, barH / 2, paused and C.warn or C.accent)
+    end
+    self:textIn(x + m.width - m.pad, y, h, m.smallSize, label, C.muted, RenderText.ALIGN_RIGHT)
+end
+
+Hud.MAP_ZOOMS = {1, 2, 4, 8}
+Hud.WHEEL_DELAY = 120 -- ms between two zoom steps of the mouse wheel
+
+--- The map closer (step 1) or further out (-1)
+function Hud:zoomMap(step)
+    local ix = math.max(1, math.min(#Hud.MAP_ZOOMS, (self.mapZoomIx or 1) + step))
+    if ix ~= (self.mapZoomIx or 1) then
+        self.mapZoomIx = ix
+        self.mapCenter = nil
+    end
+end
+Hud.MAP_RECENTER = 0.2 -- zoomed in, the map centres on the vehicle again once it is this part of the view away
+
+--- The course map, with what is done and where the vehicle is; + / - zoom in round the vehicle (it follows it) and
+--- out to the whole course (not while the course editor is open)
+function Hud:drawCoursePlot(vehicle, course, plotX, plotY, plotW, plotH)
+    local C = Hud.C
+    local zoomIx = self.editing and 1 or (self.mapZoomIx or 1)
+    local zoom = Hud.MAP_ZOOMS[zoomIx]
+    local center
+    if zoom > 1 then
+        local vx, _, vz = getWorldTranslation(vehicle.rootNode)
+        local c = self.mapCenter
+        local span = self.plot and self.plot.span or 100
+        if c == nil or c.zoom ~= zoom or (not c.pinned and (vx - c.x) ^ 2 + (vz - c.z) ^ 2 > (span * Hud.MAP_RECENTER) ^ 2) then
+            c = {x = vx, z = vz, zoom = zoom}
+            self.mapCenter = c
+        end
+        center = c
+    end
+    local key = string.format("%.5f%.5f%d%.1f%.1f", plotX, plotY, zoom, center and center.x or 0, center and center.z or 0)
+    if self.plot == nil or self.plot.course ~= course or self.plotBox ~= key then
+        self.plot = Draw.makePlot(course, plotX, plotY, plotW, plotH, zoom, center)
+        self.plotBox = key
+    end
+    Draw.drawPlot(self.plot, vehicle:getGuidanceProgress(), vehicle, self:h(1.6))
+    if self.editing then
+        return
+    end
+    -- zoom: + and - at the bottom right
+    local bs = self:h(22)
+    local bw = bs / g_screenAspectRatio
+    local bx, by = plotX + plotW - 2 * bw - self:w(10), plotY + self:h(6)
+    self.plotShown = true
+    local function zoomTo(ix)
+        return function() self:zoomMap(ix - zoomIx) end
+    end
+    self:button(bx, by, bw, bs, "–", C.chip, C.hover, zoomIx > 1 and C.text or C.muted,
+        zoomIx > 1 and zoomTo(zoomIx - 1) or nil, self:h(14))
+    self:button(bx + bw + self:w(4), by, bw, bs, "+", C.chip, C.hover, zoomIx < #Hud.MAP_ZOOMS and C.text or C.muted,
+        zoomIx < #Hud.MAP_ZOOMS and zoomTo(zoomIx + 1) or nil, self:h(14))
+end
+
+--- Minimised: the header, the progress and the course map; the panel key for the rest
+function Hud:drawMini()
+    local vehicle = self.vehicle
+    local C = Hud.C
+    local m = self:metrics()
+    local course = vehicle:getGuidanceCourse()
+    local _, doneFraction = vehicle:getGuidanceProgress()
+    local progressH = (course and (vehicle:getIsGuidanceActive() or doneFraction > 0)) and self:h(16) or 0
+    local plotH = self:h(Hud.PLOT)
+    local hintH = self:h(22)
+    local buttonsH = self:h(30)
+    local status, statusColor = self:getStatus(vehicle)
+    local x, cy = self:drawFrame(m, progressH + plotH + m.padY * 0.5 + buttonsH + hintH, vehicle:getName(), status,
+        statusColor)
+    if progressH > 0 then
+        cy = cy - progressH
+        self:drawProgress(m, x, cy, progressH, vehicle, course, doneFraction)
+    end
+    cy = cy - plotH
+    local plotX, plotW = x + m.pad, m.width - 2 * m.pad
+    Draw.roundRect(plotX, cy, plotW, plotH, m.smallRadius, C.surface)
+    if course then
+        self:drawCoursePlot(vehicle, course, plotX, cy, plotW, plotH)
+    else
+        self:textIn(plotX + plotW / 2, cy, plotH, m.smallSize, t("guidance_mini_noCourse"), C.muted, RenderText.ALIGN_CENTER)
+    end
+    -- start / pause / stop, as on the whole panel (clicked once Ctrl+J has given the mouse to the panel)
+    cy = cy - m.padY * 0.5 - buttonsH
+    local gap = self:w(8)
+    local half = (plotW - gap) / 2
+    local white = {1, 1, 1, 1}
+    if vehicle:getIsGuidanceActive() then
+        local paused = vehicle:getIsGuidancePaused()
+        self:button(plotX, cy, half, buttonsH, paused and t("guidance_btn_resume") or t("guidance_btn_pause"),
+            paused and C.accent or C.surface, paused and C.accentHover or C.hover, paused and white or C.text,
+            function() vehicle:guidanceSetPaused(not paused) end, m.smallSize)
+        self:button(plotX + half + gap, cy, half, buttonsH, t("guidance_btn_stop"), C.danger, C.dangerHover, white,
+            function() vehicle:guidanceStop() end, m.smallSize)
+    elseif vehicle:getIsHelperDriving() then
+        self:button(plotX, cy, plotW, buttonsH, t("guidance_btn_stopHelper"), C.danger, C.dangerHover, white,
+            function() vehicle:guidanceStopHelper() end, m.smallSize)
+    else
+        self:button(plotX, cy, plotW, buttonsH, t("guidance_btn_start"), course and C.accent or C.pill, C.accentHover,
+            course and white or C.muted, course and function()
+                -- not at the course's field: the whole panel, where it asks (AutoDrive can take it there)
+                local atField, distance = vehicle:guidanceAtCourseField()
+                if atField then
+                    vehicle:guidanceStartStop()
+                    return
+                end
+                local _, markerName = GuidanceVehicle.markerFor(course.plan, course)
+                self.offField = {vehicle = vehicle, distance = distance, marker = markerName, time = g_time or 0}
+                self.view = "vehicle"
+                self:restore()
+            end or nil, m.smallSize)
+    end
+    cy = cy - hintH
+    local hint = self.miniMouse and t("guidance_mini_hintBack") or t("guidance_mini_hint")
+    self:textIn(x + m.width / 2, cy, hintH, m.smallSize, fit(hint, m.smallSize, m.width - 2 * m.pad), C.muted,
+        RenderText.ALIGN_CENTER)
 end
 
 function Hud:drawVehicle()
@@ -1142,8 +1595,15 @@ function Hud:drawVehicle()
     warnH = warnH + shortageH + queueH + toolH + rakeH
     -- the job switch (this vehicle could also be an unloader / bale collector / silo compacter)
     local switchH = self:jobSwitchHeight(vehicle)
+    -- Start pressed away from the course's field: asked whether AutoDrive should take it there
+    local away = self.offField
+    if away and (away.vehicle ~= vehicle or active or course == nil or (g_time or 0) - away.time > Hud.OFF_FIELD_ASK
+            or vehicle:guidanceAtCourseField()) then
+        self.offField, away = nil, nil
+    end
+    local awayH = away and self:h(42) or 0
     local contentH = switchH + progressH + plotH + summaryH + detailsH + warnH + padY * 0.5 + #rows * rowH + moreH + startAtH
-        + padY * 0.5 + buttonsH + messageH
+        + padY * 0.5 + awayH + buttonsH + messageH
 
     local status, statusColor = self:getStatus(vehicle)
     local x, cy = self:drawFrame(m, contentH, vehicle:getName(), status, statusColor)
@@ -1154,19 +1614,7 @@ function Hud:drawVehicle()
     -- progress through the course (once there is some)
     if progressH > 0 then
         cy = cy - progressH
-        local barH = self:h(5)
-        local barY = cy + (progressH - barH) / 2
-        local label = string.format("%d%%", math.floor(doneFraction * 100 + 0.5))
-        if active and doneFraction < 1 then
-            local _, left = self:estimateSeconds(vehicle, course)
-            label = label .. " · " .. t("guidance_progress_left", formatDuration(left))
-        end
-        local barW = width - 2 * pad - Draw.textWidth(smallSize, label) - self:w(10)
-        Draw.roundRect(x + pad, barY, barW, barH, barH / 2, C.track)
-        if doneFraction > 0 then
-            Draw.roundRect(x + pad, barY, math.max(barH, barW * doneFraction), barH, barH / 2, paused and C.warn or C.accent)
-        end
-        self:textIn(x + width - pad, cy, progressH, smallSize, label, C.muted, RenderText.ALIGN_RIGHT)
+        self:drawProgress(m, x, cy, progressH, vehicle, course, doneFraction)
     end
 
     -- course map (or the outline being recorded)
@@ -1179,11 +1627,7 @@ function Hud:drawVehicle()
         self:textIn(plotX + plotW / 2, cy + self:h(4), self:h(22), smallSize,
             t("guidance_record_status", self.recording.length), C.accent, RenderText.ALIGN_CENTER, true)
     elseif course then
-        if self.plot == nil or self.plot.course ~= course or self.plotBox ~= string.format("%.5f%.5f", plotX, cy) then
-            self.plot = Draw.makePlot(course, plotX, cy, plotW, plotH)
-            self.plotBox = string.format("%.5f%.5f", plotX, cy)
-        end
-        Draw.drawPlot(self.plot, vehicle:getGuidanceProgress(), vehicle, self:h(1.6))
+        self:drawCoursePlot(vehicle, course, plotX, cy, plotW, plotH)
         -- the course editor: its own drawing on the map and what a click / drag there does
         if self.editing then
             self:drawEditor(vehicle, self.plot)
@@ -1268,10 +1712,10 @@ function Hud:drawVehicle()
         local entry = GuidanceLibrary.getEntry(queue[1])
         local text = t("guidance_queue_next", entry and entry.name or "?")
         if #queue > 1 then text = text .. " " .. t("guidance_queue_more", #queue - 1) end
-        local clearW = self:w(64)
-        self:textIn(x + pad, cy, queueH, smallSize, fit(text, smallSize, width - 2 * pad - clearW - self:w(8)), C.text)
-        self:button(x + width - pad - clearW, cy + self:h(3), clearW, queueH - self:h(6), t("guidance_queue_clear"),
-            C.chip, C.hover, C.text, function() vehicle:guidanceSetQueue({}) end, smallSize)
+        local manageW = Draw.textWidth(smallSize, t("guidance_queue_manage"), true) + self:w(16)
+        self:textIn(x + pad, cy, queueH, smallSize, fit(text, smallSize, width - 2 * pad - manageW - self:w(8)), C.text)
+        self:button(x + width - pad - manageW, cy + self:h(3), manageW, queueH - self:h(6), t("guidance_queue_manage"),
+            C.chip, C.hover, C.text, function() self.view, self.queuePage = "queue", 1 end, smallSize)
         warnH = warnH - queueH
     end
     if shortageH > 0 then
@@ -1328,6 +1772,15 @@ function Hud:drawVehicle()
         s.startMode or GuidancePlan.START_CONTINUE,
         function(mode) vehicle:guidanceChangeSetting("startMode", mode) end, true, self:w(210))
 
+    -- the question (Start away from the field): what it is, then the buttons below answer it
+    if awayH > 0 then
+        cy = cy - padY * 0.5 - awayH
+        local fieldName = GuidanceLibrary.fieldName(course.plan.fieldId)
+        local text = away.marker and t("guidance_away_go", fieldName, formatDistance(away.distance), away.marker)
+            or t("guidance_away_noMarker", fieldName, formatDistance(away.distance))
+        self:textLines(x + pad, cy, awayH, smallSize, text, width - 2 * pad, C.warn)
+        cy = cy + padY * 0.5
+    end
     -- buttons: new course + start, or pause/resume + stop while working
     cy = cy - padY * 0.5 - buttonsH
     local gap = self:w(10)
@@ -1340,6 +1793,23 @@ function Hud:drawVehicle()
         local enough = self.recording.length >= Hud.RECORD_MIN_LENGTH
         self:button(rightX, cy, half, buttonsH, t("guidance_record_finish"), enough and C.accent or C.pill, C.accentHover,
             enough and white or C.muted, enough and function() self:finishRecording() end or nil)
+    elseif away then
+        -- go there with AutoDrive (or start here anyway), or not
+        self:button(leftX, cy, half, buttonsH, t("guidance_away_cancel"), C.surface, C.hover, C.text,
+            function() self.offField = nil end)
+        if away.marker then
+            self:button(rightX, cy, half, buttonsH, t("guidance_away_goBtn"), C.accent, C.accentHover, white, function()
+                self.offField = nil
+                vehicle:guidanceGoTo(0)
+                self:showMessage(t("guidance_go_sent", GuidanceLibrary.fieldName(course.plan.fieldId)), false)
+            end)
+        else
+            self:button(rightX, cy, half, buttonsH, t("guidance_away_startAnyway"), C.accent, C.accentHover, white,
+                function()
+                    self.offField = nil
+                    vehicle:guidanceStartStop()
+                end)
+        end
     elseif active then
         if paused then
             self:button(leftX, cy, half, buttonsH, t("guidance_btn_resume"), C.accent, C.accentHover, white,
@@ -1367,7 +1837,16 @@ function Hud:drawVehicle()
         else
             local canStart = course ~= nil
             self:button(rightX, cy, half, buttonsH, t("guidance_btn_start"), canStart and C.accent or C.pill,
-                C.accentHover, canStart and white or C.muted, canStart and function() vehicle:guidanceStartStop() end or nil)
+                C.accentHover, canStart and white or C.muted, canStart and function()
+                    -- not at the course's field: ask first (AutoDrive can take it there)
+                    local atField, distance = vehicle:guidanceAtCourseField()
+                    if atField then
+                        vehicle:guidanceStartStop()
+                        return
+                    end
+                    local _, markerName = GuidanceVehicle.markerFor(course.plan, course)
+                    self.offField = {vehicle = vehicle, distance = distance, marker = markerName, time = g_time or 0}
+                end or nil)
         end
     end
 
@@ -1472,11 +1951,79 @@ function Hud:drawHelper(kind)
                 vehicle:guidanceApplySettings({unloadMode = c.mode, unloadX = c.x, unloadZ = c.z})
             end
         end
-        table.insert(rows, {label = t("guidance_set_unloadAt"), value = choices[cur].label, dec = pick(-1), inc = pick(1)})
+        local unloadLabels = {}
+        for i, c in ipairs(choices) do unloadLabels[i] = c.label end
+        table.insert(rows, {label = t("guidance_set_unloadAt"), value = choices[cur].label, dec = pick(-1), inc = pick(1),
+                            options = unloadLabels, current = cur, select = function(i)
+                                local c = choices[i]
+                                vehicle:guidanceApplySettings({unloadMode = c.mode, unloadX = c.x, unloadZ = c.z})
+                            end})
+        -- the one combine it serves (and goes to the field of), or any on the field it starts on
+        local combines = {{key = "", label = t("guidance_unloadCombine_any")}}
+        for _, v in ipairs(GuidanceMap.getFarmVehicles()) do
+            if v ~= vehicle and GuidanceFieldworkDriver.findHarvester(v) then
+                local _, number = GuidanceVehicle.fieldOfVehicle(v)
+                local label = Guidance.vehicleName(v)
+                if number then label = label .. " · " .. t("guidance_unloadCombine_field", number) end
+                combines[#combines + 1] = {key = GuidanceVehicle.vehicleKey(v), label = label}
+            end
+        end
+        local curCombine = 1
+        for i, c in ipairs(combines) do
+            if c.key == (s.unloadCombine or "") then curCombine = i end
+        end
+        if (s.unloadCombine or "") ~= "" and curCombine == 1 then
+            combines[#combines + 1] = {key = s.unloadCombine, label = t("guidance_unloadCombine_gone")}
+            curCombine = #combines
+        end
+        local function pickCombine(step)
+            return function()
+                local c = combines[(curCombine - 1 + step) % #combines + 1]
+                vehicle:guidanceApplySettings({unloadCombine = c.key})
+            end
+        end
+        local combineLabels = {}
+        for i, c in ipairs(combines) do combineLabels[i] = c.label end
+        table.insert(rows, 1, {label = t("guidance_set_unloadCombine"), value = combines[curCombine].label,
+                               dec = pickCombine(-1), inc = pickCombine(1), options = combineLabels, current = curCombine,
+                               select = function(i) vehicle:guidanceApplySettings({unloadCombine = combines[i].key}) end})
         local full = s.unloadFull or 97
         table.insert(rows, {label = t("guidance_set_unloadFull"), value = string.format("%d%%", full),
                             dec = function() vehicle:guidanceApplySettings({unloadFull = math.max(50, full - 5)}) end,
                             inc = function() vehicle:guidanceApplySettings({unloadFull = math.min(100, full + 5)}) end})
+        -- on the field: round standing crop, or straight through it
+        local avoid = s.avoidCrop ~= false
+        local function flip() vehicle:guidanceApplySettings({avoidCrop = not avoid}) end
+        table.insert(rows, {label = t("guidance_set_avoidCrop"),
+                            value = avoid and t("guidance_avoidCrop_on") or t("guidance_avoidCrop_off"),
+                            dec = flip, inc = flip,
+                            options = {t("guidance_avoidCrop_on"), t("guidance_avoidCrop_off")}, current = avoid and 1 or 2,
+                            select = function(i) vehicle:guidanceApplySettings({avoidCrop = i == 1}) end})
+        -- its place under the pipe: out from the combine / in, forward / back (m)
+        local function offsetRow(key, label, step, limit)
+            local value = s[key] or 0
+            local function to(v)
+                return function()
+                    v = math.floor(math.max(-limit, math.min(limit, v)) / step + 0.5) * step
+                    vehicle:guidanceApplySettings({[key] = v})
+                end
+            end
+            table.insert(rows, {label = t(label), value = string.format("%+.2f m", value):gsub("%+0%.00", "0.00"),
+                                dec = to(value - step), inc = to(value + step),
+                                click = value ~= 0 and to(0) or nil})
+        end
+        -- which side of the combine: where its pipe is (measured), or the player's
+        local pipeSide = s.unloadPipeSide or 0
+        local sideNames = {[0] = t("guidance_pipeSide_auto"), t("guidance_pipeSide_left"), t("guidance_pipeSide_right")}
+        local function stepSide(step)
+            return function() vehicle:guidanceApplySettings({unloadPipeSide = (pipeSide + step) % 3}) end
+        end
+        table.insert(rows, {label = t("guidance_set_pipeSide"), value = sideNames[pipeSide] or sideNames[0],
+                            dec = stepSide(-1), inc = stepSide(1),
+                            options = {sideNames[0], sideNames[1], sideNames[2]}, current = pipeSide + 1,
+                            select = function(i) vehicle:guidanceApplySettings({unloadPipeSide = i - 1}) end})
+        offsetRow("unloadSide", "guidance_set_unloadSide", 0.25, 4)
+        offsetRow("unloadAlong", "guidance_set_unloadAlong", 0.5, 8)
     end
 
     local switchH = self:jobSwitchHeight(vehicle)
@@ -1505,7 +2052,8 @@ function Hud:drawHelper(kind)
     self:textIn(x + pad, cy, phaseH, m.textSize, fit(phaseText, m.textSize, width - 2 * pad, true),
         running and C.accent or C.text, nil, true)
     if #rows > 0 then
-        cy = self:drawSettingRows(x, cy, rows, not running)
+        -- (the unloader's: changed while it works too, it takes them at once)
+        cy = self:drawSettingRows(x, cy, rows, not running or kind == "unload")
     end
     -- buttons
     cy = cy - padY - buttonsH
@@ -1525,9 +2073,18 @@ function Hud:drawHelper(kind)
     else
         self:button(x + pad, cy, width - 2 * pad, buttonsH, t("guidance_btn_start"), C.accent, C.accentHover, white,
             function()
-                local ok, err = vehicle:guidanceStartHelper(kind, {unloadX = s.unloadX or 0, unloadZ = s.unloadZ or 0,
-                                                                  fullLevel = (s.unloadFull or 97) / 100,
-                                                                  unloadMode = s.unloadMode or 0})
+                -- an unloader for one combine, away from its field: AutoDrive takes it there and it starts there
+                if kind == "unload" and (s.unloadCombine or "") ~= "" then
+                    local combine = GuidanceVehicle.vehicleByKey(s.unloadCombine)
+                    local outline, number
+                    if combine then outline, number = GuidanceVehicle.fieldOfVehicle(combine) end
+                    if outline and not GuidanceVehicle.isAtField(vehicle, outline) then
+                        vehicle:guidanceGoTo(GuidanceVehicle.GO_UNLOADER)
+                        self:showMessage(t("guidance_unloadGo", Guidance.vehicleName(combine), tostring(number or "?")), false)
+                        return
+                    end
+                end
+                local ok, err = vehicle:guidanceStartHelper(kind, GuidanceVehicle.helperValues(s))
                 if not ok and err then self:showMessage(err, true) end
             end)
     end
@@ -1643,12 +2200,16 @@ function Hud:drawLibrary()
             function()
                 self.view, self.importFiles, self.importPage = "import", Hud.importList(), 1
             end, m.smallSize)
+        local qLabel = t("guidance_queue_open", #vehicle:getGuidanceQueue())
+        local qw = Draw.textWidth(m.smallSize, qLabel, true) + self:w(16)
+        self:button(x + width - pad - qw, cy + (folderH - bh) / 2, qw, bh, qLabel, C.chip, C.hover, C.text,
+            function() self.view, self.queuePage = "queue", 1 end, m.smallSize)
     end
     -- in a folder: back to all fields
     if folder then
         cy = cy - folderH
         local bw, bh = self:w(110), self:h(26)
-        self:button(x + pad, cy + (folderH - bh) / 2, bw, bh, t("guidance_folder_back"), C.chip, C.hover, C.text,
+        self:button(x + pad, cy + (folderH - bh) / 2, bw, bh, "< " .. t("guidance_folder_back"), C.chip, C.hover, C.text,
             function()
                 self.libraryFolder, self.libraryFolderChosen, self.libraryPage = nil, true, 1
             end, m.smallSize)
@@ -1697,6 +2258,11 @@ function Hud:drawLibrary()
                     self.view = "vehicle"
                     self:showMessage(t("guidance_saved_loaded", item.name), false)
                 end or nil},
+                {t("guidance_saved_go"), C.chip, C.hover, function()
+                    vehicle:guidanceGoTo(item.id)
+                    self.view = "vehicle"
+                    self:showMessage(t("guidance_go_sent", item.name), false)
+                end},
                 {t("guidance_saved_queue"), C.chip, C.hover, function()
                     local queue = {}
                     for _, id in ipairs(vehicle:getGuidanceQueue()) do table.insert(queue, id) end
@@ -1757,6 +2323,7 @@ function Hud:drawLibrary()
             here = true
             name = item.name
             line = t("guidance_saved_info", item.area / 10000, formatDuration(item.time), item.plan.workWidth)
+            if (item.plan.adMarker or "") ~= "" then line = line .. " · " .. t("guidance_saved_marker", item.plan.adMarker) end
             self:textIn(x + pad, cy + rowH - self:h(26), self:h(22), m.textSize, fit(name, m.textSize, textW, true), C.text,
                 nil, true)
             self:textIn(x + pad, cy + rowH - self:h(46), self:h(20), m.smallSize, fit(line, m.smallSize, textW), C.muted)
@@ -1937,13 +2504,14 @@ end
 -- player's own defaults (on this PC, for tractors not set up yet)
 -----------------------------------------------------------------------------------------------------------------------
 
-Hud.SETTINGS_PAGE_ONLY = {refillX = true, tramlines = true, minHeadlandWidth = true, teamMode = true, teamSize = true, teamIndex = true, autoResume = true,
+Hud.SETTINGS_PAGE_ONLY = {refillX = true, keepRunning = true, takeOver = true, tramlines = true, minHeadlandWidth = true, teamMode = true, teamSize = true, teamIndex = true, autoResume = true,
                           rowFrom = true, rowTo = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true,
                           lights = true,
-                          lowerLate = true, raiseLate = true, callUnloaderAt = true, toolOffsetX = true, rainWait = true}
+                          lowerLate = true, raiseLate = true, callUnloaderAt = true, toolOffsetX = true, rainWait = true,
+                          adMarker = true}
 Hud.FIELD_ROWS = {headlands = true, rowAngle = true, clockwise = true, headlandsFirst = true, pattern = true,
                   roundedPasses = true}
-Hud.USER_ROWS = {minHeadlandWidth = true, roundedPasses = true, keepLowered = true, lowerLate = true, raiseLate = true,
+Hud.USER_ROWS = {minHeadlandWidth = true, roundedPasses = true, keepLowered = true, keepRunning = true, takeOver = true, lowerLate = true, raiseLate = true,
                  autoResume = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
                  clockwise = true,
                  headlandsFirst = true, pattern = true}
@@ -2020,6 +2588,18 @@ function Hud:getScopeContent(vehicle, scope, editable)
         table.insert(rows, {label = t("guidance_set_panelScale"), value = string.format("%d%%", math.floor(scale * 100 + 0.5)),
                             dec = setScale(math.max(0.7, scale - 0.1)), inc = setScale(math.min(1.5, scale + 0.1)),
                             click = math.abs(scale - 1) > 0.01 and setScale(1) or nil})
+        -- the course lines in the world: on the ground, or up to see them over tall crops
+        local heights = GuidancePrefs.LINE_HEIGHTS
+        local hIx = 1
+        for k, h in ipairs(heights) do
+            if math.abs(h - (GuidancePrefs.lineHeight or heights[1])) < 0.01 then hIx = k end
+        end
+        local function setHeight(k) return function() GuidancePrefs.set("lineHeight", heights[k]) end end
+        local hValue = hIx == 1 and t("guidance_lineHeight_ground")
+            or string.format("%.1f m (%d ft)", heights[hIx], math.floor(heights[hIx] * 3.281 + 0.5))
+        table.insert(rows, {label = t("guidance_set_lineHeight"), value = hValue,
+                            dec = hIx > 1 and setHeight(hIx - 1) or nil,
+                            inc = hIx < #heights and setHeight(hIx + 1) or nil})
         table.insert(rows, {label = t("guidance_set_debugOverlay"), value = onOff(GuidancePrefs.debugOverlay == true),
                             dec = toggle("debugOverlay"), inc = toggle("debugOverlay")})
         -- Precision Farming: automatic (used when installed) or off
@@ -2070,9 +2650,9 @@ Hud.TRACTOR_SECTIONS = {
               headlandsFirst = true, pattern = true, roundedPasses = true, minHeadlandWidth = true, workPart = true,
               rowFrom = true, rowTo = true, rowsPerLand = true, landsSide = true, rowShape = true, tramlines = true,
               edgeObstacles = true},
-    driving = {refillX = true, keepLowered = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
+    driving = {refillX = true, keepLowered = true, keepRunning = true, takeOver = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
                callUnloaderAt = true, rainWait = true, toolOffsetX = true, autoResume = true, lowerLate = true,
-               raiseLate = true},
+               raiseLate = true, adMarker = true},
     team = {teamMode = true, teamSize = true, teamIndex = true},
 }
 
@@ -2490,6 +3070,230 @@ end
 
 Hud.IMPORT_PAGE = 7
 
+-----------------------------------------------------------------------------------------------------------------------
+-- The queue: the saved courses the vehicle works next, in order. Moved up and down, gone to now, taken out, cleared.
+-----------------------------------------------------------------------------------------------------------------------
+
+Hud.QUEUE_PAGE = 5
+Hud.OFF_FIELD_ASK = 30000 -- ms the "not on the field" question stays
+
+function Hud:drawQueue()
+    local vehicle = self.vehicle
+    local C = Hud.C
+    local m = self:metrics()
+    local pad, width = m.pad, m.width
+    local queue = vehicle:getGuidanceQueue()
+    local pages = math.max(1, math.ceil(#queue / Hud.QUEUE_PAGE))
+    self.queuePage = math.max(1, math.min(pages, self.queuePage or 1))
+    local first = (self.queuePage - 1) * Hud.QUEUE_PAGE + 1
+    local shown = math.min(Hud.QUEUE_PAGE, #queue - first + 1)
+    local headH, hintH, rowH = self:h(34), self:h(40), self:h(72)
+    local footH = #queue > 0 and self:h(38) or 0
+    local pagerH = pages > 1 and self:h(30) or 0
+    local messageH = self.message and self:h(24) or 0
+    local total = 0
+    for _, id in ipairs(queue) do
+        local e = GuidanceLibrary.getEntry(id)
+        total = total + (e and e.time or 0)
+    end
+    local x, cy = self:drawFrame(m, headH + hintH + math.max(1, shown) * rowH + footH + pagerH + messageH,
+        t("guidance_queue_title", #queue))
+    -- back to the course; the time it all takes
+    cy = cy - headH
+    local bw, bh = self:w(110), self:h(26)
+    self:button(x + pad, cy + (headH - bh) / 2, bw, bh, "< " .. t("guidance_queue_back"), C.chip, C.hover, C.text,
+        function() self.view = "vehicle" end, m.smallSize)
+    if #queue > 0 then
+        self:textIn(x + width - pad, cy, headH, m.smallSize, t("guidance_queue_total", formatDuration(total)), C.muted,
+            RenderText.ALIGN_RIGHT)
+    end
+    cy = cy - hintH
+    self:textLines(x + pad, cy, hintH, m.smallSize, t("guidance_queue_hint"), width - 2 * pad, C.muted)
+    if #queue == 0 then
+        cy = cy - rowH
+        self:textLines(x + pad, cy, rowH, m.textSize, t("guidance_queue_empty"), width - 2 * pad, C.muted)
+    end
+    local function without(i)
+        local list = {}
+        for k, id in ipairs(queue) do
+            if k ~= i then list[#list + 1] = id end
+        end
+        return list
+    end
+    local function swapped(i, j)
+        local list = {}
+        for k, id in ipairs(queue) do list[k] = id end
+        list[i], list[j] = list[j], list[i]
+        return list
+    end
+    local buttonH = self:h(24)
+    for i = first, first + shown - 1 do
+        local id = queue[i]
+        local entry = GuidanceLibrary.getEntry(id)
+        cy = cy - rowH
+        if i > first then Draw.rect(x + pad, cy + rowH, width - 2 * pad, self:h(1), C.line) end
+        -- "2. Field 6 · sowing", its field, time and AutoDrive marker
+        local name = string.format("%d. %s", i, entry and entry.name or t("guidance_queue_gone"))
+        local parts = {}
+        if entry then
+            parts[#parts + 1] = GuidanceLibrary.fieldName(entry.plan.fieldId)
+            parts[#parts + 1] = formatDuration(entry.time or 0)
+            if (entry.plan.adMarker or "") ~= "" then
+                parts[#parts + 1] = t("guidance_saved_marker", entry.plan.adMarker)
+            end
+        end
+        self:textIn(x + pad, cy + rowH - self:h(25), self:h(20), m.textSize, fit(name, m.textSize, width - 2 * pad, true),
+            C.text, nil, true)
+        self:textIn(x + pad, cy + rowH - self:h(44), self:h(18), m.smallSize,
+            fit(table.concat(parts, " · "), m.smallSize, width - 2 * pad), C.muted)
+        local buttons = {
+            {t("guidance_queue_up"), i > 1 and function() vehicle:guidanceSetQueue(swapped(i, i - 1)) end or nil},
+            {t("guidance_queue_down"), i < #queue and function() vehicle:guidanceSetQueue(swapped(i, i + 1)) end or nil},
+            {t("guidance_saved_go"), entry and function()
+                -- out of the queue, and there now
+                vehicle:guidanceSetQueue(without(i))
+                vehicle:guidanceGoTo(id)
+                self.view = "vehicle"
+                self:showMessage(t("guidance_go_sent", entry.name), false)
+            end or nil},
+            {t("guidance_queue_remove"), function() vehicle:guidanceSetQueue(without(i)) end},
+        }
+        local gap = self:w(5)
+        local w = (width - 2 * pad - gap * (#buttons - 1)) / #buttons
+        for b, btn in ipairs(buttons) do
+            self:button(x + pad + (b - 1) * (w + gap), cy + self:h(5), w, buttonH, btn[1],
+                b == 3 and C.accent or C.chip, b == 3 and C.accentHover or C.hover,
+                btn[2] and (b == 3 and {1, 1, 1, 1} or C.text) or C.muted, btn[2], m.smallSize)
+        end
+    end
+    if footH > 0 then
+        -- all of it out (a second click within 4 s)
+        cy = cy - footH
+        local now = g_time or 0
+        local confirming = self.confirmQueueClear ~= nil and now - self.confirmQueueClear < 4000
+        local cw = self:w(140)
+        self:button(x + width - pad - cw, cy + (footH - bh) / 2, cw, bh,
+            confirming and t("guidance_saved_sure") or t("guidance_queue_clearAll"), confirming and C.danger or C.chip,
+            C.dangerHover, C.text, function()
+                if confirming then
+                    vehicle:guidanceSetQueue({})
+                    self.confirmQueueClear = nil
+                else
+                    self.confirmQueueClear = now
+                end
+            end, m.smallSize)
+    end
+    if pagerH > 0 then
+        cy = cy - pagerH
+        local pw = self:w(70)
+        local by = cy + (pagerH - bh) / 2
+        self:button(x + pad, by, pw, bh, "<", C.chip, C.hover, C.text,
+            self.queuePage > 1 and function() self.queuePage = self.queuePage - 1 end or nil, m.smallSize)
+        self:button(x + width - pad - pw, by, pw, bh, ">", C.chip, C.hover, C.text,
+            self.queuePage < pages and function() self.queuePage = self.queuePage + 1 end or nil, m.smallSize)
+        self:textIn(x + width / 2, cy, pagerH, m.smallSize, string.format("%d / %d", self.queuePage, pages), C.muted,
+            RenderText.ALIGN_CENTER)
+    end
+    if self.message then
+        cy = cy - messageH
+        self:textIn(x + pad, cy, messageH, m.smallSize, fit(self.message, m.smallSize, width - 2 * pad),
+            self.messageIsError and C.danger or C.muted)
+    end
+end
+
+-----------------------------------------------------------------------------------------------------------------------
+-- Help: the ? at the top of the panel. A list of topics, and each topic's page; opened on the topic of where you are.
+-----------------------------------------------------------------------------------------------------------------------
+
+--- The topic for where the panel is: the tab, the helper job
+function Hud:helpTopicFor()
+    local view = self.view or "vehicle"
+    if view == "team" then return "team" end
+    if view == "library" or view == "queue" or view == "import" then return "saved" end
+    if view == "settings" then return "settings" end
+    if view == "fleet" then return "problems" end
+    local vehicle = self.vehicle
+    local kind = vehicle and self.helperKindFor and self:helperKindFor(vehicle)
+    if kind == "unload" then return "harvest" end
+    if kind == "bales" then return "grass" end
+    if kind == "silo" or kind == "shovel" then return "loader" end
+    if vehicle and vehicle.getGuidanceCourse and vehicle:getGuidanceCourse() == nil then return "start" end
+    return "course"
+end
+
+function Hud:openHelp()
+    if self.view == "help" then
+        self.view = self.helpFrom or "vehicle"
+        return
+    end
+    self.helpFrom = self.view or "vehicle"
+    self.helpTopic = GuidanceHelp.index(self:helpTopicFor())
+    self.view = "help"
+end
+
+function Hud:drawHelp()
+    local C = Hud.C
+    local m = self:metrics()
+    local pad, width = m.pad, m.width
+    local topics = GuidanceHelp.topics()
+    local headH = self:h(34)
+    local bw, bh = self:w(110), self:h(26)
+    local topic = self.helpTopic and topics[self.helpTopic]
+    local function back()
+        self.view = self.helpFrom or "vehicle"
+    end
+    if topic == nil then
+        -- the topics
+        local rowH = self:h(30)
+        local x, cy = self:drawFrame(m, headH + math.max(1, #topics) * rowH + self:h(6), t("guidance_help_title"))
+        cy = cy - headH
+        self:button(x + pad, cy + (headH - bh) / 2, bw, bh, "< " .. t("guidance_queue_back"), C.chip, C.hover, C.text, back,
+            m.smallSize)
+        for i, tp in ipairs(topics) do
+            cy = cy - rowH
+            local hover = self:isHover(x + pad, cy, width - 2 * pad, rowH)
+            if hover then Draw.roundRect(x + pad, cy + self:h(2), width - 2 * pad, rowH - self:h(4), self:h(6), C.hover) end
+            self:textIn(x + pad + self:w(8), cy, rowH, m.textSize, tp.title, C.text)
+            self:textIn(x + width - pad - self:w(8), cy, rowH, m.textSize, ">", C.muted, RenderText.ALIGN_RIGHT)
+            self:addElement(x + pad, cy, width - 2 * pad, rowH, function() self.helpTopic = i end)
+        end
+        return
+    end
+    -- a topic: its title and paragraphs, the one before and after
+    local textW = width - 2 * pad
+    local lineH = self:h(17)
+    local gap = self:h(9)
+    local lines, textH = {}, 0
+    for k, p in ipairs(topic.paras) do
+        lines[k] = math.max(1, self:countLines(p, m.smallSize, textW))
+        textH = textH + lines[k] * lineH + gap
+    end
+    local titleH, navH = self:h(30), self:h(40)
+    local x, cy = self:drawFrame(m, headH + titleH + textH + navH, t("guidance_help_title"))
+    cy = cy - headH
+    self:button(x + pad, cy + (headH - bh) / 2, bw, bh, "< " .. t("guidance_help_topics"), C.chip, C.hover, C.text,
+        function() self.helpTopic = nil end, m.smallSize)
+    self:button(x + width - pad - bw, cy + (headH - bh) / 2, bw, bh, t("guidance_queue_back"), C.chip, C.hover, C.text,
+        back, m.smallSize)
+    cy = cy - titleH
+    self:textIn(x + pad, cy, titleH, m.textSize, fit(topic.title, m.textSize, textW, true), C.text, nil, true)
+    for k, p in ipairs(topic.paras) do
+        local h = lines[k] * lineH
+        cy = cy - h
+        self:textLines(x + pad, cy, h, m.smallSize, p, textW, C.text, lines[k])
+        cy = cy - gap
+    end
+    cy = cy - navH
+    local nw = (width - 2 * pad - self:w(6)) / 2
+    local prev, nxt = topics[self.helpTopic - 1], topics[self.helpTopic + 1]
+    self:button(x + pad, cy + (navH - bh) / 2, nw, bh,
+        prev and fit("< " .. prev.title, m.smallSize, nw - self:w(10)) or "", prev and C.chip or C.pill, C.hover, C.text,
+        prev and function() self.helpTopic = self.helpTopic - 1 end or nil, m.smallSize)
+    self:button(x + width - pad - nw, cy + (navH - bh) / 2, nw, bh,
+        nxt and fit(nxt.title .. " >", m.smallSize, nw - self:w(10)) or "", nxt and C.chip or C.pill, C.hover, C.text,
+        nxt and function() self.helpTopic = self.helpTopic + 1 end or nil, m.smallSize)
+end
+
 --- What there is to import: CourseCorrect's course files, then Courseplay's courses of this map
 function Hud.importList()
     local list = GuidanceLibrary.listExports()
@@ -2516,7 +3320,7 @@ function Hud:drawImport()
         t("guidance_import_title", #files))
     cy = cy - headH
     local bw, bh = self:w(110), self:h(26)
-    self:button(x + pad, cy + (headH - bh) / 2, bw, bh, t("guidance_folder_back"), C.chip, C.hover, C.text,
+    self:button(x + pad, cy + (headH - bh) / 2, bw, bh, "< " .. t("guidance_folder_back"), C.chip, C.hover, C.text,
         function() self.view = "library" end, m.smallSize)
     self:button(x + width - pad - bw, cy + (headH - bh) / 2, bw, bh, t("guidance_import_refresh"), C.chip, C.hover, C.text,
         function() self.importFiles = Hud.importList() end, m.smallSize)
@@ -2580,7 +3384,7 @@ Hud.ALERT_MAX = 5
 Hud.ALERT_WIDTH = 290
 -- what a status means: how bad (1 the worst), its colour
 Hud.ALERT_KINDS = {
-    IS_STUCK = {1, "danger"}, FUEL_IS_EMPTY = {1, "danger"},
+    IS_STUCK = {1, "danger"}, FUEL_IS_EMPTY = {1, "danger"}, NO_UNLOADER = {1, "danger"},
     NEEDS_UNLOADING = {2, "warn"}, NEEDS_FILLING = {2, "warn"}, NEXT_FIELD_WAITING = {2, "warn"},
     GIVING_WAY = {3, "warn"}, FUEL_IS_LOW = {3, "warn"}, WAITING_RAIN = {3, "warn"},
     FINISHED = {4, "accent"},
@@ -2935,4 +3739,25 @@ function Hud:drawEditor(vehicle, plot)
             end
         end
     end
+end
+
+--- Is the mouse wheel ours now (over the open panel with the mouse ours, or a list open)? Then the camera doesn't zoom
+function Hud:wantsWheel()
+    if not self.isOpen or (self.minimized and not g_inputBinding:getShowMouseCursor()) then
+        return false
+    end
+    if self.dropdown then return true end
+    local b = self.box
+    return b ~= nil and self.mouseX ~= nil and self:isHover(b.x, b.y, b.w, b.h)
+end
+
+-- the vehicle camera's zoom (the mouse wheel): not while the wheel scrolls a list or zooms our map
+if VehicleCamera ~= nil and VehicleCamera.zoomSmoothly ~= nil and Utils ~= nil and Utils.overwrittenFunction ~= nil then
+    VehicleCamera.zoomSmoothly = Utils.overwrittenFunction(VehicleCamera.zoomSmoothly, function(camera, superFunc, ...)
+        local hud = Guidance and Guidance.hud
+        if hud and hud.wantsWheel and hud:wantsWheel() then
+            return
+        end
+        return superFunc(camera, ...)
+    end)
 end

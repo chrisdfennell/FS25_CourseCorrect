@@ -53,6 +53,29 @@ def main():
         good = not problems
         ok = ok and good
         print(f"{lang}: {len(tr)} texts{'' if good else ', ' + '; '.join(problems[:6])}: {'OK' if good else 'FAILED'}")
+    # the help (help/help_<language>.xml): English complete, every other one with the same topics, none empty
+    import xml.etree.ElementTree as ET
+    help_dir = Path(__file__).resolve().parent.parent / "help"
+
+    def topics(path):
+        root = ET.parse(path).getroot()
+        return {tp.get("id"): (tp.get("title") or "", [(p.text or "").strip() for p in tp.findall("p")])
+                for tp in root.findall("topic")}
+    en_help = topics(help_dir / "help_en.xml")
+    for path in sorted(help_dir.glob("help_*.xml")):
+        problems = []
+        try:
+            tp = topics(path)
+        except ET.ParseError as e:
+            tp, problems = {}, [f"not readable: {e}"]
+        if list(tp) != list(en_help) and not problems:
+            problems.append(f"topics {list(tp)} vs English {list(en_help)}")
+        for tid, (title, paras) in tp.items():
+            if not title or not paras or any(not p for p in paras):
+                problems.append(f"{tid}: empty title or paragraph")
+        good = not problems
+        ok = ok and good
+        print(f"{path.name}: {len(tp)} topics{'' if good else ', ' + '; '.join(problems[:4])}: {'OK' if good else 'FAILED'}")
     print("OK" if ok else "FAILED")
     sys.exit(0 if ok else 1)
 

@@ -118,6 +118,19 @@ function checkGiveWay()
     results.moving = speedWith(vehicle(12, 0, {speed = 10})) == 0
     results.parked = speedWith(vehicle(12, 0, {})) == 12
     results.autodrive = speedWith(vehicle(12, 0, {ai = true, speed = 10, autodrive = true})) == 12
+    -- AutoDrive's standing in our way (done unloading us, we turn): waited for, for AD_WAIT, then on
+    local adStanding = vehicle(12, 0, {ai = true, speed = 0, autodrive = true})
+    local t0 = g_time or 0
+    local first = speedWith(adStanding)
+    g_time = t0 + GuidanceFieldworkDriver.AD_WAIT - 1000
+    local still = speedWith(adStanding)
+    g_time = t0 + GuidanceFieldworkDriver.AD_WAIT + 1000
+    speedWith(adStanding)
+    -- (the frame after: on)
+    local after = speedWith(adStanding)
+    results.autodriveStanding = first == 0 and still == 0 and after == 12
+    driver.adIgnored, driver.adBlock = nil, nil
+    g_time = t0
     g_currentMission.playerSystem = {players = {{getCurrentVehicle = function() return nil end,
                                                  getPosition = function() return 10, 0, 0.5 end}}}
     results.onFoot = speedWith(vehicle(200, 0, {})) == 0
@@ -151,7 +164,7 @@ def main():
                 ok = ok and bool(good)
     results = lua.globals().checkGiveWay()
     for name in ("farAhead", "slowing", "stops", "besides", "behind", "mutual", "driven", "otherHelper", "moving",
-                 "parked", "autodrive", "onFoot"):
+                 "parked", "autodrive", "autodriveStanding", "onFoot"):
         good = bool(results[name])
         print(f"give way, {name}: {'OK' if good else 'FAILED'}")
         ok = ok and good

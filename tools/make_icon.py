@@ -4,6 +4,7 @@ no alpha channel).
 Usage:
     python make_icon.py <out.dds> [preview.png]
 """
+import math
 import struct
 import sys
 
@@ -49,18 +50,24 @@ def draw_icon():
     line = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     ld = ImageDraw.Draw(line)
 
+    # one continuous line: each row, then a half circle to the next one, so turns and rows meet exactly (a thick
+    # arc on its own sits half its width inside its box and leaves a step where it meets the row)
+    points = []
+    for i in range(0, len(path) - 1, 2):
+        points += [path[i], path[i + 1]]
+        if i + 2 < len(path):
+            (x1, y1), (x2, _) = path[i + 1], path[i + 2]
+            r, cx = abs(x2 - x1) / 2, (x1 + x2) / 2
+            bulge = -1 if y1 == top else 1
+            for k in range(1, 40):
+                a = math.pi * k / 40
+                points.append((cx - math.cos(a) * r * (1 if x2 > x1 else -1), y1 + bulge * math.sin(a) * r))
+
     def stroke(drawer, width, color):
-        for i in range(0, len(path) - 1, 2):
-            drawer.line([path[i], path[i + 1]], fill=color, width=width)
-        for i in range(1, len(path) - 1, 2):
-            (x1, y1), (x2, _) = path[i], path[i + 1]
-            r = abs(x2 - x1) / 2
-            cx = (x1 + x2) / 2
-            box = [cx - r, y1 - r, cx + r, y1 + r]
-            if y1 == top:
-                drawer.arc(box, 180, 360, fill=color, width=width)
-            else:
-                drawer.arc(box, 0, 180, fill=color, width=width)
+        drawer.line(points, fill=color, width=width, joint="curve")
+        # (round ends)
+        for px, py in (points[0], points[-1]):
+            drawer.ellipse([px - width / 2, py - width / 2, px + width / 2, py + width / 2], fill=color)
 
     stroke(g, 46, (120, 230, 255, 160))
     glow = glow.filter(ImageFilter.GaussianBlur(18))

@@ -33,11 +33,31 @@ function Base.offsetIn(vehicle, node)
     return x, z
 end
 
+Base.TOWED_RADIUS = 0.75 -- turning radius per metre of trailer pulled: tighter, a long semi-trailer cuts in and
+-- the truck jackknifes
+Base.MAX_RADIUS = 15
+
+--- The radius its ways are planned with: the vehicle's own, wider for what it pulls (a truck's 12 m semi-trailer:
+--- 9 m, not the cab's 4.4 m)
+function Base.turnRadiusOf(vehicle, info)
+    local towed = 0
+    for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {}) do
+        if v ~= vehicle and v.size and v.size.length and (v.spec_trailer or v.spec_attachable) then
+            towed = towed + v.size.length
+        end
+    end
+    return math.min(Base.MAX_RADIUS, math.max(info.turnRadius or 6, towed * Base.TOWED_RADIUS))
+end
+
 function Base.init(self, vehicle)
     self.vehicle = vehicle
     self.info = GuidanceVehicleInfo.get(vehicle)
+    self.turnRadius = Base.turnRadiusOf(vehicle, self.info)
     -- (what other helpers' giving way looks at)
-    self.course = {plan = {workWidth = math.max(2.5, self.info.workWidth or 3)}}
+    -- (its width for giving way and its ways: as wide as it is, its measured work width at most a metre more; a
+    -- trailer mod's markers made a truck "10 m wide")
+    local physical = GuidanceUnloadDriver.widthOf(vehicle)
+    self.course = {plan = {workWidth = math.max(2.5, math.min(self.info.workWidth or physical, physical + 1))}}
     self.stuckTimer = 0
     self.timer = 0
     local x, z, h = Base.poseOf(vehicle)
@@ -71,18 +91,48 @@ end
 --- way would cross it. Then followed.
 function Base:planTo(tx, tz, th, straight)
     local x, z, h = Base.poseOf(self.vehicle)
-    local r = self.info.turnRadius or 6
+    local r = self.turnRadius or self.info.turnRadius or 6
     straight = straight or 0
     local to = {x = tx - math.cos(th) * straight, y = tz - math.sin(th) * straight, h = th}
     local from = {x = x, y = z, h = h}
-    local path = GuidanceDubins.shortest(from, to, r)
-    local pts = path and GuidanceDubins.sample(from, path, r, 1.5) or {{x = to.x, y = to.y}}
-    if self.area and self.probe then
-        local fruit = GuidancePathfinder.fruitLength(self.probe, from, pts)
+    -- round standing crop (not when the unloader is set to drive straight through it) and round the combine it
+    -- serves (a way through it drove into it): checked as wide as we are (a turning truck and trailer sweep wide)
+    local probe = self:wayProbe()
+    if probe then
+        -- (each spot asked once per plan: the game's crop queries are slow, a plan asks thousands of them and froze
+        -- the server for a third of a second)
+        local inner, wide, cell = probe, self.course.plan.workWidth + 1, Base.PROBE_CELL
+        local memo = {}
+        probe = {fruitIndexes = {1}}
+        function probe:hasFruit(px, pz, size)
+            local key = math.floor(px / cell) * 100003 + math.floor(pz / cell)
+            local known = memo[key]
+            if known == nil then
+                known = inner:hasFruit(px, pz, math.max(size or 2, wide))
+                memo[key] = known
+            end
+            return known
+        end
+    end
+    -- of the ways to turn, the one through the least crop (the shortest may turn into it: a truck turning back after
+    -- unloading swung into the standing cane and jackknifed), shorter on a par; the others only looked at when the
+    -- shortest goes through crop
+    local path, pts
+    local best
+    for k, candidate in ipairs(GuidanceDubins.allPaths(from, to, r)) do
+        local cPts = GuidanceDubins.sample(from, candidate, r, 1.5)
+        local crop = probe and GuidancePathfinder.fruitLength(probe, from, cPts) or 0
+        local cost = candidate.length + 10 * crop
+        if best == nil or cost < best then best, path, pts = cost, candidate, cPts end
+        if probe == nil or (k == 1 and crop <= 5) then break end
+    end
+    pts = pts or {{x = to.x, y = to.y}}
+    if self.area and probe then
+        local fruit = GuidancePathfinder.fruitLength(probe, from, pts)
         if fruit > 5 then
             local around = GuidancePathfinder.find(self.area, {workWidth = self.course.plan.workWidth, turnRadius = r},
-                from, to, self.probe)
-            local aroundFruit = around and GuidancePathfinder.fruitLength(self.probe, from, around)
+                from, to, probe)
+            local aroundFruit = around and GuidancePathfinder.fruitLength(probe, from, around)
             if around and aroundFruit < fruit - 5 then pts = around end
         end
     end
@@ -101,6 +151,81 @@ function Base:planTo(tx, tz, th, straight)
     end
     self.follower = GuidancePathFollower.new(list)
 end
+
+Base.KEEP_OFF = 0.5 -- m our side keeps off the combine we drive round (less than Unload.CLEAR: its place stays outside)
+
+--- What a way must keep out of: standing crop (unless the unloader is set to drive through it) and the combine it
+--- serves (its body and header, as wide as we are on top), as a probe for the path finder (hasFruit), or nil
+function Base:wayProbe(combineOnly)
+    local crop = self.probe
+    if combineOnly or (self.job and self.job.avoidCrop == false) then crop = nil end
+    local combine = self.combine or self.avoidCombine
+    if combine == nil or combine.isDeleted or combine.rootNode == nil then
+        return crop
+    end
+    local cx, cz, ch = Base.poseOf(combine)
+    local fx, fz = math.cos(ch), math.sin(ch)
+    -- (for a way to it: its header too, KEEP_OFF on top; whether it is right ahead of us: its body, less than the
+    -- CLEAR its place keeps, so our place beside it stays outside)
+    local combineWidth = combineOnly and (combine.size and combine.size.width or 3)
+        or GuidanceUnloadDriver.widthOf(combine, self.combineDriver)
+    local half = combineWidth / 2 + GuidanceUnloadDriver.widthOf(self.vehicle) / 2 + (combineOnly and 0.3 or Base.KEEP_OFF)
+    local len = 0
+    for _, v in ipairs(combine.getChildVehicles and combine:getChildVehicles() or {combine}) do
+        if v.size and v.size.length then len = len + v.size.length end
+    end
+    len = math.max(len, 8)
+    local probe = {fruitIndexes = {1}}
+    function probe:hasFruit(x, z, size)
+        local along = (x - cx) * fx + (z - cz) * fz
+        local lateral = math.abs((x - cx) * fz - (z - cz) * fx)
+        if lateral < half and along > -len / 2 - 2 and along < len / 2 + 2 then return true end
+        return crop ~= nil and crop:hasFruit(x, z, size) or false
+    end
+    return probe
+end
+
+--- How far a trailer we pull is folded against us (rad, the most of them; 0 straight behind)
+function Base:articulation()
+    local _, _, h = Base.poseOf(self.vehicle)
+    local most = 0
+    for _, v in ipairs(self.vehicle.getChildVehicles and self.vehicle:getChildVehicles() or {}) do
+        if v ~= self.vehicle and v.rootNode and (v.spec_trailer or v.spec_attachable) then
+            local ok, dx, _, dz = Guidance.try(localDirectionToWorld, v.rootNode, 0, 0, 1)
+            if ok and dx then
+                local a = math.abs((math.atan2(dz, dx) - h + math.pi) % (2 * math.pi) - math.pi)
+                most = math.max(most, a)
+            end
+        end
+    end
+    return most
+end
+
+Base.AHEAD_CHECK = {2, 4, 6, 8} -- m ahead of our steering point the combine we serve must not be (our front, a bit more)
+
+--- Is the combine we serve right in front of us (its body or header, as wide as we are on top)?
+function Base:combineAhead(x, z, h, follower)
+    if self.combine == nil and self.avoidCombine == nil then return false end
+    local probe = self:wayProbe(true)
+    if probe == nil then return false end
+    -- along the way we are about to drive (it may turn off), else straight ahead
+    if follower and follower.points and follower.ix then
+        local pts, s = follower.points, follower.s or 0
+        local last = Base.AHEAD_CHECK[#Base.AHEAD_CHECK]
+        for k = follower.ix, #pts do
+            local pt = pts[k]
+            if pt.d > s + last then break end
+            if pt.d >= s + Base.AHEAD_CHECK[1] and probe:hasFruit(pt.x, pt.z, 1) then return true end
+        end
+        return false
+    end
+    for _, d in ipairs(Base.AHEAD_CHECK) do
+        if probe:hasFruit(x + math.cos(h) * d, z + math.sin(h) * d, 1) then return true end
+    end
+    return false
+end
+
+Base.PROBE_CELL = 2 -- m: the crop / combine answers of one plan are remembered per square this size
 
 --- Points to follow as they are (list of {x, z, rev})
 function Base:followPoints(pts)
@@ -137,6 +262,15 @@ function Base:drivePath(dt, maxSpeed, ignore)
         speed = math.min(speed, math.max(1.5, 3.6 * math.sqrt(2 * 0.6 * toCusp)))
     end
     speed = math.min(speed, 3.6 * math.sqrt(2 * 0.8 * f:getRemaining()) + 1)
+    -- never into the combine we serve or have just left (a stopped one isn't in anyone's way otherwise: parked)
+    if not reversing and self:combineAhead(x, z, h, f) then
+        speed = 0
+        self.stopReason = "a combine right in front of us"
+        self.aheadTime = (self.aheadTime or 0) + dt
+    else
+        self.aheadTime = 0
+        if speed > 1 and self.vehicle:getLastSpeed() > 2 then self.aheadReplans = 0 end
+    end
     self.ignoreForGiveWay = ignore
     speed = self:giveWay(dt, speed, x, z, h, reversing)
     self.ignoreForGiveWay = nil
@@ -186,6 +320,9 @@ Unload.FOLLOW_GAIN = 1.8 -- km/h faster per metre it is behind its place
 Unload.LOST = 30 -- m from its place: back to approaching
 Unload.REPLAN = 6000 -- ms between new ways while approaching a moving combine
 Unload.PIPE_DEFAULT = 7.5 -- m sideways the pipe is assumed out before it can be measured
+Unload.CLEAR_GAP = 20 -- m the combine just emptied pulls away from us before we drive off (it doesn't stop for us)
+Unload.CLEAR_TIME = 20000 -- ms at most we wait for that
+Unload.WAIT_NEAR = 15 -- m from the place it waits at: there already
 -- the combine each unloader serves (two never serve the same one)
 Unload.serving = {}
 
@@ -207,12 +344,32 @@ function Unload:fillTargets()
                 local node = (v.getFillUnitAutoAimTargetNode and v:getFillUnitAutoAimTargetNode(ix))
                     or (v.getFillUnitExactFillRootNode and v:getFillUnitExactFillRootNode(ix))
                 if node and v:getFillUnitCapacity(ix) > 0 then
-                    out[#out + 1] = {vehicle = v, fillUnitIndex = ix, node = node}
+                    out[#out + 1] = {vehicle = v, fillUnitIndex = ix, node = Unload.checkedFillNode(v, node)}
                 end
             end
         end
     end
     return out
+end
+
+--- A trailer's fill point, if it is on the trailer; one well outside it (a mod's, 8 m to the side of the truck: it
+--- lined that up under the pipe and the trailer stood 8 m away) gives way to the trailer's middle
+function Unload.checkedFillNode(v, node)
+    if v.rootNode == nil or v.size == nil then return node end
+    local ok, lx, _, lz = Guidance.try(localToLocal, node, v.rootNode, 0, 0, 0)
+    if not ok or lx == nil then return node end
+    local halfW = (v.size.width or 3) / 2 + 0.5
+    local halfL = (v.size.length or 10) / 2 + 1
+    if math.abs(lx) <= halfW and math.abs(lz - (v.size.lengthOffset or 0)) <= halfL then
+        return node
+    end
+    Unload.badFillLogged = Unload.badFillLogged or {}
+    if not Unload.badFillLogged[v] then
+        Unload.badFillLogged[v] = true
+        Guidance.info("%s: its fill point is %.1f m to the side, %.1f m along, off the trailer: using its middle",
+            Guidance.vehicleName(v), lx, lz)
+    end
+    return v.rootNode
 end
 
 --- How full the trailers are (0..1), and the fill node to put under the pipe (the first with room)
@@ -251,12 +408,20 @@ function Unload:pickCombine()
         if harvester and v.rootNode then
             local x, z = Base.poseOf(v)
             local other = Unload.serving[v]
-            if (other == nil or other == self) and (self.field == nil or self:isOnField(x, z)) then
+            -- the one combine picked for us (wherever it works), else any on our field
+            local wanted = self.job and self.job.unloadCombine or ""
+            local mine = wanted == "" or GuidanceVehicle.vehicleKey(v) == wanted
+            if mine and (other == nil or other == self)
+                    and (wanted ~= "" or self.field == nil or self:isOnField(x, z)) then
                 local level = combineLevel(harvester)
                 local od = v.spec_guidance and v.spec_guidance.driver
                 local call = Unload.CALL_LEVEL
                 if od and od.course and od.course.plan then call = (od.course.plan.callUnloaderAt or 80) / 100 end
-                local waiting = od and od.isWaitingForUnload and od:isWaitingForUnload()
+                -- (one held up by us standing in its way, e.g. waiting on its headland pass: it calls us now, we
+                -- take what it has and both go on; else both would wait for ever)
+                local waiting = (od and od.isWaitingForUnload and od:isWaitingForUnload())
+                    or (od and od.wantsUnloader and level > 0.03)
+                    or (od and od.blockedBy == self.vehicle)
                 -- a forage harvester calls all the time it works (it can't work without a trailer)
                 if Unload.isChopper(harvester) then
                     local working = (od and od.state == GuidanceFieldworkDriver.STATE_DRIVING)
@@ -338,6 +503,69 @@ function Unload:pipePoint(combine)
     return cx + lx * left + math.cos(ch) * ahead, cz + lz * left + math.sin(ch) * ahead, ch
 end
 
+Unload.AHEAD_REPLAN = 3000 -- ms held up by a combine right in front of us before a new way round it (doubled each
+-- time, at most 8 times as long)
+
+function Unload:aheadReplanAfter()
+    return Unload.AHEAD_REPLAN * 2 ^ math.min(3, self.aheadReplans or 0)
+end
+Unload.STRAIGHT = 0.35 -- rad: a trailer folded against us more than this isn't lined up yet
+Unload.STRAIGHTEN_LENGTH = 25 -- m driven out straight to straighten a folded trailer
+Unload.STRAIGHTEN_SPEED = 6 -- km/h
+Unload.STRAIGHTEN_TURNS = {0, 0.5, -0.5, 1.0, -1.0} -- rad off our heading tried for that, in this order
+Unload.STRAIGHTEN_MIN = 12 -- m: a shorter clear stretch is no use
+Unload.STRAIGHTEN_MAX = 3 -- times per combine served
+Unload.STRAIGHTEN_NEAR = 30 -- m from its place: farther, a way in straightens the trailer on its own
+
+--- The trailer folded next to a standing combine: a straight stretch out, the first heading clear of the combine, the
+--- crop (if we go round it) and the field's edge. True when under way (state straighten)
+function Unload:startStraighten()
+    if (self.straightens or 0) >= Unload.STRAIGHTEN_MAX then return false end
+    local x, z, h = Base.poseOf(self.vehicle)
+    local combineProbe = self:wayProbe(true)
+    local crop = not (self.job and self.job.avoidCrop == false) and self.probe or nil
+    -- (the first heading clear all the way, else the one clear the longest, if long enough)
+    local best, bestTurn
+    for _, turn in ipairs(Unload.STRAIGHTEN_TURNS) do
+        local hh = h + turn
+        local pts = {{x = x, z = z}}
+        for d = 2, Unload.STRAIGHTEN_LENGTH, 2 do
+            local px, pz = x + math.cos(hh) * d, z + math.sin(hh) * d
+            if (combineProbe and combineProbe:hasFruit(px, pz, 1)) or (crop and crop:hasFruit(px, pz, 3))
+                    or (self.field and not self:isOnField(px, pz)) then
+                break
+            end
+            pts[#pts + 1] = {x = px, z = pz}
+        end
+        if best == nil or #pts > #best then best, bestTurn = pts, turn end
+        if (#pts - 1) * 2 >= Unload.STRAIGHTEN_LENGTH then break end
+    end
+    if best == nil or (#best - 1) * 2 < Unload.STRAIGHTEN_MIN then return false end
+    self.straightens = (self.straightens or 0) + 1
+    self:followPoints(best)
+    self.state = "straighten"
+    Guidance.debug("%s: trailer folded %.0f deg: out straight first, %.0f m, %.0f deg off our way",
+        Guidance.vehicleName(self.vehicle), math.deg(self:articulation()), (#best - 1) * 2, math.deg(bestTurn))
+    return true
+end
+Unload.LATERAL_OFF = 2.5 -- m to the side of our place, following a standing combine: a new way in
+Unload.ALIGNED = 0.5 -- rad: pointing the combine's way enough to follow it
+Unload.MISALIGNED = 0.9 -- rad: following, this far off its way: a new way in instead
+Unload.CLEAR = 0.6 -- m at least between our side and the combine's widest part (its header) beside it
+
+--- How wide a vehicle is with what it carries and pulls (a combine with its header): m; for a combine our driver
+--- works, at least its work width
+function Unload.widthOf(vehicle, driver)
+    local w = 2.5
+    for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {vehicle}) do
+        if v.size and v.size.width then w = math.max(w, v.size.width) end
+    end
+    if driver and driver.course and driver.course.plan and driver.course.plan.workWidth then
+        w = math.max(w, driver.course.plan.workWidth)
+    end
+    return w
+end
+
 --- Where the tractor must be for its fill node to be under the pipe: x, z, heading
 function Unload:placeUnderPipe(combine, node)
     local left, ahead = 0, -4
@@ -345,10 +573,88 @@ function Unload:placeUnderPipe(combine, node)
     self.fillAhead = ahead
     local px, pz, ch = self:pipePoint(combine)
     local lx, lz = leftOf(ch)
+    -- the player's offsets (Side offset: further out from the combine, + / closer in, -; Front/back: further
+    -- forward, + / back, -), taken as they are changed
+    local job = self.job
+    local sideOff, alongOff = job and job.unloadSide or 0, job and job.unloadAlong or 0
+    local cx, cz = Base.poseOf(combine)
+    local away = ((px - cx) * lx + (pz - cz) * lz) >= 0 and 1 or -1
+    -- the player's Pipe side (Left / Right; Auto: where it is measured): the place mirrored to that side
+    local forced = job and job.unloadPipeSide
+    if forced == 1 or forced == 2 then
+        local wanted = forced == 1 and 1 or -1
+        if wanted ~= away then
+            local lat = (px - cx) * lx + (pz - cz) * lz
+            px, pz = px - 2 * lat * lx, pz - 2 * lat * lz
+            away = wanted
+        end
+    end
+    if sideOff ~= 0 or alongOff ~= 0 then
+        px = px + lx * sideOff * away + math.cos(ch) * alongOff
+        pz = pz + lz * sideOff * away + math.sin(ch) * alongOff
+    end
+    -- never so close in that we touch it: our side at least CLEAR from its body, a short pipe or a negative side
+    -- offset notwithstanding (the truck's cab drove into a sugarcane harvester). Its body, not its header: kept clear
+    -- of a 5.5 m header the trailer was out of the short pipe's reach (the way in keeps clear of the header)
+    if not Unload.isChopper(GuidanceFieldworkDriver.findHarvester(combine)) then
+        local lateral = ((px - cx) * lx + (pz - cz) * lz) * away
+        local body = combine.size and combine.size.width or 3
+        local minLateral = body / 2 + Unload.widthOf(self.vehicle) / 2 + Unload.CLEAR
+        if lateral < minLateral then
+            px, pz = px + lx * (minLateral - lateral) * away, pz + lz * (minLateral - lateral) * away
+        end
+    end
     return px - math.cos(ch) * ahead - lx * left, pz - math.sin(ch) * ahead - lz * left, ch
 end
 
+--- A combine without our driver at work (stopped, stopped itself full, the player's): its pipe opened and the flow
+--- into our trailer started by us; folded again when we leave it (closeOpenedPipe)
+function Unload:runCombinePipe(harvester, here)
+    local spec = harvester and harvester.spec_pipe
+    if spec == nil then return end
+    if harvester.raiseActive then harvester:raiseActive() end
+    -- (the game won't move the pipe of a harvester whose engine is off)
+    local root = harvester.getRootVehicle and harvester:getRootVehicle() or harvester
+    if MotorState and root.getMotorState and root.startMotor and root:getMotorState() == MotorState.OFF then
+        Guidance.try(root.startMotor, root)
+    end
+    if spec.numStates and spec.numStates > 1 and spec.currentState ~= 2 and spec.targetState ~= 2
+            and (harvester.getIsPipeStateChangeAllowed == nil or harvester:getIsPipeStateChangeAllowed(2)) then
+        Guidance.try(harvester.setPipeState, harvester, 2)
+        self.openedPipe = harvester
+    end
+    if not here then return end
+    spec.automaticDischarge = true
+    if Dischargeable and harvester.getDischargeState and harvester.setDischargeState
+            and harvester:getDischargeState() ~= Dischargeable.DISCHARGE_STATE_OBJECT then
+        local ok, can = Guidance.try(function()
+            return harvester:getCanDischargeToObject(harvester:getCurrentDischargeNode())
+        end)
+        if ok and can then Guidance.try(harvester.setDischargeState, harvester, Dischargeable.DISCHARGE_STATE_OBJECT) end
+    end
+end
+
+function Unload:closeOpenedPipe()
+    local h = self.openedPipe
+    self.openedPipe = nil
+    if h == nil or h.isDeleted or h.spec_pipe == nil then return end
+    if Dischargeable and h.setDischargeState then
+        Guidance.try(h.setDischargeState, h, Dischargeable.DISCHARGE_STATE_OFF)
+    end
+    if h.spec_pipe.currentState == 2 and (h.getIsPipeStateChangeAllowed == nil or h:getIsPipeStateChangeAllowed(1)) then
+        Guidance.try(h.setPipeState, h, 1)
+    end
+end
+
 function Unload:setServing(combine)
+    if self.openedPipe and self.openedPipe ~= combine and self.openedPipe ~= GuidanceFieldworkDriver.findHarvester(combine or {}) then
+        self:closeOpenedPipe()
+    end
+    self.leftCombine = nil
+    -- (the one we leave: our ways still go round it and we never drive into it, it may stand right by us)
+    if combine == nil and self.combine ~= nil then self.avoidCombine = self.combine end
+    if combine ~= nil then self.avoidCombine = nil end
+    if combine ~= self.combine then self.straightens = 0 end
     for v, d in pairs(Unload.serving) do
         if d == self then Unload.serving[v] = nil end
     end
@@ -357,16 +663,16 @@ function Unload:setServing(combine)
     local od = combine and combine.spec_guidance and combine.spec_guidance.driver
     if self.combineDriver and self.combineDriver ~= od then self.combineDriver.unloader = nil end
     self.combineDriver = od
-    if od then od.unloader = self end
+    if od then od.unloader, od.wantsUnloader = self, nil end
 end
 
 function Unload:delete()
     self:setServing(nil)
 end
 
-local UNLOAD_PHASES = {wait = "unloadWait", approach = "unloadDrive", follow = "unloadFollow", leave = "unloadLeave",
+local UNLOAD_PHASES = {wait = "unloadWait", approach = "unloadDrive", straighten = "unloadDrive", follow = "unloadFollow", leave = "unloadLeave",
                        home = "unloadTrip", toTruck = "unloadToTruck", overload = "unloadOverload", toHeap = "unloadToHeap",
-                       heap = "unloadHeap"}
+                       heap = "unloadHeap", clear = "unloadClear", toWait = "unloadReturn"}
 
 function Unload:getDriveData(dt, vX, vY, vZ)
     self.timer = self.timer + dt
@@ -381,28 +687,66 @@ function Unload:getDriveData(dt, vX, vY, vZ)
     local unloading = self.state == "leave" or self.state == "home" or self.state == "toTruck" or self.state == "overload"
         or self.state == "toHeap" or self.state == "heap"
     if not unloading and (level >= self.leaveLevel or node == nil) then
-        -- full: out of the way, to where it started (the field edge), then on the road or stop
+        -- full: out of the way, to where it started (the field edge), then on the road or stop; a combine still
+        -- with grain calls the next unloader straight away
+        local od, combine = self.combineDriver, self.combine
+        local harvester = combine and GuidanceFieldworkDriver.findHarvester(combine)
+        if od and harvester and not Unload.isChopper(harvester) and combineLevel(harvester) > 0.03 then
+            od.wantsUnloader = true
+        end
         self:setServing(nil)
         self.state = "leave"
         self:planTo(self.home.x, self.home.z, self.home.h + math.pi, 6)
     end
     if self.state == "wait" then
-        if self.timer > 1000 then
-            self.timer = 0
-            local combine = self:pickCombine()
-            if combine then
-                self:setServing(combine)
-                self.state = "approach"
-                self.planTimer = math.huge
-            end
-        end
+        self:checkCalls()
         vehicle:guidanceSetInfoText("NEEDS_UNLOADING", false)
         return self:standStill()
+    elseif self.state == "clear" then
+        -- the combine we've just emptied pulls away first (it doesn't stop for us meanwhile), then back to our place
+        local combine = self.leftCombine
+        local x, z = Base.poseOf(vehicle)
+        local away = combine == nil or combine.isDeleted or combine.rootNode == nil
+        if not away then
+            local cx, cz = Base.poseOf(combine)
+            away = dist(x, z, cx, cz) > Unload.CLEAR_GAP
+        end
+        self.clearTimer = (self.clearTimer or 0) + dt
+        if away or self.clearTimer > Unload.CLEAR_TIME then
+            self.leftCombine, self.clearTimer = nil, 0
+            if dist(x, z, self.home.x, self.home.z) < Unload.WAIT_NEAR then
+                self.state = "wait"
+            else
+                self.state = "toWait"
+                self:planTo(self.home.x, self.home.z, self.home.h, 0)
+            end
+        end
+        return self:standStill()
+    elseif self.state == "toWait" then
+        -- (a call on the way: straight there)
+        if self:checkCalls() then
+            return self:standStill()
+        end
+        local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Base.SPEED)
+        if done then
+            self.state = "wait"
+            return self:standStill()
+        end
+        return gx, gz, fwd, speed, toStop
     elseif self.state == "approach" then
         local combine = self.combine
         if combine == nil or combine.isDeleted then
             self.state = "wait"
             return self:standStill()
+        end
+        -- a combine no driver of ours works: its pipe out now, so the place is where the pipe really is (folded,
+        -- its side is a guess: we lined up on the wrong side of a sugarcane harvester)
+        local od = self.combineDriver
+        local ours = od ~= nil and od.state ~= GuidanceFieldworkDriver.STATE_DONE and combine.getIsGuidanceActive ~= nil
+            and combine:getIsGuidanceActive()
+        local harvesterNow = GuidanceFieldworkDriver.findHarvester(combine)
+        if harvesterNow and not ours and not Unload.isChopper(harvesterNow) then
+            self:runCombinePipe(harvesterNow, false)
         end
         local tx, tz, th = self:placeUnderPipe(combine, node)
         local x, z, h = Base.poseOf(vehicle)
@@ -414,31 +758,85 @@ function Unload:getDriveData(dt, vX, vY, vZ)
         -- (beside a forage harvester only lined up: its place is close by it, and it stands until we're there)
         local chopper = Unload.isChopper(GuidanceFieldworkDriver.findHarvester(combine))
         local lined = behind > -2 and behind < 25 and side < (chopper and 1.2 or 3) and turn < 0.4
-        if (chopper and lined) or (not chopper and dist(x, z, tx, tz) < 6) then
+        -- (a combine: roughly behind its place is enough, following steers onto its line gently; a new way from
+        -- there, round a long trailer's wide radius, would be a loop: it circled behind the combine)
+        local roughly = behind > -2 and behind < 25 and side < 6 and turn < 0.7
+        -- (a combine: near its place and pointing its way; near it crosswise (a way in looping past it), following
+        -- would never turn us: it stood across the combine's line)
+        if (chopper and lined) or (not chopper and dist(x, z, tx, tz) < 6 and turn < Unload.ALIGNED
+                and self:articulation() < Unload.STRAIGHT) then
             self.state = "follow"
             return self:standStill()
         end
         -- a new way when the place has moved on (a forage harvester standing still: the way there driven to its end)
         self.planTimer = (self.planTimer or 0) + dt
-        local moved = not chopper or self.planTarget == nil or dist(tx, tz, self.planTarget.x, self.planTarget.z) > 4
+        -- (not while it stands: a new way every few seconds from halfway round the last one made it circle)
+        local left = self.follower and self.follower:getRemaining() or 0
+        local moved = self.planTarget == nil
+            or dist(tx, tz, self.planTarget.x, self.planTarget.z) > math.max(4, 0.25 * left)
+        if (self.aheadTime or 0) > self:aheadReplanAfter() then
+            self.aheadTime = 0
+            self.aheadReplans = (self.aheadReplans or 0) + 1
+            self.follower = nil
+        end
+        -- (a way in planned with the trailer folded beside the combine: blocked by it at once, time after time; out
+        -- straight first)
+        if self.follower == nil and not chopper and self:articulation() > Unload.STRAIGHT
+                and dist(x, z, tx, tz) < Unload.STRAIGHTEN_NEAR and self:startStraighten() then
+            return self:standStill()
+        end
         if self.follower == nil or (self.planTimer > Unload.REPLAN and moved) then
             self.planTimer = 0
             self.planTarget = {x = tx, z = tz}
-            self:planTo(tx - fx * 2, tz - fz * 2, th, chopper and Unload.APPROACH_CHOPPER or Unload.APPROACH_BEHIND)
+            -- (a long trailer straight behind the truck before it lines up: the run-in at least 1.5 turning radii)
+            local runIn = math.max(chopper and Unload.APPROACH_CHOPPER or Unload.APPROACH_BEHIND, 1.5 * (self.turnRadius or 0))
+            self:planTo(tx - fx * 2, tz - fz * 2, th, runIn)
+            -- the new way a loop while we're roughly behind the place already: follow from here instead
+            local pts = self.follower and self.follower.points
+            local length = pts and pts[#pts] and pts[#pts].d or 0
+            if not chopper and roughly and length > dist(x, z, tx, tz) + math.pi * (self.turnRadius or 6) then
+                self.state = "follow"
+                return self:standStill()
+            end
         end
         local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Base.SPEED, combine)
         if done then
-            -- (not lined up beside a forage harvester: a new way in)
-            if chopper and not lined then
+            -- (not lined up beside a forage harvester, or crosswise to a combine: a new way in; a few times, then
+            -- following as we are)
+            if (chopper and not lined) or (not chopper and turn > Unload.ALIGNED and (self.realignWays or 0) < 3) then
+                self.realignWays = (self.realignWays or 0) + 1
                 self.follower = nil
+                return self:standStill()
+            end
+            self.realignWays = 0
+            -- (there with the trailer still folded: out straight first)
+            if not chopper and self:articulation() > Unload.STRAIGHT and self:startStraighten() then
                 return self:standStill()
             end
             self.state = "follow"
         end
         return gx, gz, fwd, speed, toStop
+    elseif self.state == "straighten" then
+        local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Unload.STRAIGHTEN_SPEED, self.combine)
+        -- straight enough (and a bit away), or the stretch driven, or held up: a new way in from here
+        if done or (self:articulation() < Unload.STRAIGHT / 2 and (self.follower and self.follower.s or 0) > 8)
+                or (self.aheadTime or 0) > Unload.AHEAD_REPLAN then
+            self.aheadTime = 0
+            self.state = "approach"
+            self.follower = nil
+            self.sideWays, self.realignWays = 0, 0
+            return self:standStill()
+        end
+        return gx, gz, fwd, speed, toStop
     elseif self.state == "follow" then
         return self:follow(dt, node)
     elseif self.state == "leave" then
+        -- (held up by the combine we left, right in front of us: a new way, round it; each time waiting longer)
+        if (self.aheadTime or 0) > self:aheadReplanAfter() then
+            self.aheadTime = 0
+            self.aheadReplans = (self.aheadReplans or 0) + 1
+            self:planTo(self.home.x, self.home.z, self.home.h + math.pi, 6)
+        end
         local gx, gz, fwd, speed, toStop, done = self:drivePath(dt, Base.SPEED)
         if done then
             self.state = "home"
@@ -461,6 +859,34 @@ function Unload:getDriveData(dt, vX, vY, vZ)
     return self:standStill()
 end
 
+--- For the problem report: where we are against our place under the combine's pipe and why we stand
+function Unload:describe()
+    local combine = self.combine
+    if combine == nil or combine.isDeleted then
+        return string.format("state %s, no combine", tostring(self.state))
+    end
+    local tx, tz, th = self:placeUnderPipe(combine, nil)
+    local x, z, h = Base.poseOf(self.vehicle)
+    local fx, fz = math.cos(th), math.sin(th)
+    local behind = (tx - x) * fx + (tz - z) * fz
+    local side = (tx - x) * fz - (tz - z) * fx
+    local turn = math.deg(math.abs((h - th + math.pi) % (2 * math.pi) - math.pi))
+    local cSpeed = combine.getLastSpeed and combine:getLastSpeed() or 0
+    local harvester = GuidanceFieldworkDriver.findHarvester(combine)
+    local pipe = harvester and harvester.spec_pipe
+    local f = self.follower
+    local _, fillNode = self:trailerState()
+    local fillLeft, fillAhead = 0, 0
+    if fillNode then fillLeft, fillAhead = Base.offsetIn(self.vehicle, fillNode) end
+    return string.format("fill point %.1f m left, %.1f m ahead of us; state %s; its place %.1f m ahead, %.1f m to the side, pointing %.0f deg off the combine's way; "
+        .. "combine at %.1f km/h, pipe state %s, discharging %s; way %.0f m left; new ways in %d; turning radius %.1f m; "
+        .. "trailer %.0f%% full, folded %.0f deg against us; waiting for %s", fillLeft, fillAhead, tostring(self.state), behind, side, turn, cSpeed,
+        tostring(pipe and pipe.currentState), tostring(harvester and harvester.getDischargeState and harvester:getDischargeState()),
+        f and f:getRemaining() or 0, self.realignWays or 0, self.turnRadius or 0, (self:trailerState() or 0) * 100,
+        math.deg(self:articulation()),
+        self.blockedBy and Guidance.vehicleName(self.blockedBy) or "nothing")
+end
+
 --- Under the pipe: keep the fill node there, at the combine's speed
 function Unload:follow(dt, node)
     local combine = self.combine
@@ -476,10 +902,48 @@ function Unload:follow(dt, node)
     local fx, fz = math.cos(th), math.sin(th)
     local behind = (tx - x) * fx + (tz - z) * fz
     local off = dist(x, z, tx, tz)
+    -- no driver of ours at work on it (stopped, stopped itself full, the player's): we open its pipe and start the flow
+    local ours = od ~= nil and od.state ~= GuidanceFieldworkDriver.STATE_DONE and combine.getIsGuidanceActive ~= nil
+        and combine:getIsGuidanceActive()
+    if harvester and not ours and not Unload.isChopper(harvester) then
+        self:runCombinePipe(harvester, off < 3)
+    end
     -- the combine turns (ours tells), or we lost it: wait / come in again
     if od and od.isManeuvering and od:isManeuvering() then
         self.turnWait = true
         return self:standStill()
+    end
+    -- crosswise to the combine's line (got here some other way): a new way in, with its straight run-in
+    local headingOff = math.abs((h - th + math.pi) % (2 * math.pi) - math.pi)
+    if not Unload.isChopper(harvester) and headingOff > Unload.MISALIGNED and (self.realignWays or 0) < 3 then
+        self.realignWays = (self.realignWays or 0) + 1
+        self.state = "approach"
+        self.follower = nil
+        return self:standStill()
+    end
+    if headingOff < Unload.ALIGNED then self.realignWays = 0 end
+    -- beside its line, well off to the side of our place, the combine standing (the pipe turned out to be on its
+    -- other side): following only moves us along it, a new way in instead
+    local lateralOff = math.abs((tx - x) * fz - (tz - z) * fx)
+    local cStill = not combine.getLastSpeed or combine:getLastSpeed() < 0.5
+    if not Unload.isChopper(harvester) and cStill and lateralOff > Unload.LATERAL_OFF and (self.sideWays or 0) < 6 then
+        self.sideWays = (self.sideWays or 0) + 1
+        self.state = "approach"
+        self.follower = nil
+        return self:standStill()
+    end
+    if lateralOff < 1 then self.sideWays = 0 end
+    -- our trailer folded against us (we started beside the combine, the trailer at an angle): its fill point may be
+    -- under the pipe, the trailer isn't; out straight first (a way in from here, cramped by the combine and the crop,
+    -- was blocked at once, time after time), then a new way in
+    if not Unload.isChopper(harvester) and cStill and self:articulation() > Unload.STRAIGHT then
+        if self:startStraighten() then return self:standStill() end
+        if (self.sideWays or 0) < 6 then
+            self.sideWays = (self.sideWays or 0) + 1
+            self.state = "approach"
+            self.follower = nil
+            return self:standStill()
+        end
     end
     if self.turnWait or off > Unload.LOST then
         self.turnWait = nil
@@ -495,8 +959,7 @@ function Unload:follow(dt, node)
         self.emptyTimer = (self.emptyTimer or 0) + dt
         if self.emptyTimer > 4000 then
             self.emptyTimer = 0
-            self:setServing(nil)
-            self.state = "wait"
+            self:afterServing(combine, harvester, od)
             return self:standStill()
         end
     else
@@ -508,8 +971,10 @@ function Unload:follow(dt, node)
     end
     local cSpeed = combine.getLastSpeed and combine:getLastSpeed() or 0
     local speed = math.max(0, math.min(cSpeed + 8, cSpeed + Unload.FOLLOW_GAIN * behind))
+    self.stopReason = nil
     if cSpeed < 0.5 and math.abs(behind) < 0.4 then
         speed = 0
+        self.stopReason = "at its place under the pipe, the combine stands"
     end
     -- a forage harvester that stands (it waits for us), and we're past our place or off its line: straight back
     -- 8 m, then in again along the line
@@ -536,11 +1001,63 @@ function Unload:follow(dt, node)
     end
     -- (the game stops a vehicle asked for less than about 2 km/h)
     if speed > 0 and speed < 2 then speed = 2 end
+    -- anything else in our way (another truck, a player): we stop for it here too
+    if speed > 0 then
+        self.ignoreForGiveWay = combine
+        speed = self:giveWay(dt, speed, x, z, h, false)
+        self.ignoreForGiveWay = nil
+    end
+    -- never into the combine itself (following it from straight behind): stop; it standing, a new way in (round it)
+    if speed > 0 and self:combineAhead(x, z, h) then
+        speed = 0
+        self.stopReason = "the combine is right in front of us"
+        if cSpeed < 0.5 and (self.sideWays or 0) < 6 then
+            self.sideWays = (self.sideWays or 0) + 1
+            self.state = "approach"
+            self.follower = nil
+            return self:standStill()
+        end
+    end
     -- steer along the combine's line, to our place on it a few metres ahead
     local look = math.max(4, self.vehicle:getLastSpeed() / 3.6 * 1.5)
     local gx, gz = tx + fx * (look + math.max(0, behind)), tz + fz * (look + math.max(0, behind))
     self:checkStuck(dt, speed)
     return gx, gz, true, speed, math.max(0.5, behind)
+end
+
+--- A combine looking for us (once a second): on our way to it. True when there is one.
+function Unload:checkCalls()
+    if self.timer <= 1000 then return false end
+    self.timer = 0
+    local combine = self:pickCombine()
+    if combine == nil then return false end
+    self:setServing(combine)
+    self.state = "approach"
+    self.planTimer = math.huge
+    return true
+end
+
+--- Done with a combine (it is empty): off to unload when the trailer couldn't take its next load, else out of its
+--- way and back to where we wait (where we were started), never standing beside it: it would wait for us there.
+function Unload:afterServing(combine, harvester, od)
+    self:setServing(nil)
+    local free = 0
+    for _, t in ipairs(self:fillTargets()) do
+        free = free + math.max(0, t.vehicle:getFillUnitCapacity(t.fillUnitIndex) - t.vehicle:getFillUnitFillLevel(t.fillUnitIndex))
+    end
+    local call = Unload.CALL_LEVEL
+    if od and od.course and od.course.plan then call = (od.course.plan.callUnloaderAt or 80) / 100 end
+    local tank = harvester and harvester:getFillUnitCapacity(harvester.spec_combine.fillUnitIndex) or 0
+    if tank > 0 and free < tank * call then
+        Guidance.info("%s: room for %d l only, less than the next tankful: off to unload", Guidance.vehicleName(self.vehicle),
+            math.floor(free))
+        self.state = "leave"
+        self:planTo(self.home.x, self.home.z, self.home.h + math.pi, 6)
+        return
+    end
+    self.leftCombine = combine
+    self.clearTimer = 0
+    self.state = "clear"
 end
 
 --- Full at the field edge: into a truck standing there (auger wagon), onto a heap (tipper), the game's roads to the

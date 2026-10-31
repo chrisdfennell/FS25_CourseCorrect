@@ -43,6 +43,8 @@ function GuidanceHelperTask:stop(wasJobStopped)
     if self.vehicle ~= nil and self.isServer then
         if self.driver then self.driver:delete() end
         self.vehicle.spec_guidance.helperDriver = nil
+        -- (its engine, if it was switched off while waiting, is the player's again)
+        self.vehicle.spec_guidance.engineOff, self.vehicle.spec_guidance.idleTime = false, 0
         -- stand still
         if WheelsUtil and WheelsUtil.updateWheelsPhysics then
             Guidance.try(WheelsUtil.updateWheelsPhysics, self.vehicle, 0, 0, 0, true, true)
@@ -83,6 +85,14 @@ function GuidanceHelperJob.new(isServer, customMt, kind)
     table.insert(self.groupedParameters, group)
     -- where it unloads (its place; 0, 0: stops when full), how full it goes
     self.unloadX, self.unloadZ, self.fullLevel, self.unloadMode = 0, 0, GuidanceUnloadDriver.LEAVE_LEVEL, 0
+    -- on the field round standing crop (false: straight through it)
+    self.avoidCrop = true
+    -- its place under the pipe moved: out from the combine (+, m), forward (+, m)
+    self.unloadSide, self.unloadAlong = 0, 0
+    -- the side of the combine it goes: 0 where the pipe is, 1 left, 2 right
+    self.unloadPipeSide = 0
+    -- the one combine it serves (its key), wherever it works; "": any on its field
+    self.unloadCombine = ""
     if kind == "unload" and AITaskDriveTo ~= nil then
         self.driveToFieldTask = AITaskDriveTo.new(isServer, self)
         self:addTask(self.driveToFieldTask)
@@ -315,6 +325,11 @@ function GuidanceHelperJob:writeStream(streamId, connection)
     streamWriteFloat32(streamId, self.unloadZ or 0)
     streamWriteUInt8(streamId, math.floor((self.fullLevel or 0.97) * 100 + 0.5))
     streamWriteUInt8(streamId, self.unloadMode or 0)
+    streamWriteBool(streamId, self.avoidCrop ~= false)
+    streamWriteFloat32(streamId, self.unloadSide or 0)
+    streamWriteFloat32(streamId, self.unloadAlong or 0)
+    streamWriteUInt8(streamId, self.unloadPipeSide or 0)
+    streamWriteString(streamId, self.unloadCombine or "")
 end
 
 function GuidanceHelperJob:readStream(streamId, connection)
@@ -330,6 +345,11 @@ function GuidanceHelperJob:readStream(streamId, connection)
     self.unloadZ = streamReadFloat32(streamId)
     self.fullLevel = streamReadUInt8(streamId) / 100
     self.unloadMode = streamReadUInt8(streamId)
+    self.avoidCrop = streamReadBool(streamId)
+    self.unloadSide = streamReadFloat32(streamId)
+    self.unloadAlong = streamReadFloat32(streamId)
+    self.unloadPipeSide = streamReadUInt8(streamId)
+    self.unloadCombine = streamReadString(streamId)
     self:setValues()
 end
 

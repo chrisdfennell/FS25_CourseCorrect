@@ -75,9 +75,12 @@
         <text name="guidance_phase_shovelNoTrailer" text="Zatrzymano: brak przyczepy z miejscem przy pryzmie"/>
         <text name="guidance_phase_shovelNoHeap" text="Zatrzymano: brak pryzmy z przodu (ustaw się przodem do niej)"/>
         <text name="guidance_phase_balesWaitBaler" text="Czeka na prasę"/>
+        <text name="guidance_phase_unloadClear" text="Przepuszcza kombajn"/>
+        <text name="guidance_phase_unloadReturn" text="Wraca na miejsce oczekiwania"/>
         <text name="guidance_orchard_name" text="Sad %d"/>
         <text name="guidance_warn_convoyNarrow" text="Za wąskie na kolumnę %d: około %d%% zostanie nieobrobione. Spróbuj Następny wolny rząd lub Pasy."/>
         <text name="guidance_info_WAITING_RAIN" text="Czeka, aż przestanie padać (koszenie teraz obniża plon)"/>
+        <text name="guidance_info_NO_UNLOADER" text="Pełny, brak przeładowcy: uruchom przeładowcę CourseCorrect na tym polu lub ustaw ciężarówce AutoDrive ten sam pierwszy cel co temu kombajnowi"/>
         <text name="guidance_set_rainWait" text="W deszczu"/>
         <text name="guidance_rain_wait" text="Czekaj"/>
         <text name="guidance_rain_go" text="Pracuj dalej"/>
@@ -86,6 +89,57 @@
         <text name="guidance_set_edgeObstacles" text="Przeszkody przy brzegu"/>
         <text name="guidance_edge_over" text="Przejeżdżaj"/>
         <text name="guidance_edge_round" text="Omijaj"/>
+        <text name="guidance_set_adMarker" text="Znacznik AutoDrive"/>
+        <text name="guidance_admarker_nearest" text="Automatycznie"/>
+        <text name="guidance_saved_go" text="Jedź"/>
+        <text name="guidance_go_sent" text="%s: w drodze (AutoDrive do znacznika, start na miejscu)"/>
+        <text name="guidance_saved_marker" text="AutoDrive: %s"/>
+        <text name="guidance_queue_title" text="Kolejka · %d"/>
+        <text name="guidance_queue_manage" text="Zarządzaj"/>
+        <text name="guidance_queue_open" text="Kolejka (%d)"/>
+        <text name="guidance_queue_back" text="Wstecz"/>
+        <text name="guidance_queue_total" text="%s łącznie"/>
+        <text name="guidance_queue_hint" text="W tej kolejności: gdy kurs się skończy, następny jest wczytywany i ciągnik do niego jedzie (AutoDrive do znacznika, gdy jest daleko)."/>
+        <text name="guidance_queue_empty" text="Kolejka jest pusta. Dodaj kursy przyciskiem Do kolejki w zakładce Zapisane."/>
+        <text name="guidance_queue_up" text="W górę"/>
+        <text name="guidance_queue_down" text="W dół"/>
+        <text name="guidance_queue_remove" text="Usuń"/>
+        <text name="guidance_queue_clearAll" text="Wyczyść wszystko"/>
+        <text name="guidance_queue_gone" text="(usunięty kurs)"/>
+        <text name="guidance_help_title" text="Pomoc"/>
+        <text name="guidance_help_topics" text="Tematy"/>
+        <text name="guidance_away_go" text="Nie na %s (%s stąd). AutoDrive może go tam zawieźć (%s), ze złożonymi maszynami, i ruszy na miejscu."/>
+        <text name="guidance_away_noMarker" text="Nie na %s (%s stąd) i brak znacznika AutoDrive w pobliżu: dojedź tam lub wybierz znacznik (Ustawienia, Jazda)."/>
+        <text name="guidance_away_cancel" text="Anuluj"/>
+        <text name="guidance_away_goBtn" text="Jedź tam"/>
+        <text name="guidance_away_startAnyway" text="Uruchom mimo to"/>
+        <text name="guidance_set_lineHeight" text="Wysokość linii kursu"/>
+        <text name="guidance_lineHeight_ground" text="Na ziemi"/>
+        <text name="guidance_set_keepRunning" text="Po podniesieniu"/>
+        <text name="guidance_keepRunning_off" text="Wyłącz"/>
+        <text name="guidance_keepRunning_on" text="Niech pracuje"/>
+        <text name="guidance_set_takeOver" text="Pomocnik gry tutaj"/>
+        <text name="guidance_takeOver_on" text="Jedzie CourseCorrect"/>
+        <text name="guidance_takeOver_off" text="Pomocnik gry"/>
+        <text name="guidance_mini_noCourse" text="Brak kursu"/>
+        <text name="guidance_mini_hintBack" text="Ctrl+J: mysz z powrotem do gry · + cały panel"/>
+        <text name="guidance_mini_hint" text="Ctrl+J: mysz do tych przycisków · + cały panel"/>
+        <text name="guidance_world_start" text="Start"/>
+        <text name="guidance_world_end" text="Koniec"/>
+        <text name="guidance_set_avoidCrop" text="Uprawa po drodze"/>
+        <text name="guidance_avoidCrop_on" text="Omijaj"/>
+        <text name="guidance_avoidCrop_off" text="Jedź przez"/>
+        <text name="guidance_set_unloadSide" text="Przesunięcie w bok"/>
+        <text name="guidance_set_unloadAlong" text="Przesunięcie przód/tył"/>
+        <text name="guidance_set_pipeSide" text="Strona rury"/>
+        <text name="guidance_pipeSide_auto" text="Auto (zmierzona)"/>
+        <text name="guidance_pipeSide_left" text="Lewa"/>
+        <text name="guidance_pipeSide_right" text="Prawa"/>
+        <text name="guidance_set_unloadCombine" text="Kombajn"/>
+        <text name="guidance_unloadCombine_any" text="Dowolny na jego polu"/>
+        <text name="guidance_unloadCombine_field" text="pole %s"/>
+        <text name="guidance_unloadCombine_gone" text="(nie znaleziono)"/>
+        <text name="guidance_unloadGo" text="Do %s na polu %s: AutoDrive go zawiezie, przeładowywacz ruszy na miejscu"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -183,7 +237,7 @@
         <text name="guidance_saved_renamePrompt" text="Nazwa trasy"/>
         <text name="guidance_saved_line" text="Pole %d · %.1f ha · %s"/>
         <text name="guidance_folder_title" text="Pole %d"/>
-        <text name="guidance_folder_back" text="&lt; Wszystkie pola"/>
+        <text name="guidance_folder_back" text="Wszystkie pola"/>
         <text name="guidance_folder_count" text="%d tras"/>
         <text name="guidance_folder_one" text="1 trasa"/>
         <text name="guidance_folder_here" text="jesteś tutaj"/>
