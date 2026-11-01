@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="115">
     <author>Chris Fennell</author>
-    <version>1.0.6.7</version>
+    <version>1.0.8.7</version>
     <title>
         <en>CourseCorrect</en>
     </title>
@@ -12,13 +12,45 @@
 - Course editor on the map: turn the rows, pick the start, leave rows or areas out, move points.
 - Fields painted with the landscaping tools are read from the ground. Vineyards and orchards.
 - Several tractors on one field: strips, lands, convoy or next free row; they make room for each other.
-- Unloader for combines and forage harvesters: to a station on the game's roads, into a truck at the field edge, or onto a heap. Bale collector and wrapper, silo compacter, loader (wheel loader, front loader).
+- Unloader for combines and forage harvesters: AutoDrive's, set up from the panel (combine, where it unloads, AutoDrive's own settings); combines call it early and wait on the headland when the next row won't fit. Fuel and repair trips with AutoDrive, field chains across tractors (cultivate, sow, spray), contracts in one click. Bale collector and wrapper, silo compacter, loader (wheel loader, front loader).
 - Refills at a station or from supplies at the field edge; waits out the rain; balers follow the rake's course.
 - Planner for seed, fertiliser and fuel (with Precision Farming), alerts, fleet, work log, saved courses, import of Courseplay courses.
 - Works with AutoDrive. Multiplayer and dedicated servers.
 
 Open the panel: Ctrl+J. Start/stop the helper: Alt+J.
 
+Changelog 1.0.8.7:
+- Harvested sugarcane is no longer taken for standing crop: the game reports cut (and withered) fruit too, and a harvested cane lane read as crop. That made Start at Nearest back up a long way (66 m) and ways go round crop that wasn't there
+- Unloader panel: Front/back offset, AutoDrive Overdrive's new setting (od.60), next to Side offset
+Changelog 1.0.8.6:
+- The unloaders' arrows on the combine's map without a black square round them (their texture was written without transparency)
+Changelog 1.0.8.5:
+- A combine's AutoDrive unloaders on its course map: arrows the way they face, amber on their way or unloading, blue-grey waiting at the field's marker (at the map's edge when off it)
+- Start at: Nearest no longer backs up far for scattered bits of crop behind it (1.0.8.3 added up crop anywhere in the 60 m behind): it backs up only for a piece left standing right behind it, and only as far as that piece goes
+Changelog 1.0.8.4:
+- Clear: a button at the top left of the course map takes the course off the tractor, after asking first (Clear / Cancel). Saved courses stay
+- Square corners on headland passes without the hook: the reverse after the corner ended a metre past the pass's first points (or beside them, by a cut-off field corner), so the harvester jinked back or across before going on. It now ends on the pass's own line, just before it
+Changelog 1.0.8.3:
+- Start at: Nearest no longer drives off into the crop: since 1.0.7.1 it went back to the start of a pass with crop behind it (up to the whole side of the field), turning round through the cane to get there. Now it goes back only standing on that pass, lined up, and at most 60 m, backing straight up its own lane; crop is looked for on the pass's line itself (crop beside the lane doesn't count). Otherwise it starts where it is
+Changelog 1.0.8.2:
+- Start at First has a second switch, Then: where later starts of the same course begin once it has got going (Continue, Nearest, or First again). A new course starts at its first waypoint again. In My defaults too
+Changelog 1.0.8.1:
+- The AutoDrive unloader starts again after a server restart: a truck AutoDrive drove as the combine unloader when the game was saved is started again about 10 s after loading (AutoDrive's own autostart works only in single player). Off with After loading: Wait, now also on the Unloader panel
+Changelog 1.0.8.0:
+- Tank forecast (combines): it learns how many litres a metre brings. Full before the end of the row or pass: the AutoDrive unloader is called now, not only at the call level. A row the tank can't take: it waits for the unloader on the headland instead of standing full in the crop
+- Refuel at / Repair at (Settings, Driving; with AutoDrive): low on fuel or worn, the helper finishes the stretch it is on, AutoDrive takes it to the fuel station or workshop and brings it back, and it carries on where it stopped
+- Then, on this field (Settings, Driving): another tractor takes the field over when this course is done (cultivate, sow, spray): it gets its own course for the field and goes there, with AutoDrive when far
+- Contracts (Saved tab): the farm's running contracts; Make course gives this tractor a course on that field from anywhere, Go sends it there too
+- Setting values too long for their row are cut short instead of running over the - / + buttons
+Changelog 1.0.7.1:
+- Start at: Nearest left a piece of crop standing: started part-way along a pass (where the harvester stood after driving to it), the stretch behind it counted as done. With crop still standing behind it on that stretch, it now starts 6 m before the first of it (or at the stretch's start)
+Changelog 1.0.7.0:
+- The unloader is AutoDrive's now: CourseCorrect's own unloader driver is gone. The Unloader panel sets up AutoDrive's "unload combine" mode and keeps nothing itself: every row is AutoDrive's own setting, read from AutoDrive and written back through the server with AutoDrive's settings event, so AutoDrive's menu and the panel always show the same
+- Combine: the truck and the combine both get the AutoDrive marker of the combine's field as first target (one named after the field first): that is how AutoDrive pairs them, and where the truck waits. When the combine starts a course on another field, its trucks wait at that field's marker from then on
+- Unload at: an AutoDrive marker (the truck's second target). Leave when full at, Crop on the way, Side offset, Follow distance: AutoDrive's settings of the truck; Pipe side (Auto, Left, Behind, Right) and Second unloader: AutoDrive's settings of the combine
+- Start / Stop: AutoDrive's own start and stop, in unload combine mode (not without a combine and Unload at)
+- A combine of ours puts its pipe out for the truck AutoDrive sent it once that is within 60 m, and only stops for it when they would touch
+- Gone with it: unloading at the game's stations by its road driving, into a truck at the field edge, onto a heap
 Changelog 1.0.6.7:
 - Unloader started (or ended up) beside a standing combine with its trailer folded: every new way in was blocked by the combine at once, it used up its tries and stood short of its place. Now it first pulls out straight, slowly, up to 25 m: straight on, else 30 or 60 deg to either side, whichever is clear of the combine, of standing crop (with "Crop on the way" set to go round) and of the field's edge; once the trailer is straight it takes a new way in. At most 3 times per combine
 Changelog 1.0.6.6:
@@ -134,13 +166,45 @@ Changelog 1.0.3.1 to 1.0.3.7:
 - Kurseditor auf der Karte: Bahnen drehen, Start wählen, Bahnen oder Flächen auslassen, Punkte verschieben.
 - Mit den Landschaftswerkzeugen gemalte Felder werden vom Boden gelesen. Weinberge und Obstplantagen.
 - Mehrere Traktoren auf einem Feld: Streifen, Beete, Kolonne oder nächste freie Bahn; sie machen einander Platz.
-- Überlader für Drescher und Häcksler: auf den Straßen des Spiels zur Station, in einen LKW am Feldrand oder auf einen Haufen. Ballensammler und -wickler, Siloverdichter, Lader (Radlader, Frontlader).
+- Überlader für Drescher und Häcksler: der von AutoDrive, in der Ansicht eingestellt (Drescher, Abladeort, Einstellungen von AutoDrive selbst). Ballensammler und -wickler, Siloverdichter, Lader (Radlader, Frontlader).
 - Nachfüllen an einer Station oder aus Vorräten am Feldrand; wartet Regen ab; Pressen folgen dem Kurs des Schwaders.
 - Planer für Saatgut, Dünger und Kraftstoff (mit Precision Farming), Hinweise, Fuhrpark, Arbeitsbuch, gespeicherte Kurse, Import von Courseplay-Kursen.
 - Arbeitet mit AutoDrive. Mehrspieler und dedizierte Server.
 
 Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.
 
+Änderungen 1.0.8.7:
+- Geerntetes Zuckerrohr gilt nicht mehr als stehender Bestand: Das Spiel meldet auch geschnittene (und verwelkte) Frucht, eine abgeerntete Rohrbahn galt als Bestand. Deshalb setzte Start bei Nächster weit zurück (66 m) und Wege fuhren um Bestand herum, der nicht da war
+- Ansicht Überlader: Versatz vor/zurück, die neue Einstellung von AutoDrive Overdrive (od.60), neben dem seitlichen Versatz
+Änderungen 1.0.8.6:
+- Die Pfeile der Überlader auf der Karte des Dreschers ohne schwarzes Quadrat drumherum (ihre Textur war ohne Transparenz geschrieben)
+Änderungen 1.0.8.5:
+- Die AutoDrive-Überlader eines Dreschers auf seiner Kurskarte: Pfeile in Fahrtrichtung, orange unterwegs oder beim Überladen, blaugrau wartend am Ziel des Feldes (am Kartenrand, wenn außerhalb)
+- Start bei: Nächster fährt nicht mehr weit zurück wegen verstreuter Bestandsreste hinter sich (1.0.8.3 zählte Bestand irgendwo in den 60 m dahinter): Er setzt nur zurück für ein Stück, das direkt hinter ihm stehen geblieben ist, und nur so weit, wie es reicht
+Änderungen 1.0.8.4:
+- Löschen: ein Knopf oben links auf der Kurskarte nimmt dem Traktor den Kurs, nach einer Rückfrage (Löschen / Abbrechen). Gespeicherte Kurse bleiben
+- Eckige Ecken auf Vorgewendebahnen ohne Haken: Das Rückwärtsfahren nach der Ecke endete einen Meter hinter den ersten Punkten der Bahn (oder neben ihnen, an einer abgeschnittenen Feldecke), die Erntemaschine ruckte zurück oder quer, bevor sie weiterfuhr. Jetzt endet es auf der Linie der Bahn, kurz davor
+Änderungen 1.0.8.3:
+- Start bei: Nächster fährt nicht mehr in den Bestand: Seit 1.0.7.1 fuhr er bei Bestand hinter sich zurück zum Anfang der Bahn (bis zu einer ganzen Feldseite) und wendete dafür durch das Zuckerrohr. Jetzt fährt er nur zurück, wenn er auf dieser Bahn steht, ausgerichtet, und höchstens 60 m, gerade rückwärts in seiner eigenen Spur; Bestand wird auf der Linie der Bahn selbst gesucht (Bestand neben der Spur zählt nicht). Sonst startet er, wo er steht
+Änderungen 1.0.8.2:
+- Start bei Anfang hat einen zweiten Schalter, Danach: wo spätere Starts desselben Kurses beginnen, sobald er läuft (Weiter, Nächster oder wieder Anfang). Ein neuer Kurs beginnt wieder am ersten Wegpunkt. Auch in Meine Vorgaben
+Änderungen 1.0.8.1:
+- Der AutoDrive-Überlader startet nach einem Server-Neustart wieder: Ein LKW, den AutoDrive beim Speichern als Überlader fuhr, wird etwa 10 s nach dem Laden wieder gestartet (der eigene Autostart von AutoDrive gilt nur im Einzelspieler). Aus mit Nach dem Laden: Warten, jetzt auch in der Ansicht Überlader
+Änderungen 1.0.8.0:
+- Bunker-Vorschau (Drescher): Er lernt, wie viele Liter ein Meter bringt. Voll vor dem Ende der Fahrgasse oder Vorgewendebahn: Der AutoDrive-Überlader wird jetzt gerufen, nicht erst beim Ruf-Füllstand. Eine Fahrgasse, die der Bunker nicht mehr fasst: Er wartet am Vorgewende auf den Überlader, statt voll im Bestand zu stehen
+- Tanken bei / Reparieren bei (Einstellungen, Fahren; mit AutoDrive): Wenig Kraftstoff oder verschlissen, beendet der Helfer den Abschnitt, AutoDrive fährt ihn zur Tankstelle oder Werkstatt und zurück, und er macht dort weiter, wo er aufgehört hat
+- Danach, auf diesem Feld (Einstellungen, Fahren): Ein anderer Traktor übernimmt das Feld, wenn dieser Kurs fertig ist (Grubbern, Säen, Spritzen): Er bekommt seinen eigenen Kurs für das Feld und fährt hin, weit weg mit AutoDrive
+- Aufträge (Reiter Gespeichert): die laufenden Aufträge des Hofs; Kurs erstellen gibt diesem Traktor von überall einen Kurs auf dem Feld, Los schickt ihn auch hin
+- Zu lange Werte in einer Einstellungszeile werden gekürzt, statt über die Knöpfe - / + zu laufen
+Änderungen 1.0.7.1:
+- Start bei: Nächste ließ ein Stück Bestand stehen: Mitten auf einer Bahn gestartet (wo die Erntemaschine nach der Anfahrt stand), galt das Stück dahinter als erledigt. Steht dahinter auf diesem Abschnitt noch Bestand, startet sie jetzt 6 m vor dessen Anfang (oder am Anfang des Abschnitts)
+Änderungen 1.0.7.0:
+- Der Überlader ist jetzt der von AutoDrive: CourseCorrects eigener Überlader-Fahrer ist weg. Die Ansicht Überlader stellt den Modus "Drescher entladen" von AutoDrive ein und speichert selbst nichts: Jede Zeile ist eine Einstellung von AutoDrive selbst, von AutoDrive gelesen und über den Server mit dem Einstellungs-Event von AutoDrive zurückgeschrieben, so zeigen das Menü von AutoDrive und die Ansicht immer dasselbe
+- Drescher: LKW und Drescher bekommen beide das AutoDrive-Ziel am Feld des Dreschers als erstes Ziel (eines, das nach dem Feld benannt ist, zuerst): So paart AutoDrive sie, und dort wartet der LKW. Startet der Drescher einen Kurs auf einem anderen Feld, warten seine LKWs ab dann am Ziel dieses Feldes
+- Abladen bei: ein AutoDrive-Ziel (das zweite Ziel des LKWs). Fährt los bei, Bestand im Weg, Seitlicher Versatz, Folgeabstand: Einstellungen von AutoDrive für den LKW; Rohrseite (Auto, Links, Dahinter, Rechts) und Zweiter Überlader: Einstellungen von AutoDrive für den Drescher
+- Start / Stopp: Start und Stopp von AutoDrive selbst, im Modus Drescher entladen (nicht ohne Drescher und Abladen bei)
+- Ein Drescher von uns schwenkt das Rohr für den LKW aus, den AutoDrive ihm geschickt hat, sobald der näher als 60 m ist, und hält für ihn nur, wenn sie sich berühren würden
+- Damit entfällt: Abladen an Stationen des Spiels über dessen Straßenfahrt, in einen LKW am Feldrand, auf einen Haufen
 Änderungen 1.0.6.7:
 - Überlader neben einem stehenden Drescher gestartet (oder dort gelandet), der Auflieger eingeknickt: jeder neue Weg hinein war sofort vom Drescher blockiert, er verbrauchte seine Versuche und blieb vor seiner Position stehen. Jetzt fährt er zuerst langsam bis zu 25 m gerade heraus: geradeaus, sonst 30 oder 60 Grad zu einer Seite, je nachdem, was frei ist von Drescher, stehendem Bestand (wenn er ihn umfahren soll) und Feldrand; ist der Auflieger gerade, nimmt er einen neuen Weg hinein. Höchstens 3 Mal pro Drescher
 Änderungen 1.0.6.6:
@@ -266,12 +330,14 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.
         <sourceFile filename="scripts/course/Course.lua"/>
         <sourceFile filename="scripts/course/Library.lua"/>
         <sourceFile filename="scripts/course/CourseplayImport.lua"/>
+        <sourceFile filename="scripts/course/Contracts.lua"/>
         <sourceFile filename="scripts/ai/PathFollower.lua"/>
         <sourceFile filename="scripts/ai/VehicleInfo.lua"/>
         <sourceFile filename="scripts/ai/Pathfinder.lua"/>
         <sourceFile filename="scripts/ai/Planner.lua"/>
         <sourceFile filename="scripts/ai/Team.lua"/>
         <sourceFile filename="scripts/ai/FieldworkDriver.lua"/>
+        <sourceFile filename="scripts/GuidanceAutoDrive.lua"/>
         <sourceFile filename="scripts/ai/GuidanceJob.lua"/>
         <sourceFile filename="scripts/ai/Trips.lua"/>
         <sourceFile filename="scripts/ai/Helpers.lua"/>
@@ -280,6 +346,7 @@ Panel öffnen: Strg+J. Helfer starten/stoppen: Alt+J.
         <sourceFile filename="scripts/events/GuidancePauseEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceSettingEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceGoEvent.lua"/>
+        <sourceFile filename="scripts/events/GuidanceAutoDriveEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceLibraryEvent.lua"/>
         <sourceFile filename="scripts/events/GuidanceQueueEvent.lua"/>
         <sourceFile filename="scripts/gui/GuidanceDraw.lua"/>

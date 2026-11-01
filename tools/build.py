@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MOD_NAME = "FS25_CourseCorrect"
-EXCLUDE_TOP = {".git", ".gitignore", ".gitattributes", ".github", ".vscode", "docs", "tools", "dist", "README.md",
+EXCLUDE_TOP = {".claude", ".git", ".gitignore", ".gitattributes", ".github", ".vscode", "docs", "tools", "dist", "README.md",
                "LICENSE"}
 ALLOWED = {".xml", ".lua", ".dds", ".png", ".i3d", ".shapes", ".ogg", ".txt", ".gdm", ".grle", ".cache", ".anim"}
 MAX_FILES = 128
@@ -34,6 +34,9 @@ def main():
             problems.append(f"{rel}: file type not allowed")
         if p.suffix.lower() == ".lua" and p.stat().st_size > MAX_LUA:
             problems.append(f"{rel}: {p.stat().st_size} bytes, Lua files at most {MAX_LUA}")
+        # the panel's textures need their transparency (DXT1 has none: a black square round the shape in the game)
+        if rel.startswith("textures/") and p.suffix.lower() == ".dds" and p.read_bytes()[84:88] != b"DXT5":
+            problems.append(f"{rel}: not DXT5 (no transparency)")
     # the mod hangs together
     for p in files:
         if p.suffix.lower() == ".xml":

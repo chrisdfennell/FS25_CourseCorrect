@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Hitch a trailer or an auger wagon to unload combines"/>
         <text name="guidance_helper_noBaleTool" text="Hitch a bale loader or a bale wrapper to collect bales"/>
         <text name="guidance_helper_noSilo" text="Drive to a bunker silo to compact it"/>
-        <text name="guidance_helperAbout_unload" text="Waits at the field edge, drives to a combine or forage harvester of this field that calls (round the crop) and takes its load under the pipe at its speed (beside a forage harvester, or behind it in standing crop). Full: to a station on the game's roads and back, into a truck standing at the field edge (auger wagon), onto a heap where it started (tipper), or it stops for you."/>
+        <text name="guidance_helperAbout_unload" text="AutoDrive's combine unloader, set up here: it waits at the AutoDrive marker of its combine's field, drives to the combine when it calls, takes its load under the pipe and drives to Unload at. These are AutoDrive's own settings: changed here or in AutoDrive's menu, both show the same."/>
         <text name="guidance_helperAbout_bales" text="Picks up (or wraps) every bale on this field, the nearest first. A full loader unloads the stack where it started; at the end it brings the rest there too."/>
         <text name="guidance_helperAbout_silo" text="Drives up and down the bunker silo lane by lane, forwards in and backing out. Waits when the silo is compacted, goes on when more is tipped; stops when it is closed."/>
-        <text name="guidance_helperReady_unload" text="Start it at the field edge"/>
+        <text name="guidance_helperReady_unload" text="Pick the combine and where it unloads, then Start"/>
         <text name="guidance_helperReady_bales" text="Start it where the stack should be"/>
         <text name="guidance_helperReady_silo" text="Start it at the silo"/>
         <text name="guidance_set_unloadAt" text="Unload at"/>
-        <text name="guidance_unload_stop" text="Stop when full"/>
         <text name="guidance_set_unloadFull" text="Leave when full at"/>
         <text name="guidance_set_refill" text="Refill at"/>
         <text name="guidance_refill_off" text="Off: stops when empty"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Move"/>
         <text name="guidance_toolHint_move" text="Drag a point of the course"/>
         <text name="guidance_phase_balesCantWrap" text="Done; bales left this wrapper can't wrap"/>
-        <text name="guidance_unload_truck" text="Truck at the field edge"/>
-        <text name="guidance_unload_heap" text="Heap where it started"/>
         <text name="guidance_phase_unloadToTruck" text="Driving to the truck"/>
         <text name="guidance_phase_unloadOverload" text="Emptying into the truck"/>
         <text name="guidance_phase_unloadToHeap" text="Driving to the heap"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Orchard %d"/>
         <text name="guidance_warn_convoyNarrow" text="Too narrow for a convoy of %d: about %d%% stays unworked. Try Next free row or Strips."/>
         <text name="guidance_info_WAITING_RAIN" text="Waiting for the rain to stop (harvesting now loses yield)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Full, no unloader: start a CourseCorrect unloader on this field, or give an AutoDrive truck the same first target as this harvester"/>
+        <text name="guidance_info_NO_UNLOADER" text="Full, no unloader: set a truck's Unloader to this combine (Course tab) and start it, or give an AutoDrive truck the same first target as this harvester"/>
+        <text name="guidance_set_refuelAt" text="Refuel at"/>
+        <text name="guidance_set_repairAt" text="Repair at (wear)"/>
+        <text name="guidance_set_handOver" text="Then, on this field"/>
+        <text name="guidance_handOver_none" text="Nobody"/>
+        <text name="guidance_handOver_gone" text="(not found)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Off to refuel (AutoDrive), carries on after"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Off for a repair (AutoDrive), carries on after"/>
+        <text name="guidance_info_HANDED_OVER" text="Done, the field is handed over"/>
+        <text name="guidance_contracts_open" text="Contracts (%d)"/>
+        <text name="guidance_contracts_title" text="Contracts (%d)"/>
+        <text name="guidance_contracts_hint" text="Your running contracts. Make course: a course on that field for this tractor. Go: and off there (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="No running contracts."/>
+        <text name="guidance_contracts_hasCourse" text="course ready"/>
+        <text name="guidance_contracts_make" text="Make course"/>
+        <text name="guidance_contracts_made" text="Course made for: %s"/>
         <text name="guidance_set_rainWait" text="In the rain"/>
         <text name="guidance_rain_wait" text="Wait"/>
         <text name="guidance_rain_go" text="Carry on"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Left"/>
         <text name="guidance_pipeSide_right" text="Right"/>
         <text name="guidance_set_unloadCombine" text="Combine"/>
-        <text name="guidance_unloadCombine_any" text="Any on its field"/>
+        <text name="guidance_set_secondUnloader" text="Second unloader"/>
+        <text name="guidance_set_followDistance" text="Follow distance"/>
+        <text name="guidance_pipeSide_rear" text="Behind"/>
+        <text name="guidance_unloadCombine_none" text="(none)"/>
+        <text name="guidance_unloadAD_pick" text="(pick one)"/>
+        <text name="guidance_unloadAD_noTarget" text="Pick where it unloads (an AutoDrive marker)"/>
+        <text name="guidance_unloadAD_noCombine" text="Pick the combine first (its field needs an AutoDrive marker)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive drives it as the combine unloader"/>
+        <text name="guidance_status_adUnload" text="AutoDrive unloads"/>
         <text name="guidance_unloadCombine_field" text="field %s"/>
-        <text name="guidance_unloadCombine_gone" text="(not found)"/>
-        <text name="guidance_unloadGo" text="To %s on field %s: AutoDrive takes it there, the unloader starts on arrival"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Fewer settings"/>
         <text name="guidance_btn_makeCourse" text="Make course"/>
         <text name="guidance_btn_newCourse" text="New course"/>
+        <text name="guidance_btn_clearCourse" text="Clear"/>
+        <text name="guidance_course_cleared" text="Course cleared"/>
+        <text name="guidance_clear_ask" text="Clear this tractor's course? Saved courses stay."/>
         <text name="guidance_btn_start" text="Start"/>
         <text name="guidance_btn_stop" text="Stop"/>
         <text name="guidance_status_paused" text="Paused · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pause"/>
         <text name="guidance_btn_resume" text="Resume"/>
         <text name="guidance_set_startAt" text="Start at"/>
+        <text name="guidance_set_startAfter" text="Then"/>
         <text name="guidance_start_continue" text="Continue"/>
         <text name="guidance_start_nearest" text="Nearest"/>
         <text name="guidance_start_first" text="First"/>

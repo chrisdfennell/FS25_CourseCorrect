@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Aggancia un rimorchio o un carro con coclea per scaricare le mietitrebbie"/>
         <text name="guidance_helper_noBaleTool" text="Aggancia un caricatore o un'avvolgitrice per balle per raccogliere le balle"/>
         <text name="guidance_helper_noSilo" text="Vai a un silo a trincea per compattarlo"/>
-        <text name="guidance_helperAbout_unload" text="Aspetta al bordo del campo, raggiunge una mietitrebbia o una trincia di questo campo che chiama (attorno alla coltura) e prende il carico sotto il tubo alla sua velocità (accanto alla trincia, o dietro nella coltura in piedi). Pieno: va a una stazione sulle strade del gioco e torna, svuota in un camion al bordo del campo (carro trasbordatore), fa un mucchio dove è partito (ribaltabile), oppure si ferma per te."/>
+        <text name="guidance_helperAbout_unload" text="Lo scaricatore di mietitrebbie di AutoDrive, impostato qui: aspetta alla destinazione AutoDrive del campo della sua mietitrebbia, va alla mietitrebbia quando chiama, prende il carico sotto il tubo e lo porta a Scarica a. Sono le impostazioni di AutoDrive stesso: cambiate qui o nel menu di AutoDrive, entrambi mostrano lo stesso."/>
         <text name="guidance_helperAbout_bales" text="Raccoglie (o avvolge) ogni balla di questo campo, la più vicina per prima. Un caricatore pieno scarica la pila dove è partito; alla fine porta lì anche il resto."/>
         <text name="guidance_helperAbout_silo" text="Percorre il silo a trincea corsia per corsia, entrando in avanti e uscendo in retromarcia. Aspetta quando il silo è compattato, riprende quando ne viene scaricato altro; si ferma se è chiuso."/>
-        <text name="guidance_helperReady_unload" text="Avvialo al bordo del campo"/>
+        <text name="guidance_helperReady_unload" text="Scegli la mietitrebbia e dove scarica, poi Avvia"/>
         <text name="guidance_helperReady_bales" text="Avvialo dove deve stare la pila"/>
         <text name="guidance_helperReady_silo" text="Avvialo al silo"/>
         <text name="guidance_set_unloadAt" text="Scarica a"/>
-        <text name="guidance_unload_stop" text="Fermati quando pieno"/>
         <text name="guidance_set_unloadFull" text="Parti quando pieno al"/>
         <text name="guidance_set_refill" text="Rifornisci a"/>
         <text name="guidance_refill_off" text="No: si ferma quando vuoto"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Sposta"/>
         <text name="guidance_toolHint_move" text="Trascina un punto del percorso"/>
         <text name="guidance_phase_balesCantWrap" text="Fatto; restano balle che questa fasciatrice non può fasciare"/>
-        <text name="guidance_unload_truck" text="Camion al bordo del campo"/>
-        <text name="guidance_unload_heap" text="Mucchio dove è partito"/>
         <text name="guidance_phase_unloadToTruck" text="Va al camion"/>
         <text name="guidance_phase_unloadOverload" text="Svuota nel camion"/>
         <text name="guidance_phase_unloadToHeap" text="Va al mucchio"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Frutteto %d"/>
         <text name="guidance_warn_convoyNarrow" text="Troppo stretto per un convoglio di %d: circa il %d%% resta non lavorato. Prova Prossima fila libera o Strisce."/>
         <text name="guidance_info_WAITING_RAIN" text="Aspetta che smetta di piovere (trebbiare ora riduce la resa)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Pieno, nessun scaricatore: avvia uno scaricatore CourseCorrect su questo campo o dai a un camion AutoDrive la stessa prima destinazione di questa mietitrice"/>
+        <text name="guidance_info_NO_UNLOADER" text="Pieno, nessun scaricatore: scegli questa mietitrebbia nello Scarico di un camion (scheda Percorso) e avvialo, o dai a un camion AutoDrive la stessa prima destinazione di questa mietitrice"/>
+        <text name="guidance_set_refuelAt" text="Rifornimento al"/>
+        <text name="guidance_set_repairAt" text="Riparazione al (usura)"/>
+        <text name="guidance_set_handOver" text="Poi, su questo campo"/>
+        <text name="guidance_handOver_none" text="Nessuno"/>
+        <text name="guidance_handOver_gone" text="(non trovato)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Va a fare rifornimento (AutoDrive), poi continua"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Va a riparare (AutoDrive), poi continua"/>
+        <text name="guidance_info_HANDED_OVER" text="Fatto, il campo passa al prossimo"/>
+        <text name="guidance_contracts_open" text="Contratti (%d)"/>
+        <text name="guidance_contracts_title" text="Contratti (%d)"/>
+        <text name="guidance_contracts_hint" text="I tuoi contratti in corso. Crea percorso: un percorso su quel campo per questo trattore. Vai: e ci va (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="Nessun contratto in corso."/>
+        <text name="guidance_contracts_hasCourse" text="percorso pronto"/>
+        <text name="guidance_contracts_make" text="Crea percorso"/>
+        <text name="guidance_contracts_made" text="Percorso creato per: %s"/>
         <text name="guidance_set_rainWait" text="Con la pioggia"/>
         <text name="guidance_rain_wait" text="Aspetta"/>
         <text name="guidance_rain_go" text="Continua"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Sinistra"/>
         <text name="guidance_pipeSide_right" text="Destra"/>
         <text name="guidance_set_unloadCombine" text="Mietitrebbia"/>
-        <text name="guidance_unloadCombine_any" text="Qualsiasi nel suo campo"/>
+        <text name="guidance_set_secondUnloader" text="Secondo scaricatore"/>
+        <text name="guidance_set_followDistance" text="Distanza dietro"/>
+        <text name="guidance_pipeSide_rear" text="Dietro"/>
+        <text name="guidance_unloadCombine_none" text="(nessuna)"/>
+        <text name="guidance_unloadAD_pick" text="(scegli)"/>
+        <text name="guidance_unloadAD_noTarget" text="Scegli dove scarica (una destinazione AutoDrive)"/>
+        <text name="guidance_unloadAD_noCombine" text="Scegli prima la mietitrebbia (il suo campo ha bisogno di una destinazione AutoDrive)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive lo guida come scaricatore"/>
+        <text name="guidance_status_adUnload" text="AutoDrive scarica"/>
         <text name="guidance_unloadCombine_field" text="campo %s"/>
-        <text name="guidance_unloadCombine_gone" text="(non trovata)"/>
-        <text name="guidance_unloadGo" text="Verso %s nel campo %s: AutoDrive lo porta, lo scaricatore parte all'arrivo"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: avvia"/>
         <text name="guidance_action_stop" text="CourseCorrect: ferma"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Meno impostazioni"/>
         <text name="guidance_btn_makeCourse" text="Crea percorso"/>
         <text name="guidance_btn_newCourse" text="Nuovo percorso"/>
+        <text name="guidance_btn_clearCourse" text="Cancella"/>
+        <text name="guidance_course_cleared" text="Percorso cancellato"/>
+        <text name="guidance_clear_ask" text="Cancellare il percorso di questo trattore? I percorsi salvati restano."/>
         <text name="guidance_btn_start" text="Avvia"/>
         <text name="guidance_btn_stop" text="Ferma"/>
         <text name="guidance_status_paused" text="In pausa · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pausa"/>
         <text name="guidance_btn_resume" text="Riprendi"/>
         <text name="guidance_set_startAt" text="Parti da"/>
+        <text name="guidance_set_startAfter" text="Poi"/>
         <text name="guidance_start_continue" text="Continua"/>
         <text name="guidance_start_nearest" text="Più vicino"/>
         <text name="guidance_start_first" text="Primo"/>

@@ -7,7 +7,7 @@ Guidance = {
     MOD_NAME = g_currentModName,
     MOD_DIR = g_currentModDirectory,
     SPEC_NAME = g_currentModName .. ".guidance",
-    VERSION = "1.0.6.7",
+    VERSION = "1.0.8.7",
     -- the name players see
     TITLE = "CourseCorrect",
     -- the mod's name before 0.5: its data is read once, and it must not be loaded as well
@@ -74,6 +74,9 @@ Guidance.NOTIFY = {
     NEXT_FIELD_WAITING = "INGAME_NOTIFICATION_INFO",
     WAITING_RAIN = "INGAME_NOTIFICATION_INFO",
     NO_UNLOADER = "INGAME_NOTIFICATION_CRITICAL",
+    SERVICE_FUEL = "INGAME_NOTIFICATION_INFO",
+    SERVICE_REPAIR = "INGAME_NOTIFICATION_INFO",
+    HANDED_OVER = "INGAME_NOTIFICATION_OK",
 }
 
 --- Tells the player (if it is their farm's vehicle) that a helper got a status: finished, full, stuck...
@@ -223,7 +226,6 @@ function Guidance:loadMap()
     mission.aiMessageManager:registerMessage(AIMessageGuidanceNoCourse.name, AIMessageGuidanceNoCourse)
     mission.aiJobTypeManager:registerJobType(GuidanceJob.name, g_i18n:getText("guidance_jobTitle"), GuidanceJob)
     -- the helpers without a course: unloader, bale collector, silo compacter
-    mission.aiJobTypeManager:registerJobType(GuidanceUnloadJob.name, g_i18n:getText("guidance_helper_unload"), GuidanceUnloadJob)
     mission.aiJobTypeManager:registerJobType(GuidanceBaleJob.name, g_i18n:getText("guidance_helper_bales"), GuidanceBaleJob)
     mission.aiJobTypeManager:registerJobType(GuidanceSiloJob.name, g_i18n:getText("guidance_helper_silo"), GuidanceSiloJob)
     mission.aiJobTypeManager:registerJobType(GuidanceShovelJob.name, g_i18n:getText("guidance_helper_shovel"), GuidanceShovelJob)

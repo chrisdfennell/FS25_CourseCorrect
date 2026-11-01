@@ -921,7 +921,8 @@ end
 
 --- The manoeuvre at a square corner of a headland pass, from 'prev' through the corner c towards 'nxt': work on
 --- past the corner until the whole corner is covered, back up, turn into the next edge, back up to where its work
---- starts. The waypoints after this continue the pass.
+--- starts. The waypoints after this continue the pass. Returns where the next edge's work starts ({c, h, q}: q m on
+--- from c along heading h), or nil when it was rounded after all.
 function Builder:addSquareCorner(prev, c, nxt, pass, extra)
     local s = self.s
     local r, spacing = s.turnRadius, spacingOf(s)
@@ -987,18 +988,66 @@ function Builder:addSquareCorner(prev, c, nxt, pass, extra)
     end
     -- back up to where the work on the next edge starts
     self:add(c.x + f2x * q, c.y + f2y * q, "C", false, {rev = true})
+    return {c = c, h = h2, q = q}
+end
+
+--- The first point of the pass after a square corner (p; ring index j): the end of the corner's reverse moved onto
+--- the edge's own line (through p, towards the next point of the pass at least 5 m on), at least a metre before p.
+--- It ended on the line through the corner, which can run half a metre off the edge (or more by a cut-off field
+--- corner, where the pass is pushed in) and short of the pass's first point: backed up there, the harvester had to
+--- jink back or sideways before going on (wonky corners).
+function Builder:alignCornerEnd(ring, j, after)
+    local w = self.wps[#self.wps]
+    local p = ring[j]
+    if w == nil or not w.rev or p == nil then return end
+    local far
+    for k = j + 1, #ring do
+        local q = ring[k]
+        if (q.x - p.x) ^ 2 + (q.y - p.y) ^ 2 >= 25 then far = q break end
+    end
+    -- (the edge's direction as the pass runs, when that is the edge's: a cut-off corner's slant is not)
+    local h = far and Geo.heading(p, far) or after.h
+    if math.abs(Geo.normAngle(h - after.h)) > math.rad(3) then h = after.h end
+    local hx, hz = math.cos(h), math.sin(h)
+    local dx, dz = p.x - w.x, p.y - w.z
+    if math.abs(dz * hx - dx * hz) > 1 then return end
+    local back = math.max(1, dx * hx + dz * hz)
+    w.x, w.z = p.x - hx * back, p.y - hz * back
+end
+
+--- Right after a square corner, a point of the pass pushed in by a cut-off field corner (more than 0.75 m off the
+--- line the corner's reverse ends on, within two work widths of it): the corner manoeuvre covers there, and going
+--- across to it from the end of the reverse made a hook
+function Builder:pushedInAfterCorner(p, spacing)
+    local w = self.wps[#self.wps]
+    if w == nil or not w.rev then return false end
+    local prev = self.wps[#self.wps - 1]
+    if prev == nil then return false end
+    -- (the reverse runs along the next edge: its line)
+    local len = math.sqrt((w.x - prev.x) ^ 2 + (w.z - prev.z) ^ 2)
+    if len < 0.5 then return false end
+    local hx, hz = (prev.x - w.x) / len, (prev.z - w.z) / len
+    local dx, dz = p.x - w.x, p.y - w.z
+    local along, across = dx * hx + dz * hz, math.abs(dz * hx - dx * hz)
+    return along > -0.5 and along < 2 * spacing and across > 0.75
 end
 
 --- A closed headland pass, starting and ending at ring[1]
 function Builder:addRing(ring, pass, extra)
     local n = #ring
+    -- the square corner just made (where the work on the next edge starts), while its points are passed
+    local after
     for i = 1, n + 1 do
         local p = ring[(i - 1) % n + 1]
         local flags = {pass = pass, rs = i == 1 or nil, re = i == n + 1 or nil}
         for k, v in pairs(extra or {}) do flags[k] = v end
         if p.corner and i > 1 and i <= n then
-            self:addSquareCorner(ring[i - 1], p, ring[i % n + 1], pass, extra)
+            after = self:addSquareCorner(ring[i - 1], p, ring[i % n + 1], pass, extra)
+        elseif after and i <= n and self:pushedInAfterCorner(p, spacingOf(self.s)) then
+            -- (pushed in by a cut-off field corner: covered by the corner manoeuvre, left out)
         else
+            if after then self:alignCornerEnd(ring, (i - 1) % n + 1, after) end
+            after = nil
             self:add(p.x, p.y, "H", true, flags)
         end
     end

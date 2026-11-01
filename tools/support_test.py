@@ -89,24 +89,21 @@ function checkSupport(flat)
         function xml:setValue(k, val) store[k] = val end
         local oldKind, oldActive, oldStartHelper, oldStart, oldDriving = v.getGuidanceHelperKind, v.getIsGuidanceActive,
             v.guidanceStartHelper, v.guidanceStart, v.getIsHelperDriving
-        v.getGuidanceHelperKind = function() return "unload" end
+        v.getGuidanceHelperKind = function() return "bales" end
         v.getIsGuidanceActive = function() return true end
         GuidanceVehicle.saveToXMLFile(v, xml, "k")
-        local savedAs = store["k#active"] == false and store["k#helper"] == "unload"
+        local savedAs = store["k#active"] == false and store["k#helper"] == "bales"
         local startedHelper, startedCourse
         v.guidanceStartHelper = function(_, kind, values) startedHelper = {kind = kind, values = values}; return true end
         v.guidanceStart = function() startedCourse = true end
         v.getIsHelperDriving = function() return false end
         local spec = v.spec_guidance
-        spec.settings.unloadMode, spec.settings.unloadFull = 2, 90
-        spec.resumeHelper, spec.resumeAfterLoad = "unload", GuidanceVehicle.RESUME_DELAY
+        spec.resumeHelper, spec.resumeAfterLoad = "bales", GuidanceVehicle.RESUME_DELAY
         GuidanceVehicle.updateResume(v, spec, 1)
         v.getGuidanceHelperKind, v.getIsGuidanceActive, v.guidanceStartHelper, v.guidanceStart, v.getIsHelperDriving =
             oldKind, oldActive, oldStartHelper, oldStart, oldDriving
-        spec.settings.unloadMode, spec.settings.unloadFull = 0, 97
-        r.resumeHelper = savedAs and startedHelper ~= nil and startedHelper.kind == "unload" and not startedCourse
-            and startedHelper.values.unloadMode == 2 and math.abs(startedHelper.values.fullLevel - 0.9) < 1e-6
-        RESUME_INFO = string.format("saved as the unloader %s; after loading: unloader started %s, its course %s",
+        r.resumeHelper = savedAs and startedHelper ~= nil and startedHelper.kind == "bales" and not startedCourse
+        RESUME_INFO = string.format("saved as the bale collector %s; after loading: bale collector started %s, its course %s",
             tostring(savedAs), tostring(startedHelper ~= nil), tostring(startedCourse == true))
     end
     -- the course lines in the world: drawn the player's line height above the ground (up over tall crops)
@@ -207,7 +204,7 @@ function checkSupport(flat)
         local motor = {on = true, starts = 0, stops = 0}
         MotorState = MotorState or {OFF = 0, ON = 3}
         local oldStart, oldStop, oldState, oldPhase = v.startMotor, v.stopMotor, v.getMotorState, v.getGuidanceHelperPhase
-        local phase = "unloadWait"
+        local phase = "siloWait"
         v.startMotor = function() motor.on = true; motor.starts = motor.starts + 1 end
         v.stopMotor = function() motor.on = false; motor.stops = motor.stops + 1 end
         v.getMotorState = function() return motor.on and MotorState.ON or MotorState.OFF end
@@ -221,80 +218,15 @@ function checkSupport(flat)
         local blocked = GuidanceVehicle.getCanMotorRun(v, function() return true end) == false
         GuidanceVehicle.saveFuel(v, spec, 100, 8)
         local onToMove = motor.on and not spec.engineOff
-        phase = "unloadFollow"
+        phase = "siloDrive"
         for _ = 1, 30 do GuidanceVehicle.saveFuel(v, spec, 1000, 0) end
         local followOn = motor.on
         spec.helperDriver, spec.engineOff, spec.idleTime = nil, false, 0
         v.startMotor, v.stopMotor, v.getMotorState, v.getGuidanceHelperPhase = oldStart, oldStop, oldState, oldPhase
         r.fuelSave = onAt9 and offAt11 and blocked and onToMove and followOn and motor.stops == 1
         FUEL_INFO = string.format("waiting: on after 9 s %s, off after 11 s %s, game can't start it %s, on to move %s; "
-            .. "standing under the pipe 30 s: still on %s", tostring(onAt9), tostring(offAt11), tostring(blocked),
+            .. "driving, standing 30 s: still on %s", tostring(onAt9), tostring(offAt11), tostring(blocked),
             tostring(onToMove), tostring(followOn))
-    end
-
-    -- the unloader at work takes a new Unload at / Leave when full / Crop on the way at once; set to drive straight
-    -- through the crop it looks for no way round it
-    do
-        local oldKind, oldJob = v.getGuidanceHelperKind, v.getJob
-        local job = {unloadX = 0, unloadZ = 0, unloadMode = 0, fullLevel = 0.97, avoidCrop = true}
-        local drv = {leaveLevel = 0.97}
-        v.getGuidanceHelperKind = function() return "unload" end
-        v.getJob = function() return job end
-        local oldDriver = v.spec_guidance.driver
-        v.spec_guidance.driver = drv
-        local realSend = GuidanceSettingEvent.sendEvent
-        GuidanceSettingEvent.sendEvent = function() end
-        v:guidanceApplySettings({unloadMode = 0, unloadX = 512.5, unloadZ = -80})
-        v:guidanceApplySettings({unloadFull = 85})
-        v:guidanceApplySettings({avoidCrop = false})
-        GuidanceSettingEvent.sendEvent = realSend
-        v.getGuidanceHelperKind, v.getJob, v.spec_guidance.driver = oldKind, oldJob, oldDriver
-        local live = job.unloadX == 512.5 and job.unloadZ == -80 and math.abs(job.fullLevel - 0.85) < 1e-6
-            and math.abs(drv.leaveLevel - 0.85) < 1e-6 and job.avoidCrop == false
-        -- planning a way with crop everywhere: round it, or (set so) not
-        local finds = 0
-        local realFind = GuidancePathfinder.find
-        GuidancePathfinder.find = function() finds = finds + 1 end
-        local node = {x = 0, z = 0, h = 0}
-        local truck = {rootNode = node, getAIDirectionNode = function() return node end}
-        local probe = {fruitIndexes = {1}, hasFruit = function() return true end}
-        local function plan(avoid)
-            local d = setmetatable({vehicle = truck, info = {turnRadius = 6}, course = {plan = {workWidth = 3}},
-                                    area = {field = {}}, probe = probe, job = {avoidCrop = avoid}},
-                {__index = GuidanceHelperDriver})
-            d:planTo(80, 0, 0, 0)
-        end
-        plan(true)
-        local roundFinds = finds
-        plan(false)
-        GuidancePathfinder.find = realFind
-        r.unloaderLive = live and roundFinds == 1 and finds == 1
-        LIVE_UNLOAD_INFO = string.format("taken at once: %s; through crop: looked for a way round %d time(s) when set to go round, %d more when set to drive through",
-            tostring(live), roundFinds, finds - roundFinds)
-    end
-
-    -- an unloader waiting on a combine's line (where it was started): the combine, held up by it below its call
-    -- level, calls it now (else both wait for ever); not held up by it, not yet
-    do
-        local truck = {rootNode = {x = 0, z = 0, h = 0}}
-        local combineNode = {x = 0, z = -30, h = math.pi / 2}
-        local cd = {course = {plan = {callUnloaderAt = 80}}}
-        local combine = {rootNode = combineNode, spec_combine = {fillUnitIndex = 1}, spec_pipe = {},
-                         spec_guidance = {driver = cd}}
-        function combine:getChildVehicles() return {self} end
-        function combine:getAIDirectionNode() return combineNode end
-        function combine:getFillUnitCapacity() return 1000 end
-        function combine:getFillUnitFillLevel() return 690 end
-        local oldVs = g_currentMission.vehicleSystem
-        g_currentMission.vehicleSystem = {vehicles = {truck, combine}}
-        local u = setmetatable({vehicle = truck}, {__index = GuidanceUnloadDriver})
-        local notYet = u:pickCombine() == nil
-        cd.blockedBy = truck
-        local called = u:pickCombine() == combine
-        g_currentMission.vehicleSystem = oldVs
-        r.unloaderInWay = notYet and called
-        IN_WAY_INFO = string.format("combine 69%% full (calls at 80): not called %s; held up by the waiting unloader: called %s",
-            tostring(notYet), tostring(called))
     end
 
     -- an AutoDrive truck standing ahead, its trailer reaching back into our line: we stop short of the trailer; after
@@ -372,167 +304,6 @@ function checkSupport(flat)
         TRAILER_RADIUS_INFO = string.format("truck with a 12 m semi-trailer plans with %.1f m (cab 4.4); alone %.1f m", rTruck, rAlone)
     end
 
-    -- the unloader's offsets: its place under the pipe 1 m further out from the combine (whichever side the pipe is
-    -- on) and 2 m further forward
-    do
-        local cNode = {x = 0, z = 0, h = 0}
-        local combine = {rootNode = cNode, spec_combine = {fillUnitIndex = 1, isBufferCombine = false}, spec_pipe = {currentState = 1}}
-        function combine:getChildVehicles() return {self} end
-        function combine:getAIDirectionNode() return cNode end
-        function combine:getFillUnitCapacity() return 1000 end
-        local function place(side, along, pipeLeft)
-            local u = setmetatable({vehicle = {}, job = {unloadSide = side, unloadAlong = along}, pipeLeft = pipeLeft,
-                                    pipeAhead = -1}, {__index = GuidanceUnloadDriver})
-            local x, z = u:placeUnderPipe(combine, nil)
-            return x, z
-        end
-        local okSides = true
-        for _, pl in ipairs({7.5, -7.5}) do
-            local x0, z0 = place(0, 0, pl)
-            local x1, z1 = place(1, 2, pl)
-            local lx, lz = math.sin(0), -math.cos(0)
-            local out = ((x1 - x0) * lx + (z1 - z0) * lz) * (pl > 0 and 1 or -1)
-            local fwd = (x1 - x0) * 1 + (z1 - z0) * 0
-            if math.abs(out - 1) > 1e-6 or math.abs(fwd - 2) > 1e-6 then okSides = false end
-        end
-        r.unloadOffsets = okSides
-        OFFSET_INFO = string.format("place moved 1 m out from the combine and 2 m forward, pipe left and right: %s", tostring(okSides))
-    end
-
-    -- a sugarcane harvester with a short pipe (3 m out), a 3.4 m body and a 5.5 m header: the truck's place keeps its
-    -- side 0.6 m clear of the body (before 1.0.5.7 its cab drove into the harvester), not of the header (1.0.5.7 to
-    -- 1.0.5.9: so far out the pipe didn't reach the trailer); a -1 m side offset doesn't bring it closer
-    do
-        local cNode = {x = 0, z = 0, h = 0}
-        local header = {size = {width = 5.5}}
-        local combine = {rootNode = cNode, size = {width = 3.4}, spec_combine = {fillUnitIndex = 1, isBufferCombine = false},
-                         spec_pipe = {currentState = 1}}
-        function combine:getChildVehicles() return {self, header} end
-        function combine:getAIDirectionNode() return cNode end
-        function combine:getFillUnitCapacity() return 1000 end
-        local truck = {size = {width = 2.55}}
-        function truck:getChildVehicles() return {self} end
-        local u = setmetatable({vehicle = truck, job = {unloadSide = -1, unloadAlong = 0}, pipeLeft = 3, pipeAhead = -1},
-            {__index = GuidanceUnloadDriver})
-        local px, pz = u:placeUnderPipe(combine, nil)
-        local lateral = -pz -- (left of heading 0 is -z here)
-        local clear = lateral - 3.4 / 2 - 2.55 / 2
-        -- clear of its body (3.4 m), not pushed out by the header (5.5 m): the pipe still reaches the trailer
-        r.unloaderClear = clear > 0.59 and clear < 0.61
-        CLEAR_INFO = string.format("short pipe 3 m out, 3.4 m body, 5.5 m header, side offset -1: place %.2f m out, our side %.2f m clear of its body", lateral, clear)
-    end
-
-    -- Pipe side: Right on a combine whose pipe is measured on the left: the place goes to its right; Auto: left. And a
-    -- way planned through the combine it serves goes round it (it drove into the harvester)
-    do
-        local cNode = {x = 0, z = 0, h = 0}
-        local combine = {rootNode = cNode, size = {width = 3.4, length = 12}, spec_combine = {fillUnitIndex = 1, isBufferCombine = false},
-                         spec_pipe = {currentState = 1}}
-        function combine:getChildVehicles() return {self} end
-        function combine:getAIDirectionNode() return cNode end
-        function combine:getFillUnitCapacity() return 1000 end
-        local truck = {size = {width = 2.55}}
-        function truck:getChildVehicles() return {self} end
-        local function sideOf(forced)
-            local u = setmetatable({vehicle = truck, job = {unloadPipeSide = forced}, pipeLeft = 6, pipeAhead = -1},
-                {__index = GuidanceUnloadDriver})
-            local _, pz = u:placeUnderPipe(combine, nil)
-            return -pz > 0 and "left" or "right" -- (left of heading 0 is -z here)
-        end
-        local autoSide, rightSide, leftSide = sideOf(0), sideOf(2), sideOf(1)
-        -- the footprint: in the combine's way (just ahead of its middle) blocked, well out to the side free
-        local u = setmetatable({vehicle = truck, combine = combine, job = {avoidCrop = true}}, {__index = GuidanceUnloadDriver})
-        local probe = u:wayProbe()
-        local blocksBody = probe ~= nil and probe:hasFruit(3, 0, 2) and probe:hasFruit(-5, 1, 2)
-        local freeBeside = probe ~= nil and not probe:hasFruit(0, 6, 2) and not probe:hasFruit(20, 0, 2)
-        r.pipeSideAndRound = autoSide == "left" and rightSide == "right" and leftSide == "left" and blocksBody and freeBeside
-        SIDE_INFO = string.format("pipe measured left: Auto %s, Right %s, Left %s; ways keep out of the combine %s, free beside it %s",
-            autoSide, rightSide, leftSide, tostring(blocksBody), tostring(freeBeside))
-    end
-
-    -- the truck at its place but crosswise to a standing combine (its way in looped past the place): it doesn't count
-    -- that as lined up, it takes a new way in (before 1.0.5.9 it stood there "unloading" for ever)
-    do
-        local cNode = {x = 0, z = 0, h = 0}
-        local combine = {rootNode = cNode, size = {width = 3.4, length = 12}, spec_combine = {fillUnitIndex = 1, isBufferCombine = false},
-                         spec_pipe = {currentState = 1}}
-        function combine:getChildVehicles() return {self} end
-        function combine:getAIDirectionNode() return cNode end
-        function combine:getFillUnitCapacity() return 1000 end
-        function combine:getFillUnitFillLevel() return 900 end
-        function combine:getLastSpeed() return 0 end
-        local tNode = {x = 4, z = -6, h = math.pi / 2}
-        local truck = {rootNode = tNode, size = {width = 2.55}}
-        function truck:getChildVehicles() return {self} end
-        function truck:getAIDirectionNode() return tNode end
-        function truck:getLastSpeed() return 0 end
-        local u = setmetatable({vehicle = truck, combine = combine, job = {}, pipeLeft = 6, pipeAhead = -1, state = "follow",
-                                timer = 0, stuckTimer = 0, info = {turnRadius = 6}, course = {plan = {workWidth = 3}}},
-            {__index = GuidanceUnloadDriver})
-        u:follow(100, nil)
-        local ok, text = pcall(u.describe, u)
-        -- lined up and pointing its way, but 8.4 m to the side of its place (the pipe was on the combine's other side):
-        -- a new way in too (before 1.0.6.2 it stood there with the pipe out and nothing flowing)
-        local sNode = {x = 4, z = 2.4, h = 0}
-        local truck2 = {rootNode = sNode, size = {width = 2.55}}
-        function truck2:getChildVehicles() return {self} end
-        function truck2:getAIDirectionNode() return sNode end
-        function truck2:getLastSpeed() return 0 end
-        local u2 = setmetatable({vehicle = truck2, combine = combine, job = {}, pipeLeft = 6, pipeAhead = -1, state = "follow",
-                                 timer = 0, stuckTimer = 0, info = {turnRadius = 6}, course = {plan = {workWidth = 3}}},
-            {__index = GuidanceUnloadDriver})
-        u2:follow(100, nil)
-        local besideOk = u2.state == "approach"
-        -- at its place and pointing the combine's way, but its trailer folded 57 deg against it (it started beside the
-        -- combine like that): out straight first (1.0.6.7; before, a new way in, blocked by the combine at once, time
-        -- after time), straight on where that is clear; after 3 of those a new way in; the trailer straight: it stays
-        local function atPlace(trailerH, x, z, straightens, direct)
-            local n = {x = x or 3, z = z or -6, h = 0}
-            local t = {rootNode = {x = n.x - 8, z = n.z, h = trailerH}, spec_trailer = {}}
-            local tr = {rootNode = n, size = {width = 2.55}}
-            function tr:getChildVehicles() return {self, t} end
-            function tr:getAIDirectionNode() return n end
-            function tr:getLastSpeed() return 0 end
-            local uu = setmetatable({vehicle = tr, combine = combine, job = {}, pipeLeft = 6, pipeAhead = -1, state = "follow",
-                                     timer = 0, stuckTimer = 0, info = {turnRadius = 6}, course = {plan = {workWidth = 3}},
-                                     straightens = straightens},
-                {__index = GuidanceUnloadDriver})
-            if direct then uu:startStraighten() else uu:follow(100, nil) end
-            local pts = uu.follower and uu.follower.points
-            local last = pts and pts[#pts]
-            return uu.state, last
-        end
-        local folded, ahead = atPlace(1.0)
-        local straight = atPlace(0)
-        local spent = atPlace(1.0, 3, -6, 3)
-        -- right behind the combine, folded (off its place: a new way in, which straightens first): straight on would
-        -- hit it, it turns off away from it (to -z)
-        local behindState, away = atPlace(1.0, -10, -2, nil, true)
-        local aheadOk = ahead ~= nil and math.abs(ahead.z + 6) < 0.01 and ahead.x > 3 + 20
-        local awayOk = away ~= nil and away.z < -2 - 8 and away.x > -10 + 15
-        FOLD_INFO = string.format("at its place, trailer folded 57 deg: %s straight on to x %.0f (want straighten); right behind the combine: %s, to z %.1f (want away from it, -z); after 3 of those: %s (want approach); trailer straight: %s (want follow)",
-            folded, ahead and ahead.x or 0, behindState, away and away.z or 0, spent, straight)
-        besideOk = besideOk and folded == "straighten" and aheadOk and behindState == "straighten" and awayOk
-            and spent == "approach" and straight == "follow"
-        LATERAL_INFO = string.format("lined up but 8.4 m to the side of its place, combine standing: %s (want approach)", tostring(u2.state))
-        r.crosswise = u.state == "approach" and besideOk and ok and type(text) == "string" and text:find("deg off", 1, true) ~= nil
-        DESCRIBE_INFO = ok and text or tostring(text)
-        CROSSWISE_INFO = string.format("at its place crosswise to a standing combine: %s (want approach: a new way in)", tostring(u.state))
-    end
-
-    -- a trailer whose fill point (a mod's) is 8.4 m to the side, off the trailer: its middle is used (it lined the bad
-    -- point up under the pipe, the trailer stood 8 m away); one on the trailer is kept
-    do
-        local trailer = {rootNode = {x = 0, z = 0}, size = {width = 2.6, length = 12, lengthOffset = 0}}
-        local bad = {lx = -8.4, lz = 0}
-        local good = {lx = 0.3, lz = -2}
-        local usedBad = GuidanceUnloadDriver.checkedFillNode(trailer, bad)
-        local usedGood = GuidanceUnloadDriver.checkedFillNode(trailer, good)
-        r.fillPoint = usedBad == trailer.rootNode and usedGood == good
-        FILL_INFO = string.format("fill point 8.4 m off the trailer: its middle used %s; one on it kept %s",
-            tostring(usedBad == trailer.rootNode), tostring(usedGood == good))
-    end
-
     -- turning back (after unloading) with standing crop on one side: it turns the other way, not into the crop
     do
         local node = {x = 0, z = 0, h = 0}
@@ -541,7 +312,7 @@ function checkSupport(flat)
         local probe = {fruitIndexes = {1}}
         function probe:hasFruit(x, z, size) return z - (size or 2) / 2 < -4 end -- crop from z = -4 on
         local d = setmetatable({vehicle = truck, info = {turnRadius = 8}, turnRadius = 8, course = {plan = {workWidth = 3}},
-                                probe = probe, job = {avoidCrop = true}}, {__index = GuidanceHelperDriver})
+                                probe = probe}, {__index = GuidanceHelperDriver})
         d:planTo(-40, 0, math.pi, 6)
         local minZ = math.huge
         for _, pt in ipairs(d.follower.points) do minZ = math.min(minZ, pt.z) end
@@ -549,25 +320,7 @@ function checkSupport(flat)
         TURN_INFO = string.format("U-turn with crop from z = -4 on: the way goes down to z = %.1f (want > -1: turned the other way)", minZ)
     end
 
-    -- full, leaving the combine it served: that combine (stopped, so "parked" for everyone else) still counts in front
-    -- of us and its footprint stays in our ways (before 1.0.6.4 the truck drove into it on its way back)
-    do
-        local cNode = {x = 10, z = 0, h = 0}
-        local combine = {rootNode = cNode, size = {width = 3.4, length = 12}}
-        function combine:getChildVehicles() return {self} end
-        function combine:getAIDirectionNode() return cNode end
-        local u = setmetatable({vehicle = {size = {width = 2.55}}, combine = combine, job = {}}, {__index = GuidanceUnloadDriver})
-        function u.vehicle:getChildVehicles() return {self} end
-        u:setServing(nil)
-        local ahead = u:combineAhead(0, 0, 0)
-        local clearBeside = not u:combineAhead(0, 6, 0)
-        r.leftCombine = u.combine == nil and u.avoidCombine == combine and ahead and clearBeside
-        LEFT_INFO = string.format("after leaving it: still avoided %s, right ahead counts %s, beside it free %s",
-            tostring(u.avoidCombine == combine), tostring(ahead), tostring(clearBeside))
-    end
-
-    -- a plan asks the game about the crop once per spot (it asked thousands of times and froze the server for 0.3 s);
-    -- and a way that turns off past the combine's corner is free to drive although the combine is straight ahead
+    -- a plan asks the game about the crop once per spot (it asked thousands of times and froze the server for 0.3 s)
     do
         local calls = 0
         local probe = {fruitIndexes = {1}}
@@ -576,119 +329,386 @@ function checkSupport(flat)
         local truck = {rootNode = node}
         function truck:getAIDirectionNode() return node end
         local d = setmetatable({vehicle = truck, info = {turnRadius = 8}, turnRadius = 8, course = {plan = {workWidth = 3}},
-                                probe = probe, job = {avoidCrop = true}}, {__index = GuidanceHelperDriver})
+                                probe = probe}, {__index = GuidanceHelperDriver})
         d:planTo(-40, 0, math.pi, 6)
         local planCalls = calls
-        -- a combine 10 m straight ahead; our way turns off to the left at once
-        local cNode = {x = 12, z = 0, h = 0}
-        local combine = {rootNode = cNode, size = {width = 3.4, length = 12}}
-        function combine:getChildVehicles() return {self} end
-        function combine:getAIDirectionNode() return cNode end
-        local u = setmetatable({vehicle = {size = {width = 2.55}}, combine = combine, job = {}}, {__index = GuidanceUnloadDriver})
-        function u.vehicle:getChildVehicles() return {self} end
-        local turning = GuidancePathFollower.new({{x = 0, z = 0, t = "C"}, {x = 2, z = 4, t = "C"}, {x = 3, z = 8, t = "C"},
-                                                  {x = 4, z = 12, t = "C"}, {x = 5, z = 16, t = "C"}})
-        local straightAhead = u:combineAhead(4, 0, 0)
-        local alongTurn = u:combineAhead(0, 0, 0, turning)
-        r.planCheap = planCalls < 160 and straightAhead and not alongTurn
-        CHEAP_INFO = string.format("one U-turn plan asked the crop %d times (want < 160; 219 before 1.0.6.6); combine straight ahead counts %s, a way turning off past it is free %s",
-            planCalls, tostring(straightAhead), tostring(not alongTurn))
+        r.planCheap = planCalls < 160
+        CHEAP_INFO = string.format("one U-turn plan asked the crop %d times (want < 160; 219 before 1.0.6.6)", planCalls)
     end
 
-    -- Combine picked: the unloader serves only that one (not a fuller one), wherever it works
+    -- the unloader is AutoDrive's, set up from our panel: picking the combine gives the truck and the combine the
+    -- marker of the combine's field as first target (AutoDrive pairs them by it); a setting goes into AutoDrive's
+    -- settings of the truck or of the combine and out with AutoDrive's settings event; Unload at is its second target;
+    -- Start: "unload combine" mode, started as AutoDrive's own button does (not without both targets); our combine
+    -- starting on another field takes its trucks along; the combine counts the truck AutoDrive sent it as its own
     do
-        local function combineAt(x, key, level)
-            local node = {x = x, z = 0, h = 0}
-            local c = {rootNode = node, uniqueId = key, spec_combine = {fillUnitIndex = 1, isBufferCombine = false}, spec_pipe = {}}
-            function c:getChildVehicles() return {self} end
-            function c:getAIDirectionNode() return node end
-            function c:getFillUnitCapacity() return 1000 end
-            function c:getFillUnitFillLevel() return level end
-            return c
+        local function stateModule()
+            local sm = {mode = 1, active = false}
+            function sm:getFirstMarker() return self.first end
+            function sm:getFirstMarkerId() return self.first and self.first.markerIndex or -1 end
+            function sm:getSecondMarker() return self.second end
+            function sm:getSecondMarkerId() return self.second and self.second.markerIndex or -1 end
+            function sm:setFirstMarker(id) self.first = {markerIndex = id} end
+            function sm:setSecondMarker(id) self.second = {markerIndex = id} end
+            function sm:getMode() return self.mode end
+            function sm:setMode(m) self.mode = m end
+            function sm:isActive() return self.active end
+            return sm
         end
-        local a, b = combineAt(10, "vehicleA", 950), combineAt(900, "vehicleB", 850)
-        local truck = {rootNode = {x = 0, z = 0, h = 0}}
-        local oldVs = g_currentMission.vehicleSystem
-        g_currentMission.vehicleSystem = {vehicles = {truck, a, b}}
-        local any = setmetatable({vehicle = truck, job = {unloadCombine = ""}}, {__index = GuidanceUnloadDriver})
-        local picked = setmetatable({vehicle = truck, job = {unloadCombine = "vehicleB"},
-                                     field = {{x = -50, y = -50}, {x = 50, y = -50}, {x = 50, y = 50}, {x = -50, y = 50}}},
-            {__index = GuidanceUnloadDriver})
-        local anyPick, pickedPick = any:pickCombine(), picked:pickCombine()
-        local found = GuidanceVehicle.vehicleByKey("vehicleB") == b
-        g_currentMission.vehicleSystem = oldVs
-        r.pickCombine = anyPick == a and pickedPick == b and found
-        PICK_INFO = string.format("any: the fuller one %s; picked B (off our field): B %s; found by its key %s",
-            tostring(anyPick == a), tostring(pickedPick == b), tostring(found))
+        local sent, presses = {}, 0
+        AutoDrive = {MODE_UNLOAD = 5, settings = {unloadFillLevel = {values = {0.5, 0.9, 1}, default = 2},
+                                                  chaseSide = {values = {0, 1, 2, 3}, default = 1}}}
+        function AutoDrive.getSettingState(name, vehicle)
+            return vehicle.ad.settings[name] or AutoDrive.settings[name].default
+        end
+        function AutoDrive.setSettingState(name, ix, vehicle) vehicle.ad.settings[name] = ix end
+        function AutoDrive:GetAvailableDestinations()
+            return {[3] = {name = "Shop", x = 4850, z = 5000}, [8] = {name = "Field 77 WAIT", x = 4898, z = 5050},
+                    [9] = {name = "Field 78 WAIT", x = 6898, z = 5050}}
+        end
+        AutoDriveUpdateSettingsEvent = {sendEvent = function(vehicle) sent[#sent + 1] = vehicle end}
+        ADInputManager = {}
+        function ADInputManager:input_start_stop(vehicle)
+            presses = presses + 1
+            vehicle.ad.stateModule.active = not vehicle.ad.stateModule.active
+        end
+        local cNode = {x = 5000, z = 5000, h = 0}
+        local field = 77
+        local combine = {rootNode = cNode, spec_guidance = {}, spec_combine = {fillUnitIndex = 1}, spec_pipe = {},
+                         ad = {stateModule = stateModule(), settings = {}}}
+        function combine:getChildVehicles() return {self} end
+        function combine:getOwnerFarmId() return 1 end
+        function combine:getName() return "Tiger" end
+        function combine:getGuidanceCourse()
+            local o = (field - 77) * 2000
+            return {outline = {{x = 4900 + o, z = 4900}, {x = 5100 + o, z = 4900}, {x = 5100 + o, z = 5100}, {x = 4900 + o, z = 5100}}}
+        end
+        function combine:getGuidancePlan() return {fieldId = field} end
+        local trailer = {spec_trailer = {}}
+        function trailer:getFillUnits() return {{}} end
+        local oldChildren, oldFarm, oldVs, oldServer = v.getChildVehicles, v.getOwnerFarmId, g_currentMission.vehicleSystem, g_server
+        v.getChildVehicles = function(self) return {self, trailer} end
+        v.getOwnerFarmId = function() return 1 end
+        v.ad = {stateModule = stateModule(), settings = {}, modes = {}}
+        g_currentMission.vehicleSystem = {vehicles = {v, combine}}
+        g_server = g_server or {}
+        local AD = GuidanceAutoDrive
+        local can = AD.canUnload(v)
+        AD.apply(v, AD.OP_COMBINE, combine, "", 0)
+        local paired = v.ad.stateModule:getFirstMarkerId() == 8 and combine.ad.stateModule:getFirstMarkerId() == 8
+            and AD.combineOf(v) == combine
+        AD.apply(v, AD.OP_SETTING, v, "unloadFillLevel", 3)
+        AD.apply(v, AD.OP_SETTING, combine, "chaseSide", 4)
+        local values, ix = AD.setting("unloadFillLevel", v)
+        local _, sideIx = AD.setting("chaseSide", combine)
+        local settings = ix == 3 and values[ix] == 1 and sideIx == 4 and sent[1] == v and sent[2] == combine
+        -- start without Unload at: nothing; with it: unload combine mode, pressed once; again: not twice; stop
+        AD.apply(v, AD.OP_START, nil, "", 0)
+        local notWithout = presses == 0
+        AD.apply(v, AD.OP_UNLOAD_AT, nil, "", 3)
+        AD.apply(v, AD.OP_START, nil, "", 0)
+        local started = presses == 1 and v.ad.stateModule.mode == 5 and AD.isUnloading(v)
+        AD.apply(v, AD.OP_START, nil, "", 0)
+        local once = presses == 1
+        -- the combine starts on field 78: its truck waits there now
+        field, cNode.x = 78, 7000
+        AD.followCombine(combine)
+        local followed = combine.ad.stateModule:getFirstMarkerId() == 9 and v.ad.stateModule:getFirstMarkerId() == 9
+        -- the combine and the truck AutoDrive sent it: paired (only touching counts), found as its unloader
+        v.ad.modes[5] = {combine = combine}
+        local d = setmetatable({vehicle = {}, harvester = combine}, {__index = GuidanceFieldworkDriver})
+        local closeOnly = GuidanceFieldworkDriver.isObstacle(d, v) == "close"
+        local found = GuidanceFieldworkDriver.autoDriveUnloaderOf(combine) == v
+        AD.apply(v, AD.OP_STOP, nil, "", 0)
+        local stopped = presses == 2 and not AD.isUnloading(v)
+        local report = table.concat(AD.describeUnloader(v), "|")
+        v.getChildVehicles, v.getOwnerFarmId, g_currentMission.vehicleSystem, g_server = oldChildren, oldFarm, oldVs, oldServer
+        v.ad = nil
+        AutoDrive, AutoDriveUpdateSettingsEvent, ADInputManager = nil, nil, nil
+        r.adBridge = can and paired and settings and notWithout and started and once and followed and closeOnly and found
+            and stopped and report:find("serves Tiger", 1, true) ~= nil
+        AD_BRIDGE_INFO = string.format("can unload %s; Combine: both wait at Field 77 WAIT %s; settings into AutoDrive and sent %s; "
+            .. "Start without Unload at: nothing %s; started in unload combine mode %s, not twice %s; combine on field 78: "
+            .. "both wait at Field 78 WAIT %s; combine: its truck only when touching %s, found %s; stopped %s; report: %s",
+            tostring(can), tostring(paired), tostring(settings), tostring(notWithout), tostring(started), tostring(once),
+            tostring(followed), tostring(closeOnly), tostring(found), tostring(stopped), report)
     end
-    -- the unloader picked for a combine on another field: AutoDrive to that field's marker (named after it), and on
-    -- arrival it starts as the unloader, not a course
+
+    -- after a server restart: a truck AutoDrive drove as a combine unloader when saved starts again 10 s after loading
+    -- (AutoDrive itself does that only in single player); not before; not with After loading: Wait; not one that wasn't
+    do
+        local function truckState(wasActive, mode)
+            local sm = {activeBeforeSave = wasActive, mode = mode, active = false, first = {markerIndex = 8}, second = {markerIndex = 3}}
+            function sm:isActive() return self.active end
+            function sm:getMode() return self.mode end
+            function sm:setMode(m) self.mode = m end
+            function sm:getFirstMarker() return self.first end
+            function sm:getSecondMarker() return self.second end
+            return sm
+        end
+        AutoDrive = {MODE_UNLOAD = 5}
+        local presses = 0
+        ADInputManager = {}
+        function ADInputManager:input_start_stop(vehicle) presses = presses + 1; vehicle.ad.stateModule.active = true end
+        local spec = v.spec_guidance
+        local function restart(wasActive, mode, carryOn)
+            presses = 0
+            v.ad = {stateModule = truckState(wasActive, mode)}
+            spec.settings.autoResume = carryOn
+            spec.adResumeAfterLoad = 0
+            GuidanceAutoDrive.updateResume(v, spec, 5000)
+            local early = presses
+            GuidanceAutoDrive.updateResume(v, spec, 6000)
+            return early, presses
+        end
+        local early, started = restart(true, 5, true)
+        local _, waitSet = restart(true, 5, false)
+        local _, notUnloading = restart(true, 1, true)
+        local _, notActive = restart(false, 5, true)
+        spec.settings.autoResume = true
+        v.ad, AutoDrive, ADInputManager = nil, nil, nil
+        r.adResume = early == 0 and started == 1 and waitSet == 0 and notUnloading == 0 and notActive == 0
+        AD_RESUME_INFO = string.format("unloading when saved: after 5 s %d starts, after 11 s %d (want 0, 1); After loading Wait: %d; "
+            .. "another AutoDrive mode: %d; not driving when saved: %d", early, started, waitSet, notUnloading, notActive)
+    end
+
+    -- Start at First, Then Continue: the course's first start at waypoint 1; once it got going (waypoint 50), where it
+    -- got to; Then Nearest: nearest; Then First: 1 again; a new course (progress 1): 1
     do
         local spec = v.spec_guidance
-        local cNode = {x = 5000, z = 5000, h = 0}
-        local combine = {rootNode = cNode, uniqueId = "vehicleFar"}
-        function combine:getGuidanceCourse() return {outline = {{x = 4900, z = 4900}, {x = 5100, z = 4900}, {x = 5100, z = 5100}, {x = 4900, z = 5100}}} end
-        function combine:getGuidancePlan() return {fieldId = 77} end
-        local oldVs = g_currentMission.vehicleSystem
-        g_currentMission.vehicleSystem = {vehicles = {v, combine}}
-        local sm = {active = false, helper = false}
-        function sm:isActive() return self.active end
-        function sm:setMode() end
-        function sm:setStartHelper(on) self.helper = on end
-        function sm:getStartHelper() return self.helper end
-        function sm:setUsedHelper() end
-        v.ad = {stateModule = sm}
-        local drove
-        AutoDrive = {MODE_DRIVETO = 4}
-        function AutoDrive:GetAvailableDestinations()
-            return {[3] = {name = "Shop", x = 4850, z = 5000}, [8] = {name = "Field 77 WAIT", x = 4898, z = 5050}}
-        end
-        function AutoDrive:StartDriving(_, a) drove = a; sm.active = true end
-        ADStateModule = {HELPER_CP = 1}
-        local started = {}
-        local oldStartHelper, oldDriving = v.guidanceStartHelper, v.getIsHelperDriving
-        v.guidanceStartHelper = function(_, kind) started[#started + 1] = kind; return true end
-        v.getIsHelperDriving = function() return #started > 0 end
-        spec.settings.unloadCombine = "vehicleFar"
-        local went = v:guidanceGoUnloader()
-        for _ = 1, 4 do GuidanceVehicle.updateQueue(v); g_time = (g_time or 0) + 100 end
-        sm.active = false
-        for _ = 1, 3 do GuidanceVehicle.updateQueue(v); g_time = (g_time or 0) + 100 end
-        AutoDrive, ADStateModule = nil, nil
-        v.ad, v.guidanceStartHelper, v.getIsHelperDriving = nil, oldStartHelper, oldDriving
-        spec.settings.unloadCombine = ""
-        g_currentMission.vehicleSystem = oldVs
-        r.goUnloader = went and drove == 8 and #started == 1 and started[1] == "unload"
-        GO_UNLOADER_INFO = string.format("to the far combine's field: AutoDrive to marker %s (want 8, Field 77 WAIT), started on arrival as %s",
-            tostring(drove), tostring(started[1]))
+        local oldMode, oldAfter, oldIx = spec.settings.startMode, spec.settings.startAfter, spec.progressIx
+        spec.settings.startMode = GuidancePlan.START_FIRST
+        spec.settings.startAfter = GuidancePlan.START_CONTINUE
+        spec.progressIx = 1
+        local fresh = v:guidanceGetStart()
+        spec.progressIx = 50
+        local later = v:guidanceGetStart()
+        local resume = spec.course:getResumeIx(50)
+        spec.settings.startAfter = GuidancePlan.START_NEAREST
+        local nearestNow = GuidanceVehicle.startModeNow(spec)
+        spec.settings.startAfter = GuidancePlan.START_FIRST
+        local firstAgain = v:guidanceGetStart()
+        spec.settings.startMode, spec.settings.startAfter, spec.progressIx = oldMode, oldAfter, oldIx
+        r.startAfter = fresh == 1 and later == resume and later > 1 and nearestNow == GuidancePlan.START_NEAREST and firstAgain == 1
+        START_AFTER_INFO = string.format("First, Then Continue: new course starts at %s, got going (50): at %s (resume %s); Then Nearest: mode %s; Then First: %s",
+            tostring(fresh), tostring(later), tostring(resume), tostring(nearestNow), tostring(firstAgain))
     end
 
-    -- a combine with no driver of ours at work (stopped, or it stopped itself full): the unloader opens its pipe, starts
-    -- the flow into its trailer once under it, and folds the pipe again when it leaves (before 1.0.5.6: nothing came out)
+    -- the tank forecast: litres per metre learned while harvesting (10 l/m); at the start of a 100 m row with 7000 of
+    -- 8000 l (the row needs 1000): it waits for the unloader on the headland, with 6000 l it goes in; not at a
+    -- headland pass, not when the row needs more than a tank, not with an unloader on its way. In a row with 7000 l
+    -- and 90 m to go: AutoDrive's call level on the harvester set to where the tank is (85 %) now, back to the
+    -- player's 90 % once emptied
     do
-        Dischargeable = Dischargeable or {DISCHARGE_STATE_OFF = 0, DISCHARGE_STATE_OBJECT = 1}
-        local h = {spec_pipe = {numStates = 2, currentState = 1, targetState = 1}, discharge = 0, spec_combine = {fillUnitIndex = 1}}
-        function h:setPipeState(st) self.spec_pipe.targetState = st; self.spec_pipe.currentState = st end
-        function h:getIsPipeStateChangeAllowed() return true end
-        function h:getDischargeState() return self.discharge end
-        function h:setDischargeState(st) self.discharge = st end
-        function h:getCurrentDischargeNode() return {} end
-        function h:getCanDischargeToObject() return self.spec_pipe.currentState == 2 end
+        local level = 0
+        local h = {spec_combine = {fillUnitIndex = 1}, ad = {settings = {preCallLevel = {}}}}
+        function h:getFillUnitFillLevel() return level end
+        function h:getFillUnitCapacity() return 8000 end
+        local set = {}
+        AutoDrive = {settings = {preCallLevel = {values = {0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 1}}}}
+        function AutoDrive.setSettingState(name, ix, v) set[#set + 1] = AutoDrive.settings[name].values[ix] end
+        function AutoDrive.getSettingState() return 1 end
+        local follower = {s = 0, workIntervals = {{from = 0, to = 100}},
+                          points = {{d = 0, t = "R"}, {d = 100, t = "R"}}}
+        function follower:isReversing() return false end
+        local sent
+        local d = setmetatable({vehicle = h, harvester = h, follower = follower, info = {frontOffset = 0},
+                                course = {plan = {callUnloaderAt = 90}}, lowered = true,
+                                state = GuidanceFieldworkDriver.STATE_DRIVING}, {__index = GuidanceFieldworkDriver})
+        function d:unloadersAbout() return true end
+        function d:sentUnloader() return sent end
         function h:getChildVehicles() return {self} end
-        local u = setmetatable({vehicle = {}}, {__index = GuidanceUnloadDriver})
-        u:runCombinePipe(h, false)
-        local opened = h.spec_pipe.currentState == 2 and h.discharge == 0
-        u:runCombinePipe(h, true)
-        local flowing = h.discharge == Dischargeable.DISCHARGE_STATE_OBJECT and h.spec_pipe.automaticDischarge == true
-        u:setServing(nil)
-        local folded = h.spec_pipe.currentState == 1 and h.discharge == Dischargeable.DISCHARGE_STATE_OFF
-        r.stoppedCombine = opened and flowing and folded
-        STOPPED_COMBINE_INFO = string.format("stopped combine: pipe opened %s, flow started under it %s, folded when left %s",
-            tostring(opened), tostring(flowing), tostring(folded))
+        for k = 0, 40, 2 do
+            follower.s, level = k, 1000 + 10 * k
+            d:updateTankRate()
+        end
+        local rate = d:tankRateKnown()
+        d.lowered, follower.s = false, -2
+        level = 7000
+        local hold = d:tankHoldAtRowStart()
+        level = 6000
+        local go = not d:tankHoldAtRowStart()
+        level = 7000
+        follower.points[2].t = "H"
+        local notHeadland = not d:tankHoldAtRowStart()
+        follower.points[2].t = "R"
+        sent = {}
+        local notComing = not d:tankHoldAtRowStart()
+        sent = nil
+        follower.workIntervals[1].to = 900
+        local notLong = not d:tankHoldAtRowStart()
+        follower.workIntervals[1].to = 100
+        -- in the row: 10 m in, 90 to go
+        d.lowered, follower.s = true, 10
+        level = 6000
+        d:updateEarlyCall(level, 8000)
+        local noCall = not d.calledEarly and #set == 0
+        level = 7000
+        d:updateEarlyCall(level, 8000)
+        local called = d.calledEarly == true and set[1] == 0.85
+        level = 500
+        d:updateEarlyCall(level, 8000)
+        local back = not d.calledEarly and set[2] == 0.9
+        AutoDrive = nil
+        r.tankAware = rate and math.abs(rate - 10) < 0.01 and hold and go and notHeadland and notComing and notLong
+            and noCall and called and back
+        TANK_INFO = string.format("learned %.1f l/m (want 10); row start, 7000 of 8000 l, row needs 1000: waits %s; 6000 l: goes %s; "
+            .. "headland pass: goes %s; unloader on its way: goes %s; row longer than a tank: goes %s; in the row, 6000 l: no call %s; "
+            .. "7000 l (full before the row ends): called at %s; emptied: back to %s",
+            rate or -1, tostring(hold), tostring(go), tostring(notHeadland), tostring(notComing), tostring(notLong),
+            tostring(noCall), tostring(set[1]), tostring(set[2]))
+    end
+
+    -- fuel and repair trips: Refuel at 15 %: at 10 % fuel a fuel trip is due; at 50 % fuel but 85 % worn (Repair at
+    -- 80 %): a repair; the helper buying fuel: no fuel trip; tried a moment ago: not again. Started: the job stops
+    -- as "out of fuel" (AutoDrive's refuel for Courseplay), AutoDrive's own refuel switch turned on
+    do
+        local fuel, damage = 0.1, 0.2
+        local tractor = {spec_motorized = {propellantFillUnitIndices = {1}}, spec_guidance = {},
+                         ad = {settings = {}}}
+        function tractor:getFillUnitCapacity() return 400 end
+        function tractor:getFillUnitFillLevel() return 400 * fuel end
+        function tractor:getDamageAmount() return damage end
+        function tractor:getChildVehicles() return {self} end
+        local realCan = GuidanceAutoDrive.canService
+        GuidanceAutoDrive.canService = function() return true end
+        local d = setmetatable({vehicle = tractor, course = {plan = {refuelAt = 15, repairAt = 80}}},
+            {__index = GuidanceFieldworkDriver})
+        local buyBefore = g_currentMission.missionInfo.helperBuyFuel
+        g_currentMission.missionInfo.helperBuyFuel = false
+        local fuelDue = d:serviceNeeded()
+        fuel, damage = 0.5, 0.85
+        local repairDue = d:serviceNeeded()
+        fuel, damage = 0.1, 0.2
+        g_currentMission.missionInfo.helperBuyFuel = true
+        local bought = d:serviceNeeded()
+        g_currentMission.missionInfo.helperBuyFuel = false
+        local stopped, info
+        function d:stop(msg, text) stopped, info = msg, text end
+        AutoDrive = {settings = {autoRefuel = {values = {false, true}, default = 2}}}
+        function AutoDrive.getSettingState(name, v) return v.ad.settings[name] or 1 end
+        function AutoDrive.setSettingState(name, ix, v) v.ad.settings[name] = ix end
+        d.serviceDue = fuelDue
+        d:startServiceTrip()
+        local again = d:serviceNeeded()
+        AutoDrive = nil
+        GuidanceAutoDrive.canService = realCan
+        g_currentMission.missionInfo.helperBuyFuel = buyBefore
+        r.serviceTrips = fuelDue == "fuel" and repairDue == "repair" and bought == nil and info == "SERVICE_FUEL"
+            and stopped ~= nil and tractor.ad.settings.autoRefuel == 2 and again == nil
+        SERVICE_INFO = string.format("10%% fuel: %s; 85%% worn: %s; helper buys fuel: %s; trip: %s, AutoDrive's refuel switched on %s; "
+            .. "right after: %s", tostring(fuelDue), tostring(repairDue), tostring(bought), tostring(info),
+            tostring(tractor.ad.settings.autoRefuel == 2), tostring(again))
+    end
+
+    -- the field's chain: the test tractor done on field 7, Then: a second tractor without a course: that one gets a
+    -- course on field 7 (its own settings) and is sent there; busy: not
+    do
+        local v2 = makeVehicle(flat[1] + 60, flat[2] + 60, 0, "Seeder tractor")
+        v2.uniqueId = "vehicleSeeder"
+        local oldVs = g_currentMission.vehicleSystem
+        g_currentMission.vehicleSystem = {vehicles = {v, v2}}
+        local went
+        v2.guidanceGoTo = function(_, id) went = id end
+        local planBefore = v:getGuidancePlan().handOver
+        v:getGuidancePlan().handOver = "vehicleSeeder"
+        local busy = v2.getIsHelperDriving
+        v2.getIsHelperDriving = function() return true end
+        local notBusy = not GuidanceVehicle.handOver(v)
+        v2.getIsHelperDriving = busy
+        local handed = GuidanceVehicle.handOver(v)
+        local p2 = v2:getGuidancePlan()
+        local shown = v:getGuidanceInfoTexts()
+        local said = false
+        for _, i in ipairs(shown) do said = said or i.name == "HANDED_OVER" end
+        v:getGuidancePlan().handOver = planBefore
+        v:guidanceSetInfoText("HANDED_OVER", false)
+        -- contracts: one running on field 7 for our farm, one for another farm, one done
+        MissionStatus = {RUNNING = 2, FINISHED = 3}
+        local function mission(farm, status, id, title)
+            local field = {}
+            function field:getId() return id end
+            function field:getAreaHa() return 12.3 end
+            return {farmId = farm, status = status, field = field, fieldPercentageDone = 0.25,
+                    getTitle = function() return title end}
+        end
+        local all = {mission(1, 2, 7, "Harvest wheat"), mission(2, 2, 9, "Sow canola"), mission(1, 3, 11, "Plow")}
+        g_missionManager = {getMissionsByFarmId = function(_, farm)
+            local out = {}
+            for _, m in ipairs(all) do if m.farmId == farm then out[#out + 1] = m end end
+            return out
+        end}
+        local list = GuidanceContracts.running(1)
+        local here = GuidanceContracts.onField(1, 7)
+        v2:guidanceSetPlan(nil)
+        local made = v2:guidanceCourseForField(7)
+        local p3 = v2:getGuidancePlan()
+        g_missionManager, MissionStatus = nil, nil
+        g_currentMission.vehicleSystem = oldVs
+        r.handOver = notBusy and handed and went == 0 and p2 ~= nil and p2.fieldId == 7 and v2:getGuidanceCourse() ~= nil and said
+        r.contracts = #list == 1 and list[1].fieldId == 7 and list[1].title == "Harvest wheat" and math.abs(list[1].area - 12.3) < 1e-6
+            and here ~= nil and here.fieldId == 7 and GuidanceContracts.onField(1, 9) == nil and made and p3 ~= nil and p3.fieldId == 7
+        CHAIN_INFO = string.format("busy: not handed over %s; done: handed over %s, sent there %s, its course on field %s, status says so %s",
+            tostring(notBusy), tostring(handed), tostring(went), tostring(p2 and p2.fieldId), tostring(said))
+        CONTRACT_INFO = string.format("our running contracts: %d (want 1: field %s, %s, %.1f ha); course made for it from afar %s, on field %s",
+            #list, tostring(list[1] and list[1].fieldId), tostring(list[1] and list[1].title), list[1] and list[1].area or 0,
+            tostring(made), tostring(p3 and p3.fieldId))
+    end
+
+    -- going back for crop behind it, standing on its lane: straight back up the lane (reversing), then on; not a way
+    -- planned round through the crop. Unable to reverse: the planned way as before
+    do
+        local node = {x = 50, z = 0, h = 0}
+        local tr = {rootNode = node}
+        function tr:getAIDirectionNode() return node end
+        local planned = 0
+        local realPlan = GuidanceCourseGenerator.planApproach
+        GuidanceCourseGenerator.planApproach = function(_, _, from, to) planned = planned + 1; return {{x = to.x, y = to.y}} end
+        local wps = {{x = 0, z = 0, t = "H", work = true}, {x = 100, z = 0, t = "H", work = true}, {x = 200, z = 0, t = "H", work = true}}
+        local function build(canReverse)
+            local plan = {allowReverse = canReverse}
+            function plan:getGeneratorSettings() return {} end
+            local d = setmetatable({vehicle = tr, sideOffset = 0, info = {runOut = 3, backOffset = 0},
+                                    course = {waypoints = wps, plan = plan}}, {__index = GuidanceFieldworkDriver})
+            return d:buildPath(2, {x = 20, z = 0})
+        end
+        local path = build(true)
+        local backed = path[2] and path[2].rev == true and math.abs(path[2].x - 17) < 0.01 and planned == 0
+            and path[3] and not path[3].rev and math.abs(path[3].x - 20) < 0.01
+        local loop = build(false)
+        local plannedNow = planned == 1 and loop[2] and not loop[2].rev
+        GuidanceCourseGenerator.planApproach = realPlan
+        r.backUp = backed and plannedNow
+        BACKUP_INFO = string.format("start 30 m behind on its lane: backs straight up to x %.0f (want 17), then on from %.0f, no way planned %s; can't reverse: a way planned %s",
+            path[2] and path[2].x or -1, path[3] and path[3].x or -1, tostring(planned == 0 or planned == 1), tostring(plannedNow))
+    end
+
+    -- the crop probe: cut fruit (a harvested sugarcane lane: the game still reports the cane, in its cut state) and
+    -- withered fruit aren't standing crop; growing or ripe is (before 1.0.8.7 a harvested lane read as crop)
+    do
+        local oldFruit, oldTypes = FSDensityMapUtil, g_fruitTypeManager
+        local CUT, WITHERED, RIPE = 10, 11, 5
+        FSDensityMapUtil = {getFruitArea = function(i, x0, z0, x1, z1, x2, z2)
+            local x = (x0 + x1) / 2
+            local state = x < -20 and WITHERED or (x < 0 and CUT or RIPE)
+            return 1, 1, 1, state
+        end}
+        local cane = {}
+        function cane:getIsCut(st) return st == CUT end
+        function cane:getIsWithered(st) return st == WITHERED end
+        g_fruitTypeManager = {fruitTypes = {{index = 1}}, getFruitTypeByIndex = function(_, i) return cane end}
+        local probe = GuidanceFruitProbe.new({{x = -50, z = -50}, {x = 50, z = -50}, {x = 50, z = 50}, {x = -50, z = 50}})
+        local cutLane, withered, standing = probe:hasFruit(-5, 0, 1), probe:hasFruit(-30, 0, 1), probe:hasFruit(5, 0, 1)
+        FSDensityMapUtil, g_fruitTypeManager = oldFruit, oldTypes
+        r.cutNotCrop = #probe.fruitIndexes == 1 and not cutLane and not withered and standing
+        CUT_INFO = string.format("cut cane: crop %s (want false); withered: %s (want false); ripe: %s (want true)",
+            tostring(cutLane), tostring(withered), tostring(standing))
     end
 
     -- Start at: Nearest with a harvester standing on a pass already harvested (no crop on it, crop everywhere else):
-    -- it starts on the nearest pass with crop; without a harvester, or with no crop on the field, the nearest as before
+    -- it starts on the nearest pass with crop, beside it (not standing on that pass, it doesn't go back to the pass's
+    -- start: 1.0.7.1 to 1.0.8.2 it turned round through the crop to get there); without a harvester, or with no crop
+    -- on the field, the nearest as before
     do
         local course = v:getGuidanceCourse()
         local wps = course.waypoints
@@ -726,9 +746,38 @@ function checkSupport(flat)
         FSDensityMapUtil, g_fruitTypeManager, GuidanceFieldworkDriver.findHarvester = oldFruit, oldTypes, oldFind
         v.spec_guidance.settings.startMode = oldMode
         node.x, node.z, node.h = ox, oz, oh
-        r.nearestCrop = plainIx == best and cropIx ~= best and off >= 3 and away < 60 and noCropIx == best
-        NEAREST_INFO = string.format("nearest %d (on stretch %d, %.0f m), harvester: %d, %.1f m off that pass, %.0f m away; no crop: %d",
-            plainIx, best, bestLen, cropIx, off, away, noCropIx)
+        local cropStretchStart = cropPoint == nil and wps[cropIx + 1] ~= nil and wps[cropIx + 1].work
+        -- a start half-way along a 100 m stretch: crop behind it from 30 m on: from 24 m; none behind: where it is; crop
+        -- all the way: the stretch's start
+        local line = setmetatable({waypoints = {{x = 0, z = 0}, {x = 100, z = 0, work = true}}}, {__index = GuidanceCourse})
+        local function probeFrom(x0)
+            return {fruitIndexes = {1}, hasFruit = function(_, x) return x0 ~= nil and x >= x0 end}
+        end
+        local half = {x = 50, z = 0}
+        local ixA, ptA = line:uncutBehind(probeFrom(30), 2, half, 4)
+        local ixB, ptB = line:uncutBehind(probeFrom(nil), 2, half, 4)
+        local ixC, ptC = line:uncutBehind(probeFrom(0), 2, half, 4)
+        -- 250 m along a 300 m stretch, crop behind it all the way: not back to the start (that meant turning round
+        -- through the crop), 60 m back at most: from 184 m; crop only beside the line (its edge 0.8 m off): not crop
+        local long = setmetatable({waypoints = {{x = 0, z = 0}, {x = 300, z = 0, work = true}}}, {__index = GuidanceCourse})
+        local ixD, ptD = long:uncutBehind(probeFrom(0), 2, {x = 250, z = 0}, 4)
+        local edge = {fruitIndexes = {1}, hasFruit = function(_, x, z, size) return z + (size or 2) / 2 > 0.8 end}
+        local ixE, ptE = long:uncutBehind(edge, 2, {x = 250, z = 0}, 4)
+        -- crop only 30 to 40 m behind (scattered bits; stubble right behind it): where it is (1.0.8.3 backed up 60 m)
+        local patchy = {fruitIndexes = {1}, hasFruit = function(_, x) return x >= 210 and x <= 220 end}
+        local ixF, ptF = long:uncutBehind(patchy, 2, {x = 250, z = 0}, 4)
+        local behindOk = ixA == 2 and ptA ~= nil and math.abs(ptA.x - 24) < 0.01 and ixB == 2 and ptB == half
+            and ixC == 1 and ptC == nil and ixD == 2 and ptD ~= nil and math.abs(ptD.x - 184) < 0.01 and ixE == 2
+            and ptE ~= nil and ptE.x == 250 and ixF == 2 and ptF ~= nil and ptF.x == 250
+        -- (not standing on that pass: beside it, where it is, not back to its start: 1.0.8.3)
+        r.nearestCrop = plainIx == best and cropIx ~= best and off >= 3 and away < 60 and not cropStretchStart
+            and noCropIx == best and behindOk
+        NEAREST_INFO = string.format("nearest %d (on stretch %d, %.0f m), harvester: %d, %.1f m off that pass, at its start %s; no crop: %d; "
+            .. "half-way along 100 m with crop behind from 30 m: from %s m; none behind: %s; crop all along: waypoint %d; "
+            .. "250 m along 300 m, crop all along: from %s m (want 184, not the start); crop only beside the line: %s",
+            plainIx, best, bestLen, cropIx, off, tostring(cropStretchStart), noCropIx, ptA and string.format("%.0f", ptA.x) or "its start",
+            ptB == half and "where it is" or "moved", ixC, ptD and string.format("%.0f", ptD.x) or "its start",
+            (ptE and ptE.x == 250) and "where it is" or "moved")
     end
 
     -- the overlay: a helper working, lines and text drawn
@@ -1245,28 +1294,23 @@ def main():
     print(lua.globals().NEAREST_INFO)
     print(lua.globals().MARKER_INFO)
     print(lua.globals().FUEL_INFO)
-    print(lua.globals().LIVE_UNLOAD_INFO)
-    print(lua.globals().IN_WAY_INFO)
     print(lua.globals().AD_TRAILER_INFO)
     print(lua.globals().RESUME_INFO)
     print(lua.globals().HELPER_SIZE_INFO)
     print(lua.globals().TRAILER_RADIUS_INFO)
-    print(lua.globals().OFFSET_INFO)
-    print(lua.globals().STOPPED_COMBINE_INFO)
-    print(lua.globals().CLEAR_INFO)
-    print(lua.globals().SIDE_INFO)
-    print(lua.globals().CROSSWISE_INFO)
-    print(lua.globals().LATERAL_INFO)
-    print(lua.globals().FOLD_INFO)
-    print(lua.globals().FILL_INFO)
     print(lua.globals().TURN_INFO)
-    print(lua.globals().LEFT_INFO)
     print(lua.globals().CHEAP_INFO)
-    print(lua.globals().PICK_INFO)
-    print(lua.globals().GO_UNLOADER_INFO)
-    print("report line: unloader: " + str(lua.globals().DESCRIBE_INFO))
+    print(lua.globals().AD_BRIDGE_INFO)
+    print(lua.globals().TANK_INFO)
+    print(lua.globals().CUT_INFO)
+    print(lua.globals().BACKUP_INFO)
+    print(lua.globals().START_AFTER_INFO)
+    print(lua.globals().AD_RESUME_INFO)
+    print(lua.globals().SERVICE_INFO)
+    print(lua.globals().CHAIN_INFO)
+    print(lua.globals().CONTRACT_INFO)
     for name in ("movedThere", "neighbours", "streamed", "dropped", "newCourse", "report", "written", "overlay",
-                 "windrowFound", "windrowFollow", "startSetting", "prepareWait", "prepareUnfolded", "prepareGiveUp", "rainWait", "edgeRefill", "goAutoDrive", "awayGo", "markerChoice", "settingTypes", "liveSettings", "saveNil", "lineHeight", "reportAutoDrive", "takeOver", "nearestCrop", "worldFlags", "fuelSave", "unloaderLive", "unloaderInWay", "adTrailer", "resumeHelper", "helperSize", "trailerRadius", "unloadOffsets", "stoppedCombine", "unloaderClear", "pipeSideAndRound", "crosswise", "pickCombine", "goUnloader", "fillPoint", "turnAway", "leftCombine", "planCheap"):
+                 "windrowFound", "windrowFollow", "startSetting", "prepareWait", "prepareUnfolded", "prepareGiveUp", "rainWait", "edgeRefill", "goAutoDrive", "awayGo", "markerChoice", "settingTypes", "liveSettings", "saveNil", "lineHeight", "reportAutoDrive", "takeOver", "nearestCrop", "worldFlags", "fuelSave", "adTrailer", "resumeHelper", "helperSize", "trailerRadius", "turnAway", "planCheap", "adBridge", "tankAware", "serviceTrips", "handOver", "contracts", "adResume", "startAfter", "backUp", "cutNotCrop"):
         good = bool(r[name])
         ok = ok and good
         print(f"{name}: {'OK' if good else 'FAILED'}")

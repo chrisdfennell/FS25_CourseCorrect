@@ -515,6 +515,10 @@ function Hud:getStatus(vehicle)
         local phase = vehicle:getGuidanceHelperPhase()
         return phase and t("guidance_phase_" .. phase) or t("guidance_helper_" .. helperKind), C.accent
     end
+    -- AutoDrive's combine unloader, set up here
+    if GuidanceAutoDrive.isUnloading(vehicle) then
+        return t("guidance_status_adUnload"), C.accent
+    end
     if vehicle:getIsGuidanceActive() then
         local _, done = vehicle:getGuidanceProgress()
         if vehicle:getIsGuidancePaused() then
@@ -942,6 +946,42 @@ function Hud:getSettingRows(vehicle, scope, all)
                                  if scope then scope.set("adMarker", "") else vehicle:guidanceChangeSetting("adMarker", "") end
                              end or nil})
         end
+        -- trips with AutoDrive for fuel and repairs (it brings it back, it carries on where it stopped): at what fuel
+        -- and wear
+        local function choiceRow(name, label, values, texts)
+            local cur, ix = s[name] or 0, 1
+            for i, v in ipairs(values) do
+                if v == cur then ix = i end
+            end
+            add(name, {label = t(label), value = texts[ix], options = texts, current = ix,
+                       select = function(i) change(name, values[i])() end,
+                       dec = change(name, values[math.max(1, ix - 1)]), inc = change(name, values[math.min(#values, ix + 1)])})
+        end
+        if GuidanceAutoDrive and GuidanceAutoDrive.get() ~= nil then
+            local function percents(values)
+                local texts = {}
+                for i, v in ipairs(values) do texts[i] = v == 0 and t("guidance_off") or string.format("%d%%", v) end
+                return values, texts
+            end
+            choiceRow("refuelAt", "guidance_set_refuelAt", percents({0, 10, 15, 20, 25, 30}))
+            choiceRow("repairAt", "guidance_set_repairAt", percents({0, 50, 60, 70, 80, 90}))
+        end
+        -- the field's chain: the tractor that takes the field over once this course is done
+        if GuidanceVehicle and GuidanceVehicle.vehicleKey then
+            local keys, names = {""}, {t("guidance_handOver_none")}
+            for _, v in ipairs(GuidanceMap.getFarmVehicles()) do
+                if v ~= vehicle then
+                    keys[#keys + 1], names[#names + 1] = GuidanceVehicle.vehicleKey(v), Guidance.vehicleName(v)
+                end
+            end
+            local handOver = s.handOver or ""
+            local known = false
+            for _, k in ipairs(keys) do known = known or k == handOver end
+            if not known then
+                keys[#keys + 1], names[#names + 1] = handOver, t("guidance_handOver_gone")
+            end
+            choiceRow("handOver", "guidance_set_handOver", keys, names)
+        end
         -- the work area off to one side of where the game says: the helper steers the other way
         local offset = s.toolOffsetX or 0
         local offsetText = t("guidance_offset_centre")
@@ -1148,7 +1188,7 @@ function Hud:drawFrame(m, contentH, subtitle, status, statusColor)
         local tx = x + m.pad + (k - 1) * tabW
         local view = self.view or "vehicle"
         if view == "help" then view = self.helpFrom or "vehicle" end
-        if view == "import" or view == "queue" then view = "library" end
+        if view == "import" or view == "queue" or view == "contracts" then view = "library" end
         local selected = view == tab.view
         local hover = not selected and self:isHover(tx, tabY, tabW, tabH)
         if selected or hover then
@@ -1222,6 +1262,9 @@ function Hud:drawView()
     end
     if self.view == "queue" then
         return self:drawQueue()
+    end
+    if self.view == "contracts" then
+        return self:drawContracts()
     end
     if self.view == "help" then
         return self:drawHelp()
@@ -1352,8 +1395,9 @@ function Hud:drawSettingRows(x, cy, rows, editable)
         if tw > room then
             valueSize = textSize * math.max(0.75, room / tw)
         end
-        self:textIn(valueX + valueW / 2, cy, rowH, valueSize, row.value, valueHover and C.accentHover or C.text,
-            RenderText.ALIGN_CENTER, true)
+        -- (and still too long: cut short, not over the chips)
+        self:textIn(valueX + valueW / 2, cy, rowH, valueSize, fit(row.value, valueSize, room, true),
+            valueHover and C.accentHover or C.text, RenderText.ALIGN_CENTER, true)
         if (editable or row.live) and row.click then self:addElement(valueX, cy, valueW, rowH, row.click) end
     end
     return cy
@@ -1434,6 +1478,24 @@ Hud.MAP_RECENTER = 0.2 -- zoomed in, the map centres on the vehicle again once i
 
 --- The course map, with what is done and where the vehicle is; + / - zoom in round the vehicle (it follows it) and
 --- out to the whole course (not while the course editor is open)
+Hud.UNLOADER_COLORS = {busy = {1.0, 0.72, 0.22, 1}, waiting = {0.62, 0.72, 0.86, 1}}
+
+--- A combine's AutoDrive unloaders for its map (looked for once a second): list of {vehicle, color}; on their way
+--- or unloading amber, waiting at the field's marker blue-grey
+function Hud:unloadersShown(vehicle)
+    local now = g_time or 0
+    local c = self.unloadersCache
+    if c == nil or c.vehicle ~= vehicle or now - c.time > 1000 then
+        local list = {}
+        for _, u in ipairs(GuidanceAutoDrive.unloadersOf(vehicle)) do
+            list[#list + 1] = {vehicle = u.vehicle, color = u.busy and Hud.UNLOADER_COLORS.busy or Hud.UNLOADER_COLORS.waiting}
+        end
+        c = {vehicle = vehicle, time = now, list = list}
+        self.unloadersCache = c
+    end
+    return c.list
+end
+
 function Hud:drawCoursePlot(vehicle, course, plotX, plotY, plotW, plotH)
     local C = Hud.C
     local zoomIx = self.editing and 1 or (self.mapZoomIx or 1)
@@ -1454,7 +1516,7 @@ function Hud:drawCoursePlot(vehicle, course, plotX, plotY, plotW, plotH)
         self.plot = Draw.makePlot(course, plotX, plotY, plotW, plotH, zoom, center)
         self.plotBox = key
     end
-    Draw.drawPlot(self.plot, vehicle:getGuidanceProgress(), vehicle, self:h(1.6))
+    Draw.drawPlot(self.plot, vehicle:getGuidanceProgress(), vehicle, self:h(1.6), self:unloadersShown(vehicle))
     if self.editing then
         return
     end
@@ -1602,7 +1664,9 @@ function Hud:drawVehicle()
         self.offField, away = nil, nil
     end
     local awayH = away and self:h(42) or 0
+    local thenH = (vehicle:getGuidanceSettings().startMode == GuidancePlan.START_FIRST) and startAtH or 0
     local contentH = switchH + progressH + plotH + summaryH + detailsH + warnH + padY * 0.5 + #rows * rowH + moreH + startAtH
+        + thenH
         + padY * 0.5 + awayH + buttonsH + messageH
 
     local status, statusColor = self:getStatus(vehicle)
@@ -1626,6 +1690,23 @@ function Hud:drawVehicle()
         self:drawRecording(self.recording, plotX, cy + self:h(26), plotW, plotH - self:h(30))
         self:textIn(plotX + plotW / 2, cy + self:h(4), self:h(22), smallSize,
             t("guidance_record_status", self.recording.length), C.accent, RenderText.ALIGN_CENTER, true)
+    elseif course and self.confirmClear == vehicle and editable then
+        -- clearing the course: asked first, in the map's place (nothing of the map under it shows through)
+        local boxW = plotW * 0.86
+        setTextWrapWidth(boxW)
+        self:textIn(plotX + plotW / 2, cy + plotH * 0.5, plotH * 0.3, textSize, t("guidance_clear_ask"), C.text,
+            RenderText.ALIGN_CENTER)
+        setTextWrapWidth(0)
+        local gap, bh = self:w(8), self:h(30)
+        local bw = (boxW - gap) / 2
+        local bx, by = plotX + (plotW - boxW) / 2, cy + plotH * 0.5 - bh - self:h(12)
+        self:button(bx, by, bw, bh, t("guidance_btn_clearCourse"), C.danger, C.dangerHover, {1, 1, 1, 1}, function()
+            self.confirmClear = nil
+            vehicle:guidanceSetPlan(nil)
+            self:showMessage(t("guidance_course_cleared"), false)
+        end, smallSize)
+        self:button(bx + bw + gap, by, bw, bh, t("guidance_away_cancel"), C.chip, C.hover, C.text,
+            function() self.confirmClear = nil end, smallSize)
     elseif course then
         self:drawCoursePlot(vehicle, course, plotX, cy, plotW, plotH)
         -- the course editor: its own drawing on the map and what a click / drag there does
@@ -1643,6 +1724,13 @@ function Hud:drawVehicle()
                     self.editTool = self.editTool or "direction"
                 end, smallSize)
         end
+        -- clear the course off the tractor (asked first, see above)
+        if editable and not self.editing then
+            local label = t("guidance_btn_clearCourse")
+            local bw, bh = Draw.textWidth(smallSize, label, true) + self:w(18), self:h(22)
+            self:button(plotX + self:w(6), cy + plotH - bh - self:h(6), bw, bh, label, C.chip, C.hover, C.text,
+                function() self.confirmClear = vehicle end, smallSize)
+        end
     else
         -- the hint names the button as it is labelled right now; saved courses for this field are offered
         local hint = vehicle:getGuidanceError() or t("guidance_hint_noCourse", t("guidance_btn_makeCourse"))
@@ -1656,6 +1744,12 @@ function Hud:drawVehicle()
             local bw, bh = plotW * 0.7, self:h(30)
             self:button(plotX + (plotW - bw) / 2, cy + plotH * 0.22, bw, bh, t("guidance_offer_saved", saved), C.accent,
                 C.accentHover, {1, 1, 1, 1}, function() self.view = "library" end, smallSize)
+        end
+        local contracts = #GuidanceContracts.running(vehicle:getOwnerFarmId())
+        if contracts > 0 then
+            local bw, bh = plotW * 0.7, self:h(30)
+            self:button(plotX + (plotW - bw) / 2, cy + plotH * 0.06, bw, bh, t("guidance_contracts_open", contracts),
+                C.chip, C.hover, C.text, function() self.view = "contracts" end, smallSize)
         end
     end
 
@@ -1771,6 +1865,12 @@ function Hud:drawVehicle()
     cy = self:drawSwitch(x, cy, startAtH, t("guidance_set_startAt"), Hud.startModes(),
         s.startMode or GuidancePlan.START_CONTINUE,
         function(mode) vehicle:guidanceChangeSetting("startMode", mode) end, true, self:w(210))
+    -- First: where later starts of this course begin
+    if thenH > 0 then
+        cy = self:drawSwitch(x, cy, thenH, t("guidance_set_startAfter"), Hud.startModes(),
+            s.startAfter or GuidancePlan.START_FIRST,
+            function(mode) vehicle:guidanceChangeSetting("startAfter", mode) end, true, self:w(210))
+    end
 
     -- the question (Start away from the field): what it is, then the buttons below answer it
     if awayH > 0 then
@@ -1913,117 +2013,97 @@ function Hud:drawJobSwitch(x, cy, vehicle, current)
     end, true)
 end
 
+--- The unloader's rows: AutoDrive's own settings of the truck and of the combine it serves, read from AutoDrive every
+--- frame and changed through the server (AutoDrive's menu shows the same)
+function Hud:unloaderRows(vehicle)
+    local AD = GuidanceAutoDrive
+    local rows = {}
+    local sm = vehicle.ad.stateModule
+    -- the combine it serves (the truck and it get the marker of its field as first target)
+    local combines = AD.combines(vehicle:getOwnerFarmId())
+    local served = AD.combineOf(vehicle)
+    local labels, cur = {}, nil
+    for i, c in ipairs(combines) do
+        labels[i] = Guidance.vehicleName(c.vehicle)
+        if c.number then labels[i] = labels[i] .. " · " .. t("guidance_unloadCombine_field", c.number) end
+        if c.vehicle == served then cur = i end
+    end
+    local function pickCombine(i)
+        local c = combines[i]
+        if c then AD.ask(vehicle, AD.OP_COMBINE, c.vehicle) end
+    end
+    rows[#rows + 1] = {label = t("guidance_set_unloadCombine"), value = cur and labels[cur] or t("guidance_unloadCombine_none"),
+                       dec = function() if #combines > 0 then pickCombine(((cur or 1) - 2) % #combines + 1) end end,
+                       inc = function() if #combines > 0 then pickCombine((cur or 0) % #combines + 1) end end,
+                       options = labels, current = cur, select = pickCombine}
+    -- where it unloads: an AutoDrive marker (its second target)
+    local markers = GuidanceVehicle.autoDriveMarkers() or {}
+    local target = sm:getSecondMarkerId()
+    local names, at = {}, nil
+    for i, m in ipairs(markers) do
+        names[i] = m.name
+        if m.id == target then at = i end
+    end
+    local function pickMarker(i)
+        if markers[i] then AD.ask(vehicle, AD.OP_UNLOAD_AT, nil, "", markers[i].id) end
+    end
+    rows[#rows + 1] = {label = t("guidance_set_unloadAt"), value = at and names[at] or t("guidance_unloadAD_pick"),
+                       dec = function() if #markers > 0 then pickMarker(((at or 1) - 2) % #markers + 1) end end,
+                       inc = function() if #markers > 0 then pickMarker((at or 0) % #markers + 1) end end,
+                       options = names, current = at, select = pickMarker}
+    -- AutoDrive's settings, one row each: of the truck, or of the combine it serves
+    local function settingRow(label, name, owner, format)
+        if owner == nil then return end
+        local values, ix = AD.setting(name, owner)
+        if values == nil then return end
+        local function to(i)
+            if values[i] ~= nil then AD.ask(vehicle, AD.OP_SETTING, owner, name, i) end
+        end
+        local options = {}
+        for i, v in ipairs(values) do options[i] = format(v) end
+        rows[#rows + 1] = {label = t(label), value = options[ix] or "?",
+                           dec = function() to(math.max(1, ix - 1)) end, inc = function() to(math.min(#values, ix + 1)) end,
+                           options = options, current = ix, select = to}
+    end
+    local function percent(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end
+    local function metres(v) return (string.format("%+.2f m", v):gsub("^%+0%.00", "0.00")) end
+    local function onOff(v) return v and t("guidance_on") or t("guidance_off") end
+    local ad = AD.get()
+    local sides = {[ad.CHASEPOS_AUTO or 0] = t("guidance_pipeSide_auto"), [ad.CHASEPOS_LEFT or 1] = t("guidance_pipeSide_left"),
+                   [ad.CHASEPOS_REAR or 2] = t("guidance_pipeSide_rear"), [ad.CHASEPOS_RIGHT or 3] = t("guidance_pipeSide_right")}
+    settingRow("guidance_set_unloadFull", "unloadFillLevel", vehicle, percent)
+    settingRow("guidance_set_avoidCrop", "avoidFruit", vehicle,
+        function(v) return v and t("guidance_avoidCrop_on") or t("guidance_avoidCrop_off") end)
+    settingRow("guidance_set_pipeSide", "chaseSide", served, function(v) return sides[v] or tostring(v) end)
+    settingRow("guidance_set_unloadSide", "pipeOffset", vehicle, metres)
+    -- (AutoDrive Overdrive since od.60: forward + / back - along the combine; not there before, no row)
+    settingRow("guidance_set_unloadAlong", "pipeZOffset", vehicle, metres)
+    settingRow("guidance_set_followDistance", "followDistance", vehicle, function(v) return string.format("%.2f m", v) end)
+    settingRow("guidance_set_secondUnloader", "callSecondUnloader", served, onOff)
+    -- ours: driving when the server restarted, it starts again after loading (AutoDrive doesn't on a server)
+    local carryOn = vehicle:getGuidanceSettings().autoResume ~= false
+    local resumeTexts = {t("guidance_resume_carryOn"), t("guidance_resume_wait")}
+    local function setResume(on) vehicle:guidanceChangeSetting("autoResume", on) end
+    rows[#rows + 1] = {label = t("guidance_set_autoResume"), value = resumeTexts[carryOn and 1 or 2],
+                       dec = function() setResume(not carryOn) end, inc = function() setResume(not carryOn) end,
+                       options = resumeTexts, current = carryOn and 1 or 2, select = function(i) setResume(i == 1) end}
+    return rows
+end
+
 function Hud:drawHelper(kind)
     local vehicle = self.vehicle
     local C = Hud.C
     local m = self:metrics()
     local pad, padY, rowH, width = m.pad, m.padY, m.rowH, m.width
     local smallSize = m.smallSize
-    local running = vehicle:getGuidanceHelperKind() ~= nil
-    local s = vehicle:getGuidanceSettings()
-    local farmId = vehicle:getOwnerFarmId()
+    -- (the unloader: AutoDrive drives it)
+    local adUnloader = kind == "unload" and GuidanceAutoDrive.isUnloading(vehicle)
+    local running = vehicle:getGuidanceHelperKind() ~= nil or adUnloader
 
     -- settings
     local rows = {}
     if kind == "unload" then
-        -- where a full one goes: stop, a truck at the field edge (auger wagon), a heap (tipper), a station
-        local choices = {{mode = 0, x = 0, z = 0, label = t("guidance_unload_stop")}}
-        if GuidanceUnloadDriver.findAuger(vehicle) then
-            table.insert(choices, {mode = 1, x = 0, z = 0, label = t("guidance_unload_truck")})
-        end
-        if GuidanceUnloadDriver.findTipper(vehicle) then
-            table.insert(choices, {mode = 2, x = 0, z = 0, label = t("guidance_unload_heap")})
-        end
-        for _, st in ipairs(GuidanceTrips.unloadingStations(farmId)) do
-            local sx, sz = GuidanceTrips.targetOf(st)
-            table.insert(choices, {mode = 0, x = sx, z = sz, label = GuidanceTrips.nameOf(st)})
-        end
-        local cur = 1
-        for i, c in ipairs(choices) do
-            if c.mode == (s.unloadMode or 0) and (c.mode ~= 0 or ((s.unloadX or 0) == 0 and c.x == 0)
-                    or (c.x ~= 0 and math.abs(c.x - (s.unloadX or 0)) < 1 and math.abs(c.z - (s.unloadZ or 0)) < 1)) then
-                cur = i
-            end
-        end
-        local function pick(step)
-            return function()
-                local c = choices[(cur - 1 + step) % #choices + 1]
-                vehicle:guidanceApplySettings({unloadMode = c.mode, unloadX = c.x, unloadZ = c.z})
-            end
-        end
-        local unloadLabels = {}
-        for i, c in ipairs(choices) do unloadLabels[i] = c.label end
-        table.insert(rows, {label = t("guidance_set_unloadAt"), value = choices[cur].label, dec = pick(-1), inc = pick(1),
-                            options = unloadLabels, current = cur, select = function(i)
-                                local c = choices[i]
-                                vehicle:guidanceApplySettings({unloadMode = c.mode, unloadX = c.x, unloadZ = c.z})
-                            end})
-        -- the one combine it serves (and goes to the field of), or any on the field it starts on
-        local combines = {{key = "", label = t("guidance_unloadCombine_any")}}
-        for _, v in ipairs(GuidanceMap.getFarmVehicles()) do
-            if v ~= vehicle and GuidanceFieldworkDriver.findHarvester(v) then
-                local _, number = GuidanceVehicle.fieldOfVehicle(v)
-                local label = Guidance.vehicleName(v)
-                if number then label = label .. " · " .. t("guidance_unloadCombine_field", number) end
-                combines[#combines + 1] = {key = GuidanceVehicle.vehicleKey(v), label = label}
-            end
-        end
-        local curCombine = 1
-        for i, c in ipairs(combines) do
-            if c.key == (s.unloadCombine or "") then curCombine = i end
-        end
-        if (s.unloadCombine or "") ~= "" and curCombine == 1 then
-            combines[#combines + 1] = {key = s.unloadCombine, label = t("guidance_unloadCombine_gone")}
-            curCombine = #combines
-        end
-        local function pickCombine(step)
-            return function()
-                local c = combines[(curCombine - 1 + step) % #combines + 1]
-                vehicle:guidanceApplySettings({unloadCombine = c.key})
-            end
-        end
-        local combineLabels = {}
-        for i, c in ipairs(combines) do combineLabels[i] = c.label end
-        table.insert(rows, 1, {label = t("guidance_set_unloadCombine"), value = combines[curCombine].label,
-                               dec = pickCombine(-1), inc = pickCombine(1), options = combineLabels, current = curCombine,
-                               select = function(i) vehicle:guidanceApplySettings({unloadCombine = combines[i].key}) end})
-        local full = s.unloadFull or 97
-        table.insert(rows, {label = t("guidance_set_unloadFull"), value = string.format("%d%%", full),
-                            dec = function() vehicle:guidanceApplySettings({unloadFull = math.max(50, full - 5)}) end,
-                            inc = function() vehicle:guidanceApplySettings({unloadFull = math.min(100, full + 5)}) end})
-        -- on the field: round standing crop, or straight through it
-        local avoid = s.avoidCrop ~= false
-        local function flip() vehicle:guidanceApplySettings({avoidCrop = not avoid}) end
-        table.insert(rows, {label = t("guidance_set_avoidCrop"),
-                            value = avoid and t("guidance_avoidCrop_on") or t("guidance_avoidCrop_off"),
-                            dec = flip, inc = flip,
-                            options = {t("guidance_avoidCrop_on"), t("guidance_avoidCrop_off")}, current = avoid and 1 or 2,
-                            select = function(i) vehicle:guidanceApplySettings({avoidCrop = i == 1}) end})
-        -- its place under the pipe: out from the combine / in, forward / back (m)
-        local function offsetRow(key, label, step, limit)
-            local value = s[key] or 0
-            local function to(v)
-                return function()
-                    v = math.floor(math.max(-limit, math.min(limit, v)) / step + 0.5) * step
-                    vehicle:guidanceApplySettings({[key] = v})
-                end
-            end
-            table.insert(rows, {label = t(label), value = string.format("%+.2f m", value):gsub("%+0%.00", "0.00"),
-                                dec = to(value - step), inc = to(value + step),
-                                click = value ~= 0 and to(0) or nil})
-        end
-        -- which side of the combine: where its pipe is (measured), or the player's
-        local pipeSide = s.unloadPipeSide or 0
-        local sideNames = {[0] = t("guidance_pipeSide_auto"), t("guidance_pipeSide_left"), t("guidance_pipeSide_right")}
-        local function stepSide(step)
-            return function() vehicle:guidanceApplySettings({unloadPipeSide = (pipeSide + step) % 3}) end
-        end
-        table.insert(rows, {label = t("guidance_set_pipeSide"), value = sideNames[pipeSide] or sideNames[0],
-                            dec = stepSide(-1), inc = stepSide(1),
-                            options = {sideNames[0], sideNames[1], sideNames[2]}, current = pipeSide + 1,
-                            select = function(i) vehicle:guidanceApplySettings({unloadPipeSide = i - 1}) end})
-        offsetRow("unloadSide", "guidance_set_unloadSide", 0.25, 4)
-        offsetRow("unloadAlong", "guidance_set_unloadAlong", 0.5, 8)
+        rows = self:unloaderRows(vehicle)
     end
 
     local switchH = self:jobSwitchHeight(vehicle)
@@ -2047,7 +2127,8 @@ function Hud:drawHelper(kind)
     cy = cy - phaseH
     local phase = vehicle:getGuidanceHelperPhase()
     -- (after the job: why the wrapper left bales)
-    local phaseText = ((running or (GuidanceVehicle ~= nil and GuidanceVehicle.END_PHASES[phase or ""])) and phase and t("guidance_phase_" .. phase))
+    local phaseText = (adUnloader and t("guidance_phase_adUnload"))
+        or ((running or (GuidanceVehicle ~= nil and GuidanceVehicle.END_PHASES[phase or ""])) and phase and t("guidance_phase_" .. phase))
         or t("guidance_helperReady_" .. kind)
     self:textIn(x + pad, cy, phaseH, m.textSize, fit(phaseText, m.textSize, width - 2 * pad, true),
         running and C.accent or C.text, nil, true)
@@ -2060,7 +2141,10 @@ function Hud:drawHelper(kind)
     local gap = self:w(10)
     local half = (width - 2 * pad - gap) / 2
     local white = {1, 1, 1, 1}
-    if running then
+    if adUnloader then
+        self:button(x + pad, cy, width - 2 * pad, buttonsH, t("guidance_btn_stop"), C.danger, C.dangerHover, white,
+            function() GuidanceAutoDrive.ask(vehicle, GuidanceAutoDrive.OP_STOP) end)
+    elseif running then
         local paused = vehicle:getIsGuidancePaused()
         self:button(x + pad, cy, half, buttonsH, paused and t("guidance_btn_resume") or t("guidance_btn_pause"),
             paused and C.accent or C.surface, paused and C.accentHover or C.hover, paused and white or C.text,
@@ -2073,18 +2157,20 @@ function Hud:drawHelper(kind)
     else
         self:button(x + pad, cy, width - 2 * pad, buttonsH, t("guidance_btn_start"), C.accent, C.accentHover, white,
             function()
-                -- an unloader for one combine, away from its field: AutoDrive takes it there and it starts there
-                if kind == "unload" and (s.unloadCombine or "") ~= "" then
-                    local combine = GuidanceVehicle.vehicleByKey(s.unloadCombine)
-                    local outline, number
-                    if combine then outline, number = GuidanceVehicle.fieldOfVehicle(combine) end
-                    if outline and not GuidanceVehicle.isAtField(vehicle, outline) then
-                        vehicle:guidanceGoTo(GuidanceVehicle.GO_UNLOADER)
-                        self:showMessage(t("guidance_unloadGo", Guidance.vehicleName(combine), tostring(number or "?")), false)
-                        return
+                -- the unloader: AutoDrive's, once it knows the combine and where to unload (it drives to the combine's
+                -- field by itself)
+                if kind == "unload" then
+                    local sm = vehicle.ad.stateModule
+                    if GuidanceAutoDrive.combineOf(vehicle) == nil then
+                        self:showMessage(t("guidance_unloadAD_noCombine"), true)
+                    elseif sm:getSecondMarker() == nil then
+                        self:showMessage(t("guidance_unloadAD_noTarget"), true)
+                    else
+                        GuidanceAutoDrive.ask(vehicle, GuidanceAutoDrive.OP_START)
                     end
+                    return
                 end
-                local ok, err = vehicle:guidanceStartHelper(kind, GuidanceVehicle.helperValues(s))
+                local ok, err = vehicle:guidanceStartHelper(kind)
                 if not ok and err then self:showMessage(err, true) end
             end)
     end
@@ -2204,6 +2290,15 @@ function Hud:drawLibrary()
         local qw = Draw.textWidth(m.smallSize, qLabel, true) + self:w(16)
         self:button(x + width - pad - qw, cy + (folderH - bh) / 2, qw, bh, qLabel, C.chip, C.hover, C.text,
             function() self.view, self.queuePage = "queue", 1 end, m.smallSize)
+        -- the farm's contracts: a course for one in one go
+        local contracts = #GuidanceContracts.running(vehicle:getOwnerFarmId())
+        if contracts > 0 then
+            local cLabel = t("guidance_contracts_open", contracts)
+            local cw = Draw.textWidth(m.smallSize, cLabel, true) + self:w(16)
+            local left, right = x + pad + bw, x + width - pad - qw
+            self:button(left + (right - left - cw) / 2, cy + (folderH - bh) / 2, cw, bh, cLabel, C.chip, C.hover, C.text,
+                function() self.view = "contracts" end, m.smallSize)
+        end
     end
     -- in a folder: back to all fields
     if folder then
@@ -2508,7 +2603,7 @@ Hud.SETTINGS_PAGE_ONLY = {refillX = true, keepRunning = true, takeOver = true, t
                           rowFrom = true, rowTo = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true,
                           lights = true,
                           lowerLate = true, raiseLate = true, callUnloaderAt = true, toolOffsetX = true, rainWait = true,
-                          adMarker = true}
+                          adMarker = true, refuelAt = true, repairAt = true, handOver = true}
 Hud.FIELD_ROWS = {headlands = true, rowAngle = true, clockwise = true, headlandsFirst = true, pattern = true,
                   roundedPasses = true}
 Hud.USER_ROWS = {minHeadlandWidth = true, roundedPasses = true, keepLowered = true, keepRunning = true, takeOver = true, lowerLate = true, raiseLate = true,
@@ -2652,7 +2747,7 @@ Hud.TRACTOR_SECTIONS = {
               edgeObstacles = true},
     driving = {refillX = true, keepLowered = true, keepRunning = true, takeOver = true, workSpeedMax = true, turnSpeed = true, reverseSpeed = true, lights = true,
                callUnloaderAt = true, rainWait = true, toolOffsetX = true, autoResume = true, lowerLate = true,
-               raiseLate = true, adMarker = true},
+               raiseLate = true, adMarker = true, refuelAt = true, repairAt = true, handOver = true},
     team = {teamMode = true, teamSize = true, teamIndex = true},
 }
 
@@ -2671,7 +2766,9 @@ function Hud:drawSettings()
     local buttonsH = #buttons > 0 and self:h(36) or 0
     local messageLines = self.message and math.min(5, self:countLines(self.message, smallSize, width - 2 * pad)) or 0
     local messageH = messageLines > 0 and (messageLines * self:h(16) + self:h(8)) or 0
+    local userThen = scope == "user" and GuidancePrefs.startMode == GuidancePlan.START_FIRST
     local contentH = scopeH + sectionH + noteH + padY * 0.5 + #rows * rowH + (scope == "user" and startAtH or 0)
+        + (userThen and startAtH or 0)
         + padY * 0.5 + buttonsH + messageH
 
     local status, statusColor = self:getStatus(vehicle)
@@ -2697,6 +2794,11 @@ function Hud:drawSettings()
     if scope == "user" then
         cy = self:drawSwitch(x, cy, startAtH, t("guidance_set_startAt"), Hud.startModes(), GuidancePrefs.startMode,
             function(mode) GuidancePrefs.set("startMode", mode) end, true, self:w(210))
+        if userThen then
+            cy = self:drawSwitch(x, cy, startAtH, t("guidance_set_startAfter"), Hud.startModes(),
+                GuidancePrefs.startAfter or GuidancePlan.START_FIRST,
+                function(mode) GuidancePrefs.set("startAfter", mode) end, true, self:w(210))
+        end
     end
 
     if buttonsH > 0 then
@@ -3077,6 +3179,73 @@ Hud.IMPORT_PAGE = 7
 Hud.QUEUE_PAGE = 5
 Hud.OFF_FIELD_ASK = 30000 -- ms the "not on the field" question stays
 
+--- The farm's running contracts on fields: a course on one for this tractor, and off there
+function Hud:drawContracts()
+    local vehicle = self.vehicle
+    local C = Hud.C
+    local m = self:metrics()
+    local pad, width = m.pad, m.width
+    local list = GuidanceContracts.running(vehicle:getOwnerFarmId())
+    local shown = math.min(#list, Hud.QUEUE_PAGE)
+    local headH, hintH, rowH = self:h(34), self:h(40), self:h(72)
+    local messageH = self.message and self:h(24) or 0
+    local x, cy = self:drawFrame(m, headH + hintH + math.max(1, shown) * rowH + messageH, t("guidance_contracts_title", #list))
+    cy = cy - headH
+    local bw, bh = self:w(110), self:h(26)
+    self:button(x + pad, cy + (headH - bh) / 2, bw, bh, "< " .. t("guidance_folder_back"), C.chip, C.hover, C.text,
+        function() self.view = "library" end, m.smallSize)
+    cy = cy - hintH
+    self:textLines(x + pad, cy, hintH, m.smallSize, t("guidance_contracts_hint"), width - 2 * pad, C.muted)
+    if #list == 0 then
+        cy = cy - rowH
+        self:textLines(x + pad, cy, rowH, m.textSize, t("guidance_contracts_none"), width - 2 * pad, C.muted)
+    end
+    local plan = vehicle:getGuidancePlan()
+    local buttonH = self:h(24)
+    for i = 1, shown do
+        local c = list[i]
+        cy = cy - rowH
+        if i > 1 then Draw.rect(x + pad, cy + rowH, width - 2 * pad, self:h(1), C.line) end
+        -- "Harvest wheat", its field, size, how far it is done, and whether this tractor has the course
+        local parts = {GuidanceLibrary.fieldName(c.fieldId)}
+        if c.area then parts[#parts + 1] = string.format("%.1f ha", c.area) end
+        if c.done then parts[#parts + 1] = string.format("%d%%", math.floor(c.done * 100 + 0.5)) end
+        local hasCourse = plan ~= nil and plan.fieldId == c.fieldId and vehicle:getGuidanceCourse() ~= nil
+        if hasCourse then parts[#parts + 1] = t("guidance_contracts_hasCourse") end
+        self:textIn(x + pad, cy + rowH - self:h(25), self:h(20), m.textSize, fit(c.title, m.textSize, width - 2 * pad, true),
+            C.text, nil, true)
+        self:textIn(x + pad, cy + rowH - self:h(44), self:h(18), m.smallSize,
+            fit(table.concat(parts, " · "), m.smallSize, width - 2 * pad), C.muted)
+        local function make()
+            if hasCourse then return true end
+            local ok, err = vehicle:guidanceCourseForField(c.fieldId)
+            if not ok then self:showMessage(err or t("guidance_err_generic"), true) end
+            return ok
+        end
+        local gap = self:w(5)
+        local w = (width - 2 * pad - gap) / 2
+        self:button(x + pad, cy + self:h(5), w, buttonH, t("guidance_contracts_make"), C.chip, C.hover, C.text,
+            function()
+                if make() then
+                    self.view = "vehicle"
+                    self:showMessage(t("guidance_contracts_made", c.title), false)
+                end
+            end, m.smallSize)
+        self:button(x + pad + w + gap, cy + self:h(5), w, buttonH, t("guidance_saved_go"), C.accent, C.accentHover,
+            {1, 1, 1, 1}, function()
+                if make() then
+                    vehicle:guidanceGoTo(0)
+                    self.view = "vehicle"
+                    self:showMessage(t("guidance_go_sent", c.title), false)
+                end
+            end, m.smallSize)
+    end
+    if self.message then
+        cy = cy - messageH
+        self:textIn(x + pad, cy, messageH, m.smallSize, self.message, self.messageIsError and C.danger or C.muted)
+    end
+end
+
 function Hud:drawQueue()
     local vehicle = self.vehicle
     local C = Hud.C
@@ -3209,7 +3378,7 @@ end
 function Hud:helpTopicFor()
     local view = self.view or "vehicle"
     if view == "team" then return "team" end
-    if view == "library" or view == "queue" or view == "import" then return "saved" end
+    if view == "library" or view == "queue" or view == "import" or view == "contracts" then return "saved" end
     if view == "settings" then return "settings" end
     if view == "fleet" then return "problems" end
     local vehicle = self.vehicle

@@ -171,6 +171,21 @@ def main():
                 skewed += 1
     check("square corners by a cut-off corner", n_rev > 20 and longest < 16 and skewed == 0,
           f"{n_rev} reverses, longest {longest:.1f} m, {skewed} across the edges")
+    # after the reverse at a square corner the pass goes straight on: no hook (before 1.0.8.4 the reverse ended a
+    # metre past the pass's first points, or half a metre to two beside them by a cut-off corner: the harvester
+    # jinked back or across, then on). Forward stretches only, a turn of more than 60 degrees between them
+    hooks = 0
+    for a, b, c in zip(cw, cw[1:], cw[2:]):
+        if b["rev"] or c["rev"]:
+            continue
+        l1, l2 = math.hypot(b["x"] - a["x"], b["z"] - a["z"]), math.hypot(c["x"] - b["x"], c["z"] - b["z"])
+        if l1 < 0.05 or l2 < 0.05:
+            continue
+        t = abs((math.atan2(c["z"] - b["z"], c["x"] - b["x"]) - math.atan2(b["z"] - a["z"], b["x"] - a["x"]) + math.pi)
+                % (2 * math.pi) - math.pi)
+        if t > math.radians(60) and (c["work"] or b["work"]):
+            hooks += 1
+    check("no hooks after square corners", hooks == 0, f"{hooks} sharp bends in forward work after the corners")
 
     whole = G.makeCourse(F, T({}))
     whole_rows = list(G.rowsOf(whole).values())

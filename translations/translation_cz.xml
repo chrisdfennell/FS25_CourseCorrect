@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Připojte přívěs nebo šnekový vůz pro vykládku kombajnů"/>
         <text name="guidance_helper_noBaleTool" text="Připojte nakladač balíků nebo balící stroj pro sběr balíků"/>
         <text name="guidance_helper_noSilo" text="Najeďte k silážnímu žlabu, abyste ho udusali"/>
-        <text name="guidance_helperAbout_unload" text="Čeká na kraji pole, jede ke kombajnu nebo řezačce z tohoto pole, která volá (kolem plodiny), a odebírá náklad pod šnekem její rychlostí (vedle řezačky, nebo za ní ve stojící plodině). Plný: jede ke stanici po silnicích hry a zpět, přesype do nákladního auta na kraji pole (překládací vůz), vysype hromadu v místě startu (sklápěč), nebo se zastaví a čeká na vás."/>
+        <text name="guidance_helperAbout_unload" text="Překladač kombajnu od AutoDrive, nastavený zde: čeká u cíle AutoDrive na poli svého kombajnu, když kombajn zavolá, jede k němu, převezme náklad pod výsypnou rourou a odveze ho na Vyložit u. Jsou to vlastní nastavení AutoDrive: změněná zde nebo v menu AutoDrive, obě ukazují totéž."/>
         <text name="guidance_helperAbout_bales" text="Sebere (nebo zabalí) každý balík na tomto poli, nejbližší první. Plný nakladač složí hromadu tam, kde začal; na konci tam doveze i zbytek."/>
         <text name="guidance_helperAbout_silo" text="Jezdí po silážním žlabu pruh po pruhu, dopředu dovnitř a couváním ven. Čeká, když je silo udusané, pokračuje, když se přisype další; zastaví, když je zavřené."/>
-        <text name="guidance_helperReady_unload" text="Spusťte ho na kraji pole"/>
+        <text name="guidance_helperReady_unload" text="Vyberte kombajn a kde vykládá, pak Start"/>
         <text name="guidance_helperReady_bales" text="Spusťte ho tam, kde má být hromada"/>
         <text name="guidance_helperReady_silo" text="Spusťte ho u sila"/>
         <text name="guidance_set_unloadAt" text="Vyložit u"/>
-        <text name="guidance_unload_stop" text="Zastavit, když je plný"/>
         <text name="guidance_set_unloadFull" text="Odjet při naplnění na"/>
         <text name="guidance_set_refill" text="Doplnit u"/>
         <text name="guidance_refill_off" text="Vyp.: zastaví, když je prázdný"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Posunout"/>
         <text name="guidance_toolHint_move" text="Přetáhněte bod trasy"/>
         <text name="guidance_phase_balesCantWrap" text="Hotovo; zbylé balíky tento ovíječ neovine"/>
-        <text name="guidance_unload_truck" text="Nákladní auto na kraji pole"/>
-        <text name="guidance_unload_heap" text="Hromada v místě startu"/>
         <text name="guidance_phase_unloadToTruck" text="Jede k nákladnímu autu"/>
         <text name="guidance_phase_unloadOverload" text="Přesypává do auta"/>
         <text name="guidance_phase_unloadToHeap" text="Jede k hromadě"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Sad %d"/>
         <text name="guidance_warn_convoyNarrow" text="Příliš úzké pro kolonu %d: asi %d%% zůstane nezpracováno. Zkuste Další volná řada nebo Pásy."/>
         <text name="guidance_info_WAITING_RAIN" text="Čeká, až přestane pršet (sklízet teď snižuje výnos)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Plný, žádný překladač: spusťte překladač CourseCorrect na tomto poli nebo dejte nákladnímu autu AutoDrive stejný první cíl jako této sklízeči"/>
+        <text name="guidance_info_NO_UNLOADER" text="Plný, žádný překladač: u nákladního auta v úloze Odvoz vyberte tento kombajn (karta Trasa) a spusťte ho, nebo dejte nákladnímu autu AutoDrive stejný první cíl jako této sklízeči"/>
+        <text name="guidance_set_refuelAt" text="Tankovat při"/>
+        <text name="guidance_set_repairAt" text="Opravit při (opotřebení)"/>
+        <text name="guidance_set_handOver" text="Potom na tomto poli"/>
+        <text name="guidance_handOver_none" text="Nikdo"/>
+        <text name="guidance_handOver_gone" text="(nenalezeno)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Jede tankovat (AutoDrive), pak pokračuje"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Jede na opravu (AutoDrive), pak pokračuje"/>
+        <text name="guidance_info_HANDED_OVER" text="Hotovo, pole je předáno"/>
+        <text name="guidance_contracts_open" text="Zakázky (%d)"/>
+        <text name="guidance_contracts_title" text="Zakázky (%d)"/>
+        <text name="guidance_contracts_hint" text="Tvé běžící zakázky. Vytvořit trasu: trasa na tom poli pro tento traktor. Jet: a odjet tam (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="Žádné běžící zakázky."/>
+        <text name="guidance_contracts_hasCourse" text="trasa připravena"/>
+        <text name="guidance_contracts_make" text="Vytvořit trasu"/>
+        <text name="guidance_contracts_made" text="Trasa vytvořena pro: %s"/>
         <text name="guidance_set_rainWait" text="V dešti"/>
         <text name="guidance_rain_wait" text="Čekat"/>
         <text name="guidance_rain_go" text="Pokračovat"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Vlevo"/>
         <text name="guidance_pipeSide_right" text="Vpravo"/>
         <text name="guidance_set_unloadCombine" text="Kombajn"/>
-        <text name="guidance_unloadCombine_any" text="Jakýkoli na jeho poli"/>
+        <text name="guidance_set_secondUnloader" text="Druhý překladač"/>
+        <text name="guidance_set_followDistance" text="Odstup za ním"/>
+        <text name="guidance_pipeSide_rear" text="Za ním"/>
+        <text name="guidance_unloadCombine_none" text="(žádný)"/>
+        <text name="guidance_unloadAD_pick" text="(vyberte)"/>
+        <text name="guidance_unloadAD_noTarget" text="Vyberte, kde vykládá (cíl AutoDrive)"/>
+        <text name="guidance_unloadAD_noCombine" text="Nejdřív vyberte kombajn (jeho pole potřebuje cíl AutoDrive)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive ho řídí jako překladač"/>
+        <text name="guidance_status_adUnload" text="AutoDrive překládá"/>
         <text name="guidance_unloadCombine_field" text="pole %s"/>
-        <text name="guidance_unloadCombine_gone" text="(nenalezen)"/>
-        <text name="guidance_unloadGo" text="K %s na poli %s: AutoDrive ho odveze, překladač začne po příjezdu"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Méně nastavení"/>
         <text name="guidance_btn_makeCourse" text="Vytvořit trasu"/>
         <text name="guidance_btn_newCourse" text="Nová trasa"/>
+        <text name="guidance_btn_clearCourse" text="Smazat"/>
+        <text name="guidance_course_cleared" text="Trasa smazána"/>
+        <text name="guidance_clear_ask" text="Smazat trasu tohoto traktoru? Uložené trasy zůstanou."/>
         <text name="guidance_btn_start" text="Start"/>
         <text name="guidance_btn_stop" text="Stop"/>
         <text name="guidance_status_paused" text="Pozastaveno · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pauza"/>
         <text name="guidance_btn_resume" text="Pokračovat"/>
         <text name="guidance_set_startAt" text="Začít od"/>
+        <text name="guidance_set_startAfter" text="Potom"/>
         <text name="guidance_start_continue" text="Pokračovat"/>
         <text name="guidance_start_nearest" text="Nejbližší"/>
         <text name="guidance_start_first" text="První"/>

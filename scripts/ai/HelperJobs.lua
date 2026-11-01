@@ -1,6 +1,6 @@
--- CourseCorrect: the AI jobs of the helpers that don't work a course (see Helpers.lua): the unloader (its work on the
--- field, then on the game's roads to the station and tipping there, then back), the bale collector, the silo
--- compacter. One task drives with our strategy; the unloader adds the game's own drive and discharge tasks.
+-- CourseCorrect: the AI jobs of the helpers that don't work a course (see Helpers.lua): the bale collector, the silo
+-- compacter, the shovel. One task drives with our strategy. (The combine unloader is AutoDrive's: see
+-- GuidanceAutoDrive.lua.)
 
 GuidanceHelperTask = {}
 local Task_mt = {__index = GuidanceHelperTask}
@@ -55,8 +55,7 @@ function GuidanceHelperTask:stop(wasJobStopped)
         self.vehicle.spec_guidance.driver = nil
         if self.isServer and self.vehicle.guidanceSetHelperPhase
                 and not GuidanceVehicle.END_PHASES[self.vehicle:getGuidanceHelperPhase() or ""] then
-            -- on the road: the game drives
-            self.vehicle:guidanceSetHelperPhase(self.job.kind == "unload" and not wasJobStopped and "unloadTrip" or nil)
+            self.vehicle:guidanceSetHelperPhase(nil)
         end
     end
     self.driver = nil
@@ -68,7 +67,6 @@ GuidanceHelperJob = {}
 local Job_mt = Class(GuidanceHelperJob, AIJob)
 
 GuidanceHelperJob.KINDS = {
-    unload = {name = "GUIDANCE_UNLOAD", driver = function() return GuidanceUnloadDriver end},
     bales = {name = "GUIDANCE_BALES", driver = function() return GuidanceBaleDriver end},
     silo = {name = "GUIDANCE_SILO", driver = function() return GuidanceSiloDriver end},
     shovel = {name = "GUIDANCE_SHOVEL", driver = function() return GuidanceShovelDriver end},
@@ -83,40 +81,12 @@ function GuidanceHelperJob.new(isServer, customMt, kind)
     local group = AIParameterGroup.new(g_i18n:getText("ai_parameterGroupTitleVehicle"))
     group:addParameter(self.vehicleParameter)
     table.insert(self.groupedParameters, group)
-    -- where it unloads (its place; 0, 0: stops when full), how full it goes
-    self.unloadX, self.unloadZ, self.fullLevel, self.unloadMode = 0, 0, GuidanceUnloadDriver.LEAVE_LEVEL, 0
-    -- on the field round standing crop (false: straight through it)
-    self.avoidCrop = true
-    -- its place under the pipe moved: out from the combine (+, m), forward (+, m)
-    self.unloadSide, self.unloadAlong = 0, 0
-    -- the side of the combine it goes: 0 where the pipe is, 1 left, 2 right
-    self.unloadPipeSide = 0
-    -- the one combine it serves (its key), wherever it works; "": any on its field
-    self.unloadCombine = ""
-    if kind == "unload" and AITaskDriveTo ~= nil then
-        self.driveToFieldTask = AITaskDriveTo.new(isServer, self)
-        self:addTask(self.driveToFieldTask)
-    end
     self.task = GuidanceHelperTask.new(isServer, self)
     self:addTask(self.task)
-    if kind == "unload" and AITaskDriveTo ~= nil and AITaskDischarge ~= nil then
-        -- the game's deliver logic works with these names
-        self.waitForFillingTask = self.task
-        self.driveToUnloadingTask = AITaskDriveTo.new(isServer, self)
-        self.dischargeTask = AITaskDischarge.new(isServer, self)
-        self:addTask(self.driveToUnloadingTask)
-        self:addTask(self.dischargeTask)
-        self.dischargeNodeInfos = {}
-    end
     return self
 end
 
 -- one job class per kind, so the game can make each by its type
-GuidanceUnloadJob = {}
-local Unload_mt = Class(GuidanceUnloadJob, GuidanceHelperJob)
-GuidanceUnloadJob.name = GuidanceHelperJob.KINDS.unload.name
-function GuidanceUnloadJob.new(isServer, customMt) return GuidanceHelperJob.new(isServer, customMt or Unload_mt, "unload") end
-
 GuidanceBaleJob = {}
 local Bale_mt = Class(GuidanceBaleJob, GuidanceHelperJob)
 GuidanceBaleJob.name = GuidanceHelperJob.KINDS.bales.name
@@ -151,15 +121,6 @@ function GuidanceHelperJob:setValues()
     for _, task in ipairs(self.tasks) do
         if task.setVehicle then task:setVehicle(vehicle) end
     end
-    -- back to the field after a trip: where it started
-    if vehicle and self.driveToFieldTask and self.homeX == nil then
-        local x, z, h = GuidanceHelperDriver.poseOf(vehicle)
-        self.homeX, self.homeZ, self.homeDx, self.homeDz = x, z, math.cos(h), math.sin(h)
-    end
-    if self.driveToFieldTask and self.homeX then
-        self.driveToFieldTask:setTargetPosition(self.homeX, self.homeZ)
-        self.driveToFieldTask:setTargetDirection(self.homeDx, self.homeDz)
-    end
 end
 
 function GuidanceHelperJob:validate(farmId)
@@ -174,14 +135,7 @@ end
 
 --- Can the vehicle do this kind of job? true, or false and why
 function GuidanceHelperJob.canDo(vehicle, kind)
-    if kind == "unload" then
-        for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {}) do
-            if v ~= vehicle and (v.spec_trailer or v.spec_pipe) and v.getFillUnits and #v:getFillUnits() > 0 then
-                return true
-            end
-        end
-        return false, g_i18n:getText("guidance_helper_noTrailer")
-    elseif kind == "bales" then
+    if kind == "bales" then
         if GuidanceBaleDriver.findTool(vehicle) then return true end
         return false, g_i18n:getText("guidance_helper_noBaleTool")
     elseif kind == "silo" then
@@ -212,85 +166,11 @@ function GuidanceHelperJob.getIsStartErrorText(state)
     return GuidanceJob.getIsStartErrorText(state)
 end
 
-function GuidanceHelperJob:getIsLooping()
-    return self.kind == "unload"
-end
-
---- unload: (to the field) -> working at the combines -> to the station -> tipping -> to the field ...
 function GuidanceHelperJob:getNextTaskIndex(isSkipTask)
-    local cur = self.currentTaskIndex
-    local task = self.task.taskIndex
-    if cur == 0 then
-        return task
+    if self.currentTaskIndex == 0 then
+        return self.task.taskIndex
     end
-    if self.kind ~= "unload" or self.driveToUnloadingTask == nil then
-        return #self.tasks + 1
-    end
-    if self.driveToFieldTask and cur == self.driveToFieldTask.taskIndex then
-        return task
-    end
-    if cur == task or cur == self.dischargeTask.taskIndex then
-        -- the game's deliver logic: the next tipping point and where to drive for it
-        local ok, ix = Guidance.try(AIJobDeliver.getNextTaskIndex, self, isSkipTask)
-        if cur == task then
-            if ok and ix == self.driveToUnloadingTask.taskIndex and self.driveToUnloadingTask.x ~= nil then
-                return ix
-            end
-            Guidance.info("%s: no way to the unloading station", Guidance.vehicleName(self:getVehicle()))
-            return #self.tasks + 1
-        end
-        if ok and ix == self.driveToUnloadingTask.taskIndex and self.driveToUnloadingTask.x ~= nil then
-            return ix
-        end
-        -- all tipped: back to the field
-        return self.driveToFieldTask and self.driveToFieldTask.taskIndex or task
-    end
-    return cur + 1
-end
-
-function GuidanceHelperJob:startTask(task)
-    if task == self.driveToUnloadingTask then
-        for _, info in ipairs(self.dischargeNodeInfos or {}) do info.dirty = true end
-    end
-    AIJob.startTask(self, task)
-end
-
-function GuidanceHelperJob:canContinueWork()
-    if self.kind == "unload" and self.driveToUnloadingTask and (self.currentTaskIndex == self.driveToUnloadingTask.taskIndex
-            or self.currentTaskIndex == self.dischargeTask.taskIndex) and self.unloadingStationParameter then
-        local ok, can, message = Guidance.try(AIJobDeliver.canContinueWork, self)
-        if ok and can == false then return false, message end
-    end
-    return true, nil
-end
-
---- The unloader is full at the field edge: to the station it was given (true), or nothing to do that (false)
-function GuidanceHelperJob:startDeliveryTrip()
-    local vehicle = self:getVehicle()
-    if self.driveToUnloadingTask == nil or vehicle == nil or (self.unloadX or 0) == 0 then
-        return false
-    end
-    local infos = GuidanceTrips.dischargeNodeInfos(vehicle)
-    local fillType
-    for _, info in ipairs(infos) do
-        local ft = info.vehicle:getFillUnitFillType(info.dischargeNode.fillUnitIndex)
-        if ft and ft ~= (FillType and FillType.UNKNOWN) then fillType = ft break end
-    end
-    local station = GuidanceTrips.find(GuidanceTrips.unloadingStations(vehicle:getOwnerFarmId(), fillType),
-        self.unloadX, self.unloadZ)
-    if station == nil or #infos == 0 then
-        Guidance.info("%s: no unloading station for that here", Guidance.vehicleName(vehicle))
-        return false
-    end
-    self.unloadingStationParameter = GuidanceTrips.stationParameter(station)
-    self.dischargeNodeInfos = infos
-    self.supportedFillTypes = station:getAISupportedFillTypes()
-    self.driveToUnloadingTask:setVehicle(vehicle)
-    self.dischargeTask:setVehicle(vehicle)
-    self.driveToUnloadingTask:setTargetOffset(-infos[#infos].offsetZ)
-    Guidance.info("%s: full, to %s", Guidance.vehicleName(vehicle), GuidanceTrips.nameOf(station))
-    self.task:skip()
-    return true
+    return #self.tasks + 1
 end
 
 function GuidanceHelperJob:start(farmId)
@@ -321,15 +201,6 @@ function GuidanceHelperJob:writeStream(streamId, connection)
         namedParameter.parameter:writeStream(streamId, connection)
     end
     streamWriteUInt8(streamId, self.currentTaskIndex)
-    streamWriteFloat32(streamId, self.unloadX or 0)
-    streamWriteFloat32(streamId, self.unloadZ or 0)
-    streamWriteUInt8(streamId, math.floor((self.fullLevel or 0.97) * 100 + 0.5))
-    streamWriteUInt8(streamId, self.unloadMode or 0)
-    streamWriteBool(streamId, self.avoidCrop ~= false)
-    streamWriteFloat32(streamId, self.unloadSide or 0)
-    streamWriteFloat32(streamId, self.unloadAlong or 0)
-    streamWriteUInt8(streamId, self.unloadPipeSide or 0)
-    streamWriteString(streamId, self.unloadCombine or "")
 end
 
 function GuidanceHelperJob:readStream(streamId, connection)
@@ -341,15 +212,6 @@ function GuidanceHelperJob:readStream(streamId, connection)
         namedParameter.parameter:readStream(streamId, connection)
     end
     self.currentTaskIndex = streamReadUInt8(streamId)
-    self.unloadX = streamReadFloat32(streamId)
-    self.unloadZ = streamReadFloat32(streamId)
-    self.fullLevel = streamReadUInt8(streamId) / 100
-    self.unloadMode = streamReadUInt8(streamId)
-    self.avoidCrop = streamReadBool(streamId)
-    self.unloadSide = streamReadFloat32(streamId)
-    self.unloadAlong = streamReadFloat32(streamId)
-    self.unloadPipeSide = streamReadUInt8(streamId)
-    self.unloadCombine = streamReadString(streamId)
     self:setValues()
 end
 

@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Attelez une remorque ou une vis de chargement pour décharger les moissonneuses-batteuses"/>
         <text name="guidance_helper_noBaleTool" text="Attelez un chargeur de balles ou une enrubanneuse pour ramasser les balles"/>
         <text name="guidance_helper_noSilo" text="Allez à un silo couloir pour le tasser"/>
-        <text name="guidance_helperAbout_unload" text="Attend au bord du champ, rejoint une moissonneuse ou une ensileuse de ce champ qui appelle (autour de la culture) et prend son chargement sous le tube à sa vitesse (à côté de l'ensileuse, ou derrière elle dans la culture). Plein : va à une station par les routes du jeu et revient, vide dans un camion en bordure du champ (benne de transbordement), fait un tas au point de départ (benne), ou s'arrête pour vous."/>
+        <text name="guidance_helperAbout_unload" text="Le benneur de moissonneuse d'AutoDrive, réglé ici : il attend à la destination AutoDrive du champ de sa moissonneuse, va à la moissonneuse quand elle appelle, prend sa charge sous la vis et la porte à Décharger à. Ce sont les réglages d'AutoDrive lui-même : changés ici ou dans le menu d'AutoDrive, les deux montrent la même chose."/>
         <text name="guidance_helperAbout_bales" text="Ramasse (ou enrubanne) toutes les balles de ce champ, les plus proches d'abord. Un chargeur plein décharge la pile là où il a démarré ; à la fin, il y apporte aussi le reste."/>
         <text name="guidance_helperAbout_silo" text="Roule sur le silo couloir voie par voie, en avançant puis en reculant. Attend quand le silo est tassé, reprend quand on en verse davantage ; s'arrête quand il est fermé."/>
-        <text name="guidance_helperReady_unload" text="Démarrez-le au bord du champ"/>
+        <text name="guidance_helperReady_unload" text="Choisissez la moissonneuse et où il décharge, puis Démarrer"/>
         <text name="guidance_helperReady_bales" text="Démarrez-le là où la pile doit être"/>
         <text name="guidance_helperReady_silo" text="Démarrez-le au silo"/>
         <text name="guidance_set_unloadAt" text="Décharger à"/>
-        <text name="guidance_unload_stop" text="Arrêt quand plein"/>
         <text name="guidance_set_unloadFull" text="Partir quand plein à"/>
         <text name="guidance_set_refill" text="Remplir à"/>
         <text name="guidance_refill_off" text="Non : arrêt quand vide"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Déplacer"/>
         <text name="guidance_toolHint_move" text="Faites glisser un point du parcours"/>
         <text name="guidance_phase_balesCantWrap" text="Terminé ; balles restantes que cette enrubanneuse ne peut pas enrubanner"/>
-        <text name="guidance_unload_truck" text="Camion en bordure du champ"/>
-        <text name="guidance_unload_heap" text="Tas au point de départ"/>
         <text name="guidance_phase_unloadToTruck" text="Va au camion"/>
         <text name="guidance_phase_unloadOverload" text="Vide dans le camion"/>
         <text name="guidance_phase_unloadToHeap" text="Va au tas"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Verger %d"/>
         <text name="guidance_warn_convoyNarrow" text="Trop étroit pour un convoi de %d : environ %d%% restent non travaillés. Essayez Prochain rang libre ou Bandes."/>
         <text name="guidance_info_WAITING_RAIN" text="Attend la fin de la pluie (récolter maintenant réduit le rendement)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Plein, pas de transbordeur : démarrez un transbordeur CourseCorrect sur ce champ, ou donnez à un camion AutoDrive la même première destination que cette récolteuse"/>
+        <text name="guidance_info_NO_UNLOADER" text="Plein, pas de transbordeur : choisissez cette moissonneuse dans le Déchargeur d'un camion (onglet Parcours) et démarrez-le, ou donnez à un camion AutoDrive la même première destination que cette récolteuse"/>
+        <text name="guidance_set_refuelAt" text="Faire le plein à"/>
+        <text name="guidance_set_repairAt" text="Réparer à (usure)"/>
+        <text name="guidance_set_handOver" text="Ensuite, sur ce champ"/>
+        <text name="guidance_handOver_none" text="Personne"/>
+        <text name="guidance_handOver_gone" text="(introuvable)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Part faire le plein (AutoDrive), reprend ensuite"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Part en réparation (AutoDrive), reprend ensuite"/>
+        <text name="guidance_info_HANDED_OVER" text="Terminé, le champ est passé au suivant"/>
+        <text name="guidance_contracts_open" text="Contrats (%d)"/>
+        <text name="guidance_contracts_title" text="Contrats (%d)"/>
+        <text name="guidance_contracts_hint" text="Tes contrats en cours. Créer le parcours : un parcours sur ce champ pour ce tracteur. Aller : et il y va (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="Aucun contrat en cours."/>
+        <text name="guidance_contracts_hasCourse" text="parcours prêt"/>
+        <text name="guidance_contracts_make" text="Créer le parcours"/>
+        <text name="guidance_contracts_made" text="Parcours créé pour : %s"/>
         <text name="guidance_set_rainWait" text="Sous la pluie"/>
         <text name="guidance_rain_wait" text="Attendre"/>
         <text name="guidance_rain_go" text="Continuer"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Gauche"/>
         <text name="guidance_pipeSide_right" text="Droite"/>
         <text name="guidance_set_unloadCombine" text="Moissonneuse"/>
-        <text name="guidance_unloadCombine_any" text="Toute sur son champ"/>
+        <text name="guidance_set_secondUnloader" text="Deuxième benneur"/>
+        <text name="guidance_set_followDistance" text="Distance derrière"/>
+        <text name="guidance_pipeSide_rear" text="Derrière"/>
+        <text name="guidance_unloadCombine_none" text="(aucune)"/>
+        <text name="guidance_unloadAD_pick" text="(choisir)"/>
+        <text name="guidance_unloadAD_noTarget" text="Choisissez où il décharge (une destination AutoDrive)"/>
+        <text name="guidance_unloadAD_noCombine" text="Choisissez d'abord la moissonneuse (son champ doit avoir une destination AutoDrive)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive le conduit comme benneur"/>
+        <text name="guidance_status_adUnload" text="AutoDrive benne"/>
         <text name="guidance_unloadCombine_field" text="champ %s"/>
-        <text name="guidance_unloadCombine_gone" text="(introuvable)"/>
-        <text name="guidance_unloadGo" text="Vers %s au champ %s : AutoDrive l'y emmène, le déchargeur démarre à l'arrivée"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect : démarrer"/>
         <text name="guidance_action_stop" text="CourseCorrect : arrêter"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Moins de réglages"/>
         <text name="guidance_btn_makeCourse" text="Créer parcours"/>
         <text name="guidance_btn_newCourse" text="Nouveau parcours"/>
+        <text name="guidance_btn_clearCourse" text="Effacer"/>
+        <text name="guidance_course_cleared" text="Parcours effacé"/>
+        <text name="guidance_clear_ask" text="Effacer le parcours de ce tracteur ? Les parcours enregistrés restent."/>
         <text name="guidance_btn_start" text="Démarrer"/>
         <text name="guidance_btn_stop" text="Arrêter"/>
         <text name="guidance_status_paused" text="En pause · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pause"/>
         <text name="guidance_btn_resume" text="Reprendre"/>
         <text name="guidance_set_startAt" text="Départ"/>
+        <text name="guidance_set_startAfter" text="Ensuite"/>
         <text name="guidance_start_continue" text="Continuer"/>
         <text name="guidance_start_nearest" text="Le plus proche"/>
         <text name="guidance_start_first" text="Le premier"/>

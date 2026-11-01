@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Podłącz przyczepę lub przyczepę ze ślimakiem, aby rozładowywać kombajny"/>
         <text name="guidance_helper_noBaleTool" text="Podłącz ładowacz lub owijarkę bel, aby zbierać bele"/>
         <text name="guidance_helper_noSilo" text="Podjedź do silosu przejazdowego, aby go zagęścić"/>
-        <text name="guidance_helperAbout_unload" text="Czeka na skraju pola, jedzie do kombajnu lub sieczkarni z tego pola, która go wzywa (naokoło uprawy), i odbiera ładunek pod rurą z jej prędkością (obok sieczkarni albo za nią w stojącej uprawie). Gdy pełny: jedzie do stacji drogami gry i wraca, przeładowuje do ciężarówki na skraju pola (przyczepa przeładowcza), wysypuje pryzmę w miejscu startu (wywrotka) albo staje i czeka na Ciebie."/>
+        <text name="guidance_helperAbout_unload" text="Przeładowywacz kombajnów od AutoDrive, ustawiony tutaj: czeka przy celu AutoDrive pola swojego kombajnu, jedzie do kombajnu, gdy ten wzywa, odbiera ładunek pod rurą i wiezie go do Rozładuj w. To własne ustawienia AutoDrive: zmienione tutaj lub w menu AutoDrive, oba pokazują to samo."/>
         <text name="guidance_helperAbout_bales" text="Podnosi (lub owija) wszystkie bele na tym polu, najbliższe najpierw. Pełny ładowacz zrzuca stos tam, gdzie zaczął; na końcu zwozi tam też resztę."/>
         <text name="guidance_helperAbout_silo" text="Jeździ po silosie przejazdowym pas po pasie, wjeżdża do przodu i wycofuje się. Czeka, gdy silos jest zagęszczony, rusza dalej, gdy dosypano więcej; staje, gdy jest zamknięty."/>
-        <text name="guidance_helperReady_unload" text="Uruchom na skraju pola"/>
+        <text name="guidance_helperReady_unload" text="Wybierz kombajn i miejsce rozładunku, potem Start"/>
         <text name="guidance_helperReady_bales" text="Uruchom tam, gdzie ma być stos"/>
         <text name="guidance_helperReady_silo" text="Uruchom przy silosie"/>
         <text name="guidance_set_unloadAt" text="Rozładuj w"/>
-        <text name="guidance_unload_stop" text="Stop, gdy pełny"/>
         <text name="guidance_set_unloadFull" text="Odjedź, gdy pełny w"/>
         <text name="guidance_set_refill" text="Uzupełnij w"/>
         <text name="guidance_refill_off" text="Wył.: staje, gdy pusty"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Przesuń"/>
         <text name="guidance_toolHint_move" text="Przeciągnij punkt kursu"/>
         <text name="guidance_phase_balesCantWrap" text="Gotowe; pozostałych bel ta owijarka nie owinie"/>
-        <text name="guidance_unload_truck" text="Ciężarówka na skraju pola"/>
-        <text name="guidance_unload_heap" text="Pryzma w miejscu startu"/>
         <text name="guidance_phase_unloadToTruck" text="Jedzie do ciężarówki"/>
         <text name="guidance_phase_unloadOverload" text="Przeładowuje do ciężarówki"/>
         <text name="guidance_phase_unloadToHeap" text="Jedzie do pryzmy"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Sad %d"/>
         <text name="guidance_warn_convoyNarrow" text="Za wąskie na kolumnę %d: około %d%% zostanie nieobrobione. Spróbuj Następny wolny rząd lub Pasy."/>
         <text name="guidance_info_WAITING_RAIN" text="Czeka, aż przestanie padać (koszenie teraz obniża plon)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Pełny, brak przeładowcy: uruchom przeładowcę CourseCorrect na tym polu lub ustaw ciężarówce AutoDrive ten sam pierwszy cel co temu kombajnowi"/>
+        <text name="guidance_info_NO_UNLOADER" text="Pełny, brak przeładowcy: wybierz ten kombajn w zadaniu Rozładunek ciężarówki (karta Trasa) i uruchom go, lub ustaw ciężarówce AutoDrive ten sam pierwszy cel co temu kombajnowi"/>
+        <text name="guidance_set_refuelAt" text="Tankuj przy"/>
+        <text name="guidance_set_repairAt" text="Naprawa przy (zużycie)"/>
+        <text name="guidance_set_handOver" text="Potem, na tym polu"/>
+        <text name="guidance_handOver_none" text="Nikt"/>
+        <text name="guidance_handOver_gone" text="(nie znaleziono)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Jedzie zatankować (AutoDrive), potem kontynuuje"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Jedzie do naprawy (AutoDrive), potem kontynuuje"/>
+        <text name="guidance_info_HANDED_OVER" text="Gotowe, pole przekazane"/>
+        <text name="guidance_contracts_open" text="Kontrakty (%d)"/>
+        <text name="guidance_contracts_title" text="Kontrakty (%d)"/>
+        <text name="guidance_contracts_hint" text="Twoje bieżące kontrakty. Utwórz trasę: trasa na tym polu dla tego ciągnika. Jedź: i jedzie tam (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="Brak bieżących kontraktów."/>
+        <text name="guidance_contracts_hasCourse" text="trasa gotowa"/>
+        <text name="guidance_contracts_make" text="Utwórz trasę"/>
+        <text name="guidance_contracts_made" text="Trasa utworzona dla: %s"/>
         <text name="guidance_set_rainWait" text="W deszczu"/>
         <text name="guidance_rain_wait" text="Czekaj"/>
         <text name="guidance_rain_go" text="Pracuj dalej"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Lewa"/>
         <text name="guidance_pipeSide_right" text="Prawa"/>
         <text name="guidance_set_unloadCombine" text="Kombajn"/>
-        <text name="guidance_unloadCombine_any" text="Dowolny na jego polu"/>
+        <text name="guidance_set_secondUnloader" text="Drugi przeładowywacz"/>
+        <text name="guidance_set_followDistance" text="Odstęp z tyłu"/>
+        <text name="guidance_pipeSide_rear" text="Z tyłu"/>
+        <text name="guidance_unloadCombine_none" text="(brak)"/>
+        <text name="guidance_unloadAD_pick" text="(wybierz)"/>
+        <text name="guidance_unloadAD_noTarget" text="Wybierz, gdzie rozładowuje (cel AutoDrive)"/>
+        <text name="guidance_unloadAD_noCombine" text="Najpierw wybierz kombajn (jego pole potrzebuje celu AutoDrive)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive prowadzi go jako przeładowywacz"/>
+        <text name="guidance_status_adUnload" text="AutoDrive przeładowuje"/>
         <text name="guidance_unloadCombine_field" text="pole %s"/>
-        <text name="guidance_unloadCombine_gone" text="(nie znaleziono)"/>
-        <text name="guidance_unloadGo" text="Do %s na polu %s: AutoDrive go zawiezie, przeładowywacz ruszy na miejscu"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Mniej ustawień"/>
         <text name="guidance_btn_makeCourse" text="Utwórz trasę"/>
         <text name="guidance_btn_newCourse" text="Nowa trasa"/>
+        <text name="guidance_btn_clearCourse" text="Wyczyść"/>
+        <text name="guidance_course_cleared" text="Trasa wyczyszczona"/>
+        <text name="guidance_clear_ask" text="Wyczyścić trasę tego ciągnika? Zapisane trasy zostają."/>
         <text name="guidance_btn_start" text="Start"/>
         <text name="guidance_btn_stop" text="Stop"/>
         <text name="guidance_status_paused" text="Wstrzymano · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pauza"/>
         <text name="guidance_btn_resume" text="Wznów"/>
         <text name="guidance_set_startAt" text="Start od"/>
+        <text name="guidance_set_startAfter" text="Potem"/>
         <text name="guidance_start_continue" text="Kontynuuj"/>
         <text name="guidance_start_nearest" text="Najbliższy"/>
         <text name="guidance_start_first" text="Pierwszy"/>

@@ -247,19 +247,8 @@ function Debug.reportText(vehicle)
         for _, line in ipairs(Debug.describe(vehicle)) do add("now: %s", line) end
         -- a harvester and AutoDrive's unloaders: how AutoDrive sees it (why no truck comes)
         for _, line in ipairs(Debug.autoDriveLines(vehicle)) do add("autodrive: %s", line) end
-        -- an unloader: where it can unload (why Unload at offers no station)
-        local kinds = vehicle.getGuidanceHelperKinds and vehicle:getGuidanceHelperKinds() or {}
-        local unloader = vehicle.getGuidanceHelperKind and vehicle:getGuidanceHelperKind() == "unload"
-        for _, k in ipairs(kinds) do if k == "unload" then unloader = true end end
-        if unloader and GuidanceTrips and GuidanceTrips.describeUnloadingStations then
-            local ok, lines = Guidance.try(GuidanceTrips.describeUnloadingStations, vehicle:getOwnerFarmId())
-            for _, line in ipairs(ok and lines or {}) do add("unloader: %s", line) end
-            local s = vehicle:getGuidanceSettings()
-            if s then
-                add("unloader: Unload at mode %d, place %.0f %.0f, leave full at %d%%", s.unloadMode or 0, s.unloadX or 0,
-                    s.unloadZ or 0, s.unloadFull or 97)
-            end
-        end
+        -- an AutoDrive unloader set up from our panel: its settings as AutoDrive has them
+        for _, line in ipairs(GuidanceAutoDrive.describeUnloader(vehicle)) do add("unloader: %s", line) end
         local course = vehicle:getGuidanceCourse()
         if course then
             local st = course.stats

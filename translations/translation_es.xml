@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Engancha un remolque o una tolva con sinfín para descargar cosechadoras"/>
         <text name="guidance_helper_noBaleTool" text="Engancha un cargador o una enfardadora de pacas para recoger pacas"/>
         <text name="guidance_helper_noSilo" text="Ve a un silo búnker para compactarlo"/>
-        <text name="guidance_helperAbout_unload" text="Espera en el borde del campo, va hasta una cosechadora o picadora de este campo que lo pida (rodeando el cultivo) y recoge la carga bajo el tubo a su velocidad (junto a la picadora, o detrás en cultivo en pie). Lleno: va a una estación por las carreteras del juego y vuelve, vacía en un camión en el borde del campo (remolque de transbordo), hace un montón donde empezó (volquete), o se detiene para ti."/>
+        <text name="guidance_helperAbout_unload" text="El descargador de cosechadoras de AutoDrive, configurado aquí: espera en el destino de AutoDrive del campo de su cosechadora, va a la cosechadora cuando llama, recoge su carga bajo el tubo y la lleva a Descargar en. Son los propios ajustes de AutoDrive: cambiados aquí o en el menú de AutoDrive, ambos muestran lo mismo."/>
         <text name="guidance_helperAbout_bales" text="Recoge (o envuelve) todas las pacas de este campo, empezando por la más cercana. Un cargador lleno descarga la pila donde empezó; al final lleva también el resto allí."/>
         <text name="guidance_helperAbout_silo" text="Recorre el silo búnker carril por carril, entrando hacia delante y saliendo marcha atrás. Espera cuando el silo está compactado, sigue cuando se vuelca más; se detiene cuando está cerrado."/>
-        <text name="guidance_helperReady_unload" text="Inícialo en el borde del campo"/>
+        <text name="guidance_helperReady_unload" text="Elige la cosechadora y dónde descarga, luego Iniciar"/>
         <text name="guidance_helperReady_bales" text="Inícialo donde deba ir la pila"/>
         <text name="guidance_helperReady_silo" text="Inícialo en el silo"/>
         <text name="guidance_set_unloadAt" text="Descargar en"/>
-        <text name="guidance_unload_stop" text="Parar al llenarse"/>
         <text name="guidance_set_unloadFull" text="Salir al llenarse a"/>
         <text name="guidance_set_refill" text="Rellenar en"/>
         <text name="guidance_refill_off" text="No: para al vaciarse"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Mover"/>
         <text name="guidance_toolHint_move" text="Arrastra un punto del recorrido"/>
         <text name="guidance_phase_balesCantWrap" text="Hecho; quedan pacas que esta encintadora no puede encintar"/>
-        <text name="guidance_unload_truck" text="Camión en el borde del campo"/>
-        <text name="guidance_unload_heap" text="Montón donde empezó"/>
         <text name="guidance_phase_unloadToTruck" text="Va al camión"/>
         <text name="guidance_phase_unloadOverload" text="Vacía en el camión"/>
         <text name="guidance_phase_unloadToHeap" text="Va al montón"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Huerto %d"/>
         <text name="guidance_warn_convoyNarrow" text="Demasiado estrecho para un convoy de %d: queda un %d%% sin trabajar. Prueba Siguiente surco libre o Franjas."/>
         <text name="guidance_info_WAITING_RAIN" text="Esperando a que pare la lluvia (cosechar ahora reduce el rendimiento)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Lleno, sin descargador: inicia un descargador de CourseCorrect en este campo o da a un camión de AutoDrive el mismo primer destino que a esta cosechadora"/>
+        <text name="guidance_info_NO_UNLOADER" text="Lleno, sin descargador: elige esta cosechadora en el Descargador de un camión (pestaña Ruta) e inícialo, o da a un camión de AutoDrive el mismo primer destino que a esta cosechadora"/>
+        <text name="guidance_set_refuelAt" text="Repostar al"/>
+        <text name="guidance_set_repairAt" text="Reparar al (desgaste)"/>
+        <text name="guidance_set_handOver" text="Después, en este campo"/>
+        <text name="guidance_handOver_none" text="Nadie"/>
+        <text name="guidance_handOver_gone" text="(no encontrado)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Va a repostar (AutoDrive), luego sigue"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Va a reparar (AutoDrive), luego sigue"/>
+        <text name="guidance_info_HANDED_OVER" text="Hecho, el campo pasa al siguiente"/>
+        <text name="guidance_contracts_open" text="Contratos (%d)"/>
+        <text name="guidance_contracts_title" text="Contratos (%d)"/>
+        <text name="guidance_contracts_hint" text="Tus contratos en curso. Crear ruta: una ruta en ese campo para este tractor. Ir: y que vaya allí (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="No hay contratos en curso."/>
+        <text name="guidance_contracts_hasCourse" text="ruta lista"/>
+        <text name="guidance_contracts_make" text="Crear ruta"/>
+        <text name="guidance_contracts_made" text="Ruta creada para: %s"/>
         <text name="guidance_set_rainWait" text="Con lluvia"/>
         <text name="guidance_rain_wait" text="Esperar"/>
         <text name="guidance_rain_go" text="Seguir"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Izquierda"/>
         <text name="guidance_pipeSide_right" text="Derecha"/>
         <text name="guidance_set_unloadCombine" text="Cosechadora"/>
-        <text name="guidance_unloadCombine_any" text="Cualquiera en su campo"/>
+        <text name="guidance_set_secondUnloader" text="Segundo descargador"/>
+        <text name="guidance_set_followDistance" text="Distancia detrás"/>
+        <text name="guidance_pipeSide_rear" text="Detrás"/>
+        <text name="guidance_unloadCombine_none" text="(ninguna)"/>
+        <text name="guidance_unloadAD_pick" text="(elegir)"/>
+        <text name="guidance_unloadAD_noTarget" text="Elige dónde descarga (un destino de AutoDrive)"/>
+        <text name="guidance_unloadAD_noCombine" text="Elige primero la cosechadora (su campo necesita un destino de AutoDrive)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive lo conduce como descargador"/>
+        <text name="guidance_status_adUnload" text="AutoDrive descarga"/>
         <text name="guidance_unloadCombine_field" text="campo %s"/>
-        <text name="guidance_unloadCombine_gone" text="(no encontrada)"/>
-        <text name="guidance_unloadGo" text="A %s en el campo %s: AutoDrive lo lleva, el descargador empieza al llegar"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: iniciar"/>
         <text name="guidance_action_stop" text="CourseCorrect: parar"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Menos ajustes"/>
         <text name="guidance_btn_makeCourse" text="Crear ruta"/>
         <text name="guidance_btn_newCourse" text="Nueva ruta"/>
+        <text name="guidance_btn_clearCourse" text="Borrar"/>
+        <text name="guidance_course_cleared" text="Ruta borrada"/>
+        <text name="guidance_clear_ask" text="¿Borrar la ruta de este tractor? Las rutas guardadas se quedan."/>
         <text name="guidance_btn_start" text="Iniciar"/>
         <text name="guidance_btn_stop" text="Parar"/>
         <text name="guidance_status_paused" text="En pausa · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pausa"/>
         <text name="guidance_btn_resume" text="Reanudar"/>
         <text name="guidance_set_startAt" text="Empezar en"/>
+        <text name="guidance_set_startAfter" text="Después"/>
         <text name="guidance_start_continue" text="Continuar"/>
         <text name="guidance_start_nearest" text="Más cercano"/>
         <text name="guidance_start_first" text="Primero"/>

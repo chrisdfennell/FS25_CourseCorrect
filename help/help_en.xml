@@ -40,11 +40,12 @@
         <p>A convoy needs room: on a narrow field the Course tab says so, and Next free row or Strips work it better.</p>
     </topic>
     <topic id="harvest" title="Harvesting and unloading">
-        <p>A combine calls an unloader at Call unloader at (Settings, Driving). A tractor with a trailer on the Unloader job (the switch on top of the Course tab) waits at the field edge, drives to the combine round the crop and rides under its pipe. Once the combine is empty it lets it pull away and goes back to where you started it, or off to unload when the trailer couldn't take another load.</p>
+        <p>A combine calls an unloader at Call unloader at (Settings, Driving). The unloader is AutoDrive's: a tractor or truck with a trailer on the Unloader job (the switch on top of the Course tab) is set up there. Pick its Combine (the truck and the combine get the AutoDrive marker of the combine's field as their first target: the truck waits there) and Unload at (an AutoDrive marker), then Start: AutoDrive drives to the combine when it calls, rides under its pipe and takes the load to Unload at.</p>
+        <p>The other rows are AutoDrive's own settings of the truck (Leave when full at, Crop on the way, Side offset, Follow distance) and of the combine (Pipe side, Second unloader). Changed here or in AutoDrive's menu, both show the same. When the combine starts on another field, its trucks wait at that field's marker from then on.</p>
         <p>At the call level the pipe goes out, so an unloader can empty the tank on the move (AutoDrive: its Active unloading). A truck that leaves full while there is still grain in the tank: the combine calls the next one straight away. An AutoDrive truck that should drive back to its waiting place after each unload: set its AutoDrive setting Park in field to No, and make its first target the waiting place.</p>
         <p>Forage harvesters: the trailer drives beside them on the side without crop, or behind when opening a field. The harvester waits while nothing is under its spout.</p>
         <p>A full harvester with nobody to unload it stops with a red Full, no unloader. AutoDrive sends a truck only when the truck and the harvester have the same first target in AutoDrive.</p>
-        <p>A full trailer goes where Unload at says: a station (on the game's roads and back), a truck standing at the field edge (auger wagon), a heap where it started (tipper), or it stops for you.</p>
+        <p>The combine learns how fast its tank fills. Full before the end of the row: it calls the truck early. A row the tank can't take: it waits for the truck on the headland, not full in the middle of the crop.</p>
         <p>Harvesting in the rain loses yield. In the rain (Settings, Driving) set to Wait stops the harvester until the crop is dry again.</p>
     </topic>
     <topic id="refill" title="Seed, fertiliser and refilling">

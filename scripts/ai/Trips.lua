@@ -1,5 +1,5 @@
--- Guidance: trips off the field on the game's roads (its own AI road driving): the stations a trailer can be tipped
--- at or a seeder / sprayer filled at, the trailer's tipping points, and filling at a station's load trigger.
+-- Guidance: trips off the field on the game's roads (its own AI road driving): the stations a seeder / sprayer is
+-- filled at, and filling at a station's load trigger.
 -- A chosen station is kept by its place (the game's object ids don't survive a save); the nearest one is found
 -- again from it.
 
@@ -43,52 +43,6 @@ local function storage()
     return g_currentMission and g_currentMission.storageSystem
 end
 
---- For the problem report: the stations the game has, and why the ones the unloader can't pick are left out
-function Trips.describeUnloadingStations(farmId)
-    local sys = storage()
-    if sys == nil or sys.getUnloadingStations == nil then return {"the game has no storage system to ask"} end
-    local total, notStation, noAccess, noAI, noPlace = 0, 0, 0, 0, 0
-    for _, st in pairs(sys:getUnloadingStations()) do
-        total = total + 1
-        if UnloadingStation ~= nil and not (st.isa and st:isa(UnloadingStation)) then
-            notStation = notStation + 1
-        elseif g_currentMission.accessHandler ~= nil and not g_currentMission.accessHandler:canFarmAccess(farmId, st) then
-            noAccess = noAccess + 1
-        else
-            local types = st.getAISupportedFillTypes and st:getAISupportedFillTypes()
-            if types == nil or next(types) == nil then
-                noAI = noAI + 1
-            elseif not Trips.targetOf(st) then
-                noPlace = noPlace + 1
-            end
-        end
-    end
-    local names = {}
-    for _, st in ipairs(Trips.unloadingStations(farmId)) do names[#names + 1] = Trips.nameOf(st) end
-    return {
-        string.format("%d unloading station(s) in the game; left out: %d not a station, %d not the farm's to use, "
-            .. "%d the game's AI can't unload at, %d without a place to drive to", total, notStation, noAccess, noAI, noPlace),
-        #names > 0 and ("Unload at can pick: " .. table.concat(names, ", ")) or "Unload at can pick no station (only stop / heap / truck)",
-    }
-end
-
---- The unloading stations the farm can tip at, that take fillType (nil: any)
-function Trips.unloadingStations(farmId, fillType)
-    local list = {}
-    local sys = storage()
-    if sys == nil or sys.getUnloadingStations == nil then return list end
-    for _, st in pairs(sys:getUnloadingStations()) do
-        local ok = (UnloadingStation == nil or (st.isa and st:isa(UnloadingStation)))
-            and (g_currentMission.accessHandler == nil or g_currentMission.accessHandler:canFarmAccess(farmId, st))
-        local types = ok and st.getAISupportedFillTypes and st:getAISupportedFillTypes()
-        if types and next(types) ~= nil and (fillType == nil or types[fillType]) and Trips.targetOf(st) then
-            table.insert(list, st)
-        end
-    end
-    table.sort(list, function(a, b) return Trips.nameOf(a) < Trips.nameOf(b) end)
-    return list
-end
-
 --- The loading stations the farm can fill fillType at (with some in stock)
 function Trips.loadingStations(farmId, fillType)
     local list = {}
@@ -128,31 +82,6 @@ function Trips.cycle(list, x, z, step)
     end
     local sx, sz = Trips.targetOf(list[ix])
     return sx, sz
-end
-
---- The tipping points of a vehicle and its trailers, for the game's discharge task: list of {dirty, vehicle,
---- dischargeNode, offsetZ}, the frontmost first
-function Trips.dischargeNodeInfos(vehicle)
-    local infos = {}
-    local list = {vehicle}
-    for _, v in ipairs(vehicle.getChildVehicles and vehicle:getChildVehicles() or {}) do
-        if v ~= vehicle then list[#list + 1] = v end
-    end
-    for _, v in ipairs(list) do
-        if v.getAIDischargeNodes then
-            for _, node in ipairs(v:getAIDischargeNodes() or {}) do
-                local _, _, z = v:getAIDischargeNodeZAlignedOffset(node, vehicle)
-                table.insert(infos, {dirty = true, vehicle = v, dischargeNode = node, offsetZ = z or 0})
-            end
-        end
-    end
-    table.sort(infos, function(a, b) return b.offsetZ < a.offsetZ end)
-    return infos
-end
-
---- A minimal stand-in for the game's station parameter: the deliver logic asks it for the station
-function Trips.stationParameter(station)
-    return {station = station, getUnloadingStation = function(self) return self.station end}
 end
 
 -----------------------------------------------------------------------------------------------------------------------

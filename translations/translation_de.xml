@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Hänge einen Anhänger oder Überladewagen an, um Drescher abzufahren"/>
         <text name="guidance_helper_noBaleTool" text="Hänge einen Ballensammler oder Wickler an, um Ballen einzusammeln"/>
         <text name="guidance_helper_noSilo" text="Fahre zu einem Fahrsilo, um es zu verdichten"/>
-        <text name="guidance_helperAbout_unload" text="Wartet am Feldrand, fährt zu einem rufenden Drescher oder Häcksler dieses Felds (um den Bestand) und nimmt seine Ladung unter dem Rohr in seinem Tempo auf (neben dem Häcksler, im stehenden Bestand dahinter). Voll: auf den Straßen des Spiels zur Station und zurück, in einen LKW am Feldrand (Überladewagen), auf einen Haufen am Startpunkt (Kipper), oder er hält für dich."/>
+        <text name="guidance_helperAbout_unload" text="Der Überlader von AutoDrive, hier eingestellt: Er wartet am AutoDrive-Ziel des Feldes seines Dreschers, fährt zum Drescher, wenn der ruft, übernimmt die Ladung unter dem Rohr und fährt zu Abladen bei. Das sind die Einstellungen von AutoDrive selbst: Hier oder im Menü von AutoDrive geändert, zeigen beide dasselbe."/>
         <text name="guidance_helperAbout_bales" text="Sammelt (oder wickelt) jeden Ballen dieses Felds, den nächsten zuerst. Ein voller Sammler lädt den Stapel dort ab, wo er gestartet wurde; am Ende bringt er den Rest auch dorthin."/>
         <text name="guidance_helperAbout_silo" text="Fährt Bahn für Bahn auf dem Fahrsilo hinauf und rückwärts hinaus. Wartet, wenn es verdichtet ist, macht weiter, wenn mehr abgekippt wird; hört auf, wenn es geschlossen ist."/>
-        <text name="guidance_helperReady_unload" text="Starte ihn am Feldrand"/>
+        <text name="guidance_helperReady_unload" text="Drescher und Abladeort wählen, dann Start"/>
         <text name="guidance_helperReady_bales" text="Starte ihn dort, wo der Stapel hin soll"/>
         <text name="guidance_helperReady_silo" text="Starte ihn am Silo"/>
         <text name="guidance_set_unloadAt" text="Abladen bei"/>
-        <text name="guidance_unload_stop" text="Halt wenn voll"/>
         <text name="guidance_set_unloadFull" text="Fährt los bei"/>
         <text name="guidance_set_refill" text="Nachfüllen bei"/>
         <text name="guidance_refill_off" text="Aus: hält wenn leer"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Verschieben"/>
         <text name="guidance_toolHint_move" text="Einen Punkt des Kurses ziehen"/>
         <text name="guidance_phase_balesCantWrap" text="Fertig; übrige Ballen kann dieser Wickler nicht wickeln"/>
-        <text name="guidance_unload_truck" text="LKW am Feldrand"/>
-        <text name="guidance_unload_heap" text="Haufen am Startpunkt"/>
         <text name="guidance_phase_unloadToTruck" text="Fährt zum LKW"/>
         <text name="guidance_phase_unloadOverload" text="Überlädt in den LKW"/>
         <text name="guidance_phase_unloadToHeap" text="Fährt zum Haufen"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Obstplantage %d"/>
         <text name="guidance_warn_convoyNarrow" text="Zu schmal für eine Kolonne aus %d: etwa %d%% bleiben unbearbeitet. Besser Nächste freie Bahn oder Streifen."/>
         <text name="guidance_info_WAITING_RAIN" text="Wartet, bis der Regen aufhört (jetzt dreschen kostet Ertrag)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Voll, kein Überlader: einen CourseCorrect-Überlader auf diesem Feld starten oder einem AutoDrive-LKW dasselbe erste Ziel wie dieser Erntemaschine geben"/>
+        <text name="guidance_info_NO_UNLOADER" text="Voll, kein Überlader: bei einem LKW im Überlader diesen Drescher wählen (Reiter Kurs) und starten, oder einem AutoDrive-LKW dasselbe erste Ziel wie dieser Erntemaschine geben"/>
+        <text name="guidance_set_refuelAt" text="Tanken bei"/>
+        <text name="guidance_set_repairAt" text="Reparieren bei (Verschleiß)"/>
+        <text name="guidance_set_handOver" text="Danach, auf diesem Feld"/>
+        <text name="guidance_handOver_none" text="Niemand"/>
+        <text name="guidance_handOver_gone" text="(nicht gefunden)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Fährt tanken (AutoDrive), macht danach weiter"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Fährt zur Reparatur (AutoDrive), macht danach weiter"/>
+        <text name="guidance_info_HANDED_OVER" text="Fertig, das Feld ist übergeben"/>
+        <text name="guidance_contracts_open" text="Aufträge (%d)"/>
+        <text name="guidance_contracts_title" text="Aufträge (%d)"/>
+        <text name="guidance_contracts_hint" text="Deine laufenden Aufträge. Kurs erstellen: ein Kurs auf diesem Feld für diesen Traktor. Los: und hinfahren (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="Keine laufenden Aufträge."/>
+        <text name="guidance_contracts_hasCourse" text="Kurs bereit"/>
+        <text name="guidance_contracts_make" text="Kurs erstellen"/>
+        <text name="guidance_contracts_made" text="Kurs erstellt für: %s"/>
         <text name="guidance_set_rainWait" text="Bei Regen"/>
         <text name="guidance_rain_wait" text="Warten"/>
         <text name="guidance_rain_go" text="Weiterarbeiten"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Links"/>
         <text name="guidance_pipeSide_right" text="Rechts"/>
         <text name="guidance_set_unloadCombine" text="Drescher"/>
-        <text name="guidance_unloadCombine_any" text="Jeder auf seinem Feld"/>
+        <text name="guidance_set_secondUnloader" text="Zweiter Überlader"/>
+        <text name="guidance_set_followDistance" text="Folgeabstand"/>
+        <text name="guidance_pipeSide_rear" text="Dahinter"/>
+        <text name="guidance_unloadCombine_none" text="(keiner)"/>
+        <text name="guidance_unloadAD_pick" text="(wählen)"/>
+        <text name="guidance_unloadAD_noTarget" text="Wählen, wo er ablädt (ein AutoDrive-Ziel)"/>
+        <text name="guidance_unloadAD_noCombine" text="Zuerst den Drescher wählen (sein Feld braucht ein AutoDrive-Ziel)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive fährt ihn als Überlader"/>
+        <text name="guidance_status_adUnload" text="AutoDrive überlädt"/>
         <text name="guidance_unloadCombine_field" text="Feld %s"/>
-        <text name="guidance_unloadCombine_gone" text="(nicht gefunden)"/>
-        <text name="guidance_unloadGo" text="Zu %s auf Feld %s: AutoDrive bringt ihn hin, der Überlader startet dort"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: Starten"/>
         <text name="guidance_action_stop" text="CourseCorrect: Stoppen"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Weniger Einstellungen"/>
         <text name="guidance_btn_makeCourse" text="Kurs erstellen"/>
         <text name="guidance_btn_newCourse" text="Neuer Kurs"/>
+        <text name="guidance_btn_clearCourse" text="Löschen"/>
+        <text name="guidance_course_cleared" text="Kurs gelöscht"/>
+        <text name="guidance_clear_ask" text="Den Kurs dieses Traktors löschen? Gespeicherte Kurse bleiben."/>
         <text name="guidance_btn_start" text="Starten"/>
         <text name="guidance_btn_stop" text="Stoppen"/>
         <text name="guidance_status_paused" text="Pausiert · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pause"/>
         <text name="guidance_btn_resume" text="Weiter"/>
         <text name="guidance_set_startAt" text="Start bei"/>
+        <text name="guidance_set_startAfter" text="Danach"/>
         <text name="guidance_start_continue" text="Weiter"/>
         <text name="guidance_start_nearest" text="Nächster"/>
         <text name="guidance_start_first" text="Anfang"/>

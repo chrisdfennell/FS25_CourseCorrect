@@ -25,6 +25,7 @@ GuidancePrefs = {
     keepRunning = false,
     takeOver = true,
     startMode = 1,
+    startAfter = 3,
     clockwise = true,
     headlandsFirst = true,
     pattern = 3,
@@ -45,7 +46,7 @@ local Prefs = GuidancePrefs
 -- name, kind: what is saved
 Prefs.FIELDS = {
     {"panelX", "FLOAT"}, {"panelTop", "FLOAT"}, {"minHeadlandWidth", "FLOAT"}, {"headlandRev", "INT"}, {"debugOverlay", "BOOL"}, {"precisionFarming", "BOOL"}, {"roundedPasses", "INT"},
-    {"keepLowered", "BOOL"}, {"startMode", "INT"}, {"clockwise", "BOOL"}, {"headlandsFirst", "BOOL"},
+    {"keepLowered", "BOOL"}, {"startMode", "INT"}, {"startAfter", "INT"}, {"clockwise", "BOOL"}, {"headlandsFirst", "BOOL"},
     {"pattern", "INT"}, {"rememberFields", "BOOL"}, {"notifications", "BOOL"}, {"lowerLate", "FLOAT"},
     {"panelScale", "FLOAT"}, {"autoResume", "BOOL"}, {"workSpeedMax", "FLOAT"}, {"turnSpeed", "FLOAT"},
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"soundAlerts", "BOOL"}, {"alertsOnScreen", "BOOL"},
@@ -59,7 +60,7 @@ Prefs.LINE_HEIGHTS = {0.25, 1, 2.5, 4}
 -- the ones that are course settings, given to a vehicle that has none yet
 Prefs.PLAN_DEFAULTS = {"minHeadlandWidth", "roundedPasses", "keepLowered", "keepRunning", "takeOver", "lowerLate", "raiseLate", "autoResume",
                        "workSpeedMax", "turnSpeed", "reverseSpeed", "lights",
-                       "startMode",
+                       "startMode", "startAfter",
                        "clockwise", "headlandsFirst",
                        "pattern"}
 

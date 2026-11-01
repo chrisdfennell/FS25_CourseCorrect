@@ -295,6 +295,22 @@ GuidanceFruitProbe = {}
 local Probe = GuidanceFruitProbe
 local Probe_mt = {__index = Probe}
 
+--- Standing crop of one fruit type in an area (the game's parallelogram): its amount, 0 for none. Cut (stubble) and
+--- withered fruit don't count: the game's query reports those too, and a harvested sugarcane lane (cut cane) read as
+--- standing crop (Start at Nearest backed up 66 m over it, ways went round it).
+function Probe.cropIn(index, x0, z0, x1, z1, x2, z2)
+    local ok, value, _, _, state = Guidance.try(FSDensityMapUtil.getFruitArea, index, x0, z0, x1, z1, x2, z2, true, true)
+    if not ok or value == nil or value <= 0 then return 0 end
+    local fruit = state and g_fruitTypeManager.getFruitTypeByIndex and g_fruitTypeManager:getFruitTypeByIndex(index)
+    if fruit then
+        local okState, gone = Guidance.try(function()
+            return (fruit.getIsCut ~= nil and fruit:getIsCut(state)) or (fruit.getIsWithered ~= nil and fruit:getIsWithered(state))
+        end)
+        if okState and gone then return 0 end
+    end
+    return value
+end
+
 --- Finds which crops grow on the field (a few big queries), so later checks only ask about those. Grass and
 --- meadow don't count, driving over them does no harm. Returns nil if the game can't tell.
 function Probe.new(outline)
@@ -323,9 +339,7 @@ function Probe.new(outline)
                 for j = 0, parts - 1 do
                     if not present then
                         local x0, z0 = minX + i * w, minY + j * hgt
-                        local ok, value = Guidance.try(FSDensityMapUtil.getFruitArea, fruitType.index, x0, z0, x0 + w, z0,
-                            x0, z0 + hgt, true, true)
-                        present = ok and value ~= nil and value > 0
+                        present = Probe.cropIn(fruitType.index, x0, z0, x0 + w, z0, x0, z0 + hgt) > 0
                     end
                 end
             end
@@ -344,8 +358,7 @@ function Probe:hasFruit(x, z, size)
     end
     local s = (size or 3) / 2
     for _, index in ipairs(self.fruitIndexes) do
-        local ok, value = Guidance.try(FSDensityMapUtil.getFruitArea, index, x - s, z - s, x + s, z - s, x - s, z + s, true, true)
-        if ok and value ~= nil and value > 0 then
+        if Probe.cropIn(index, x - s, z - s, x + s, z - s, x - s, z + s) > 0 then
             return true
         end
     end

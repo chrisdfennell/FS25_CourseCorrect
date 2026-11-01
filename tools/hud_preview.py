@@ -67,6 +67,7 @@ function makeScene(course, mode, showMore)
     local plan = GuidancePlan.new()
     plan.workWidth, plan.turnRadius, plan.autoWidth = 6, 6, true
     local active = mode ~= "ready" and mode ~= "library" and mode ~= "folders" and mode ~= "recording" and mode ~= "away"
+        and mode ~= "clear"
         and mode:sub(1, 4) ~= "set_" and mode:sub(1, 4) ~= "edit" and mode ~= "otherHelper"
         and mode:sub(1, 6) ~= "helper" and mode ~= "jobswitch"
     local wps = course.waypoints
@@ -215,6 +216,57 @@ function makeScene(course, mode, showMore)
         GuidanceHelp.loaded = HELP_TOPICS
         hud.helpTopic = mode == "help_topic" and 5 or nil
     end
+    if mode == "unloaders" then
+        -- a combine with two AutoDrive trucks: one working beside it (amber), one waiting at the marker off the field
+        v.spec_combine, v.spec_pipe = {fillUnitIndex = 1}, {}
+        local function sm(first, mode, active)
+            local m = {first = first, mode = mode, active = active}
+            function m:getFirstMarkerId() return self.first end
+            function m:getMode() return self.mode end
+            function m:isActive() return self.active end
+            return m
+        end
+        AutoDrive = {MODE_UNLOAD = 5}
+        v.ad = {stateModule = sm(8, 1, false)}
+        local wps = course.waypoints
+        local w = wps[math.floor(#wps * 0.3)]
+        local busy = {rootNode = {x = w.x + 6, z = w.z + 3, h = 0.3}, ad = {stateModule = sm(8, 5, true), modes = {[5] = {combine = v}}}}
+        function busy:getLastSpeed() return 9 end
+        local xs = {}
+        for _, q in ipairs(wps) do xs[#xs + 1] = q.x end
+        table.sort(xs)
+        local waiting = {rootNode = {x = xs[1] - 60, z = wps[1].z, h = math.pi / 2}, ad = {stateModule = sm(8, 5, true), modes = {}}}
+        function waiting:getLastSpeed() return 0 end
+        local other = {rootNode = {x = w.x, z = w.z - 10, h = 0}, ad = {stateModule = sm(3, 5, true), modes = {}}}
+        function other:getLastSpeed() return 0 end
+        for _, t in ipairs({busy, waiting, other}) do table.insert(g_currentMission.vehicleSystem.vehicles, t) end
+        hud:draw()
+        local shown = hud:unloadersShown(v)
+        local colors = {}
+        for _, u in ipairs(shown) do colors[#colors + 1] = u.color == GuidanceHud.UNLOADER_COLORS.busy and "busy" or "waiting" end
+        UNLOADERS_CHECK = string.format("unloaders on the combine's map: %d (want 2: busy, waiting; not the truck of another field): %s",
+            #shown, table.concat(colors, ", "))
+        DRAW = {}
+    end
+    if mode == "startfirst" then
+        -- Start at First: the Then switch below it
+        plan.startMode, plan.startAfter = GuidancePlan.START_FIRST, GuidancePlan.START_CONTINUE
+    end
+    if mode == "contracts" then
+        -- the farm's running contracts: three fields, one of them this tractor's course already
+        hud.view = "contracts"
+        MissionStatus = {RUNNING = 2}
+        local function mission(id, title, ha, done)
+            local field = {}
+            function field:getId() return id end
+            function field:getAreaHa() return ha end
+            return {status = 2, field = field, fieldPercentageDone = done, getTitle = function() return title end}
+        end
+        g_missionManager = {getMissionsByFarmId = function()
+            return {mission(9, "Harvest wheat", 7.3, 0.42), mission(12, "Sow canola", 4.1, 0), mission(31, "Spray herbicide", 11.8, 0.07)}
+        end}
+        plan.fieldId = 9
+    end
     if mode == "queue" then
         hud.view = "queue"
         GuidanceLibrary.entries = {}
@@ -234,11 +286,23 @@ function makeScene(course, mode, showMore)
     end
     if mode:sub(1, 4) == "set_" then
         hud.view = "settings"
-        hud.settingsScope = ({set_tractor = "tractor", set_field = "field", set_user = "user", set_report = "user"})[mode]
+        hud.settingsScope = ({set_tractor = "tractor", set_driving = "tractor", set_field = "field", set_user = "user", set_report = "user"})[mode]
         if mode == "set_report" then
             -- the problem report's message: the whole path, wrapped
             hud:showMessage(string.format(g_i18n:getText("guidance_report_written"),
                 "C:/Users/someone.with.a.long.name/OneDrive/Documents/My Games/FarmingSimulator2025/modSettings/FS25_CourseCorrect/report.txt"), false, 20)
+        end
+        if mode == "set_driving" then
+            -- the Driving section with AutoDrive there: fuel / repair trips, the field's chain (Then)
+            hud.settingsSection = "driving"
+            AutoDrive = {settings = {}}
+            GuidanceVehicle = {END_PHASES = {}, LIVE_SETTINGS = {}, vehicleKey = function(x) return x.uniqueId or x:getName() end,
+                               autoDriveMarkers = function() return {} end}
+            plan.refuelAt, plan.repairAt, plan.handOver = 20, 80, "seeder"
+            local seeder = {uniqueId = "seeder", getGuidanceCourse = function() return nil end, spec_guidance = {}}
+            function seeder:getName() return "Fendt 724 + Amazone Cirrus" end
+            function seeder:getOwnerFarmId() return 1 end
+            table.insert(g_currentMission.vehicleSystem.vehicles, seeder)
         end
         if mode == "set_tractor" then
             plan.teamMode, plan.teamSize, plan.teamIndex = GuidancePlan.TEAM_STRIPS, 3, 2
@@ -293,34 +357,64 @@ function makeScene(course, mode, showMore)
     function v:getGuidanceHelperKinds() return {} end
     function v:getGuidanceHelperKind() return nil end
     function v:getGuidanceHelperPhase() return nil end
-    local helperModes = {helper_unload = {"unload"}, helper_unloadRun = {"unload", "unloadFollow"}, helper_dropdown = {"unload"},
+    if mode ~= "set_driving" then GuidanceVehicle = nil end -- (only the unloader's and Driving scenes stand it in)
+    local helperModes = {helper_unload = {"unload"}, helper_unloadRun = {"unload", "adRun"}, helper_dropdown = {"unload"},
                          helper_bales = {"bales"}, helper_siloRun = {"silo", "siloWait"}}
     local hm = helperModes[mode]
     if hm then
         function v:getGuidanceHelperKinds() return {hm[1]} end
         function v:getGuidanceCourse() return nil end
         GuidanceVehicleInfo = {get = function() return {hasImplement = false} end}
-        local station = {owningPlaceable = {getName = function() return "Grain elevator (Riverside)" end},
-                         getAITargetPositionAndDirection = function() return 100, 200, 1, 0 end,
-                         getAISupportedFillTypes = function() return {[1] = true} end}
-        g_currentMission.storageSystem = {getUnloadingStations = function() return {station} end}
-        g_currentMission.accessHandler = {canFarmAccess = function() return true end}
-        UnloadingStation = nil
-        plan.unloadX, plan.unloadZ, plan.unloadFull = 100, 200, 95
-        if mode == "helper_dropdown" then
-            -- Unload at clicked: the list of where it can unload, open under it
-            local names = {"Grain elevator (Riverside)", "Main Silo INPUT", "Multifruit Buying Silo", "Sugar mill", "BGA"}
-            local stations = {}
-            for i, n in ipairs(names) do
-                stations[i] = {owningPlaceable = {getName = function() return n end},
-                               getAITargetPositionAndDirection = function() return 100 * i, 200, 1, 0 end,
-                               getAISupportedFillTypes = function() return {[1] = true} end}
+        if hm[1] == "unload" then
+            -- AutoDrive's unloader: the truck's targets and settings, a combine of the farm on field 12 waiting at the
+            -- same marker
+            local function stateModule(first, second, active)
+                local sm = {first = first and {markerIndex = first}, second = second and {markerIndex = second},
+                            mode = 5, active = active}
+                function sm:getFirstMarker() return self.first end
+                function sm:getFirstMarkerId() return self.first and self.first.markerIndex or -1 end
+                function sm:getSecondMarker() return self.second end
+                function sm:getSecondMarkerId() return self.second and self.second.markerIndex or -1 end
+                function sm:getMode() return self.mode end
+                function sm:isActive() return self.active end
+                return sm
             end
-            g_currentMission.storageSystem = {getUnloadingStations = function() return stations end}
+            local levels = {}
+            for i = 0, 10 do levels[#levels + 1] = i / 10 end
+            AutoDrive = {MODE_UNLOAD = 5, CHASEPOS_AUTO = 1, CHASEPOS_LEFT = 2, CHASEPOS_REAR = 3, CHASEPOS_RIGHT = 4,
+                         settings = {unloadFillLevel = {values = levels, default = 10},
+                                     avoidFruit = {values = {false, true}, default = 2},
+                                     pipeOffset = {values = {-1, -0.5, 0, 0.5, 1}, default = 3},
+                                     pipeZOffset = {values = {-1, -0.5, 0, 0.5, 1}, default = 4},
+                                     followDistance = {values = {0, 1, 2, 3}, default = 2},
+                                     chaseSide = {values = {1, 2, 3, 4}, default = 1},
+                                     callSecondUnloader = {values = {false, true}, default = 1}}}
+            function AutoDrive.getSettingState(name) return AutoDrive.settings[name].default end
+            v.ad = {stateModule = stateModule(8, 3, hm[2] == "adRun")}
+            local combine = {spec_combine = {fillUnitIndex = 1}, spec_pipe = {}, spec_guidance = {},
+                             ad = {stateModule = stateModule(8, nil, false)}}
+            function combine:getChildVehicles() return {self} end
+            function combine:getName() return "Tiger" end
+            function combine:getOwnerFarmId() return 1 end
+            table.insert(g_currentMission.vehicleSystem.vehicles, combine)
+            local names = {"Grain elevator (Riverside)", "Main Silo INPUT", "Multifruit Buying Silo", "Sugar mill", "BGA",
+                           "Field 12 WAIT"}
+            GuidanceVehicle = GuidanceVehicle or {END_PHASES = {}, LIVE_SETTINGS = {}}
+            GuidanceVehicle.fieldOfVehicle = function() return nil, 12 end
+            GuidanceVehicle.autoDriveMarkers = function()
+                local list = {}
+                for i, n in ipairs(names) do list[i] = {id = i + 2, name = n} end
+                list[6].id = 8
+                return list
+            end
+        end
+        if mode == "helper_dropdown" then
             g_inputBinding = {getShowMouseCursor = function() return true end}
-            -- a click on its 4th option picks it and closes the list; a click elsewhere only closes it
+            -- Unload at clicked: AutoDrive's markers, open under it; a click on its 4th option asks for that marker
+            -- and closes the list; a click elsewhere only closes it
             local picked
-            function v:guidanceApplySettings(values) picked = values end
+            local realAsk = GuidanceAutoDrive.ask
+            GuidanceAutoDrive.ask = function(_, op, _, _, value) picked = {op = op, value = value} end
             hud.dropdown = {id = TEXTS.guidance_set_unloadAt, scroll = 0}
             hud:draw()
             local e = hud.popupElements[4]
@@ -330,16 +424,17 @@ function makeScene(course, mode, showMore)
             hud:draw()
             local before = picked
             hud:mouseEvent(0.001, 0.001, true, false, Input.MOUSE_BUTTON_LEFT)
-            DROP_CHECK = string.format("4th option picked: %s (x %s), closed %s; click elsewhere: closed %s, nothing else picked %s",
-                tostring(picked ~= nil), tostring(picked and picked.unloadX), tostring(closedOnPick),
-                tostring(hud.dropdown == nil), tostring(picked == before))
+            GuidanceAutoDrive.ask = realAsk
+            DROP_CHECK = string.format("4th option picked: %s (marker %s, want 6), closed %s; click elsewhere: closed %s, nothing else picked %s",
+                tostring(picked ~= nil and picked.op == GuidanceAutoDrive.OP_UNLOAD_AT), tostring(picked and picked.value),
+                tostring(closedOnPick), tostring(hud.dropdown == nil), tostring(picked == before))
             -- open from a frame before (in the game it stays open across frames: the text under it is left out)
             hud.dropdown = {id = TEXTS.guidance_set_unloadAt, scroll = 0}
             hud:draw()
             WHEEL_OURS = hud:wantsWheel()
             DRAW = {}
         end
-        if hm[2] then
+        if hm[2] and hm[2] ~= "adRun" then
             function v:getGuidanceHelperKind() return hm[1] end
             function v:getGuidanceHelperPhase() return hm[2] end
             function v:getIsGuidanceActive() return true end
@@ -368,6 +463,38 @@ function makeScene(course, mode, showMore)
         hud.isOpen = false
         hud:drawAlerts()
         return DRAW, hud.alertBox
+    end
+    if mode == "clear" then
+        -- Clear (top left of the map) opens a box over the map asking first; its Clear clears the tractor's course
+        g_inputBinding = {getShowMouseCursor = function() return true end}
+        local cleared = false
+        function v:guidanceSetPlan(p) if p == nil then cleared = true end end
+        hud:draw()
+        local b = hud.plot.box
+        local opener
+        for _, e in ipairs(hud.elements) do
+            if e.x < b.x + b.w * 0.3 and e.y + e.h > b.y + b.h * 0.8 and e.y < b.y + b.h + 0.01
+                    and (opener == nil or e.x < opener.x) then
+                opener = e
+            end
+        end
+        if opener then opener.onClick() end
+        local asked = not cleared and hud.confirmClear == v
+        DRAW = {}
+        hud:draw()
+        -- the box's buttons, in the map's place: Clear the left one
+        local yes
+        for _, e in ipairs(hud.elements) do
+            if e.x > b.x - 0.01 and e.x < b.x + b.w * 0.5 and e.y > b.y - 0.01 and e.y < b.y + b.h * 0.5
+                    and (yes == nil or e.x < yes.x) then
+                yes = e
+            end
+        end
+        if yes then yes.onClick() end
+        CLEAR_CHECK = string.format("Clear: asks first in a box %s, its Clear clears %s", tostring(asked), tostring(cleared))
+        -- (the picture: the box open)
+        hud.confirmClear = v
+        DRAW = {}
     end
     if mode == "zoom" then
         -- the mouse wheel over the map: two steps in (4 times closer round the vehicle), outside it nothing
@@ -417,6 +544,7 @@ def font(size_px, bold):
 
 ROT_SQUEEZE = float(os.environ.get("ROT_SQUEEZE", "1"))
 ARROW = Image.open(Path(__file__).resolve().parent / "arrow_preview.png").convert("RGBA")
+ARROW_TINT = Image.open(Path(__file__).resolve().parent / "arrow_tint_preview.png").convert("RGBA")
 
 
 def paint(draws, background):
@@ -428,9 +556,14 @@ def paint(draws, background):
         g = ImageDraw.Draw(layer)
         c = d.color
         rgba = tuple(int(round(255 * max(0, min(1, c[i])))) for i in (1, 2, 3, 4))
-        if d.kind == "overlay" and d.tex.endswith("arrow.dds"):
+        if d.kind == "overlay" and (d.tex.endswith("arrow.dds") or d.tex.endswith("arrow_tint.dds")):
             w, h = int(round(d.w * W)), int(round(d.h * H))
-            sprite = ARROW.resize((max(1, w), max(1, h)), Image.LANCZOS).rotate(math.degrees(d.rot), expand=False)
+            src = ARROW_TINT if d.tex.endswith("arrow_tint.dds") else ARROW
+            sprite = src.resize((max(1, w), max(1, h)), Image.LANCZOS).rotate(math.degrees(d.rot), expand=False)
+            # (multiplied by its colour, as the game does)
+            if rgba != (255, 255, 255, 255):
+                bands = sprite.split()
+                sprite = Image.merge("RGBA", [bands[k].point(lambda v, k=k: v * rgba[k] // 255) for k in range(4)])
             layer.paste(sprite, (int(round(d.x * W)), int(round((1 - d.y) * H - h))), sprite)
         elif d.kind == "overlay":
             x0, y1 = d.x * W, (1 - d.y) * H
@@ -479,7 +612,8 @@ def main():
         return font(size * H, bold).getlength(s) / W
     lua.globals().TEXT_WIDTH = text_width
     for rel in ["scripts/Prefs.lua", "scripts/ai/Team.lua", "scripts/geometry/Geo.lua", "scripts/geometry/Dubins.lua", "scripts/course/CourseGenerator.lua",
-                "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/ai/Planner.lua", "scripts/ai/Trips.lua", "scripts/ai/Helpers.lua",
+                "scripts/course/Course.lua", "scripts/course/Library.lua", "scripts/course/Contracts.lua", "scripts/ai/Planner.lua", "scripts/ai/Trips.lua", "scripts/ai/Helpers.lua",
+                "scripts/GuidanceAutoDrive.lua",
                 "scripts/gui/GuidanceDraw.lua",
                 "scripts/gui/GuidanceMap.lua",
                 "scripts/gui/GuidanceHelp.lua", "scripts/gui/GuidanceHud.lua"]:
@@ -509,7 +643,7 @@ def main():
         bgd.line([i, 0, i - 300, H], fill=(84, 74, 48), width=18)
     for mode, more in (("ready", False), ("working", False), ("mini", False), ("zoom", False), ("tab", False), ("paused", True), ("fleet", False),
                        ("library", False), ("away", False), ("queue", False), ("help", False), ("help_topic", False), ("folders", False), ("details", False),
-                       ("recording", False), ("set_tractor", False), ("set_field", False), ("set_user", False), ("set_report", False), ("otherHelper", False), ("team", False), ("log", False), ("import", False), ("alerts", False),
+                       ("recording", False), ("set_tractor", False), ("set_driving", False), ("startfirst", False), ("clear", False), ("unloaders", False), ("contracts", False), ("set_field", False), ("set_user", False), ("set_report", False), ("otherHelper", False), ("team", False), ("log", False), ("import", False), ("alerts", False),
                        ("edit", False), ("edit_direction", False), ("more", True),
                        ("helper_unload", False), ("helper_dropdown", False), ("helper_unloadRun", False), ("helper_bales", False),
                        ("helper_siloRun", False), ("jobswitch", False)):
@@ -521,6 +655,10 @@ def main():
         print("written", out / f"panel_{mode}.png")
         if mode == "zoom":
             print(lua.globals().ZOOM_CHECK)
+        if mode == "clear":
+            print(lua.globals().CLEAR_CHECK)
+        if mode == "unloaders":
+            print(lua.globals().UNLOADERS_CHECK)
         if mode == "tab":
             print(lua.globals().TAB_CHECK)
         if mode == "helper_dropdown":

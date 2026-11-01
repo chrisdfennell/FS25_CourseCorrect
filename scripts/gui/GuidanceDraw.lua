@@ -59,6 +59,15 @@ local function getArrow()
     return arrowOverlay
 end
 
+-- another vehicle's arrow (textures/arrow_tint.dds: white with a dark edge, drawn in its colour)
+local tintArrowOverlay
+local function getTintArrow()
+    if tintArrowOverlay == nil then
+        tintArrowOverlay = createImageOverlay(Utils.getFilename("textures/arrow_tint.dds", Guidance.MOD_DIR))
+    end
+    return tintArrowOverlay
+end
+
 --- A texture loads in the background: drawing it before that only fills the log with warnings
 local function isReady(id)
     return getIsOverlayReady == nil or getIsOverlayReady(id)
@@ -120,13 +129,15 @@ end
 
 --- The vehicle's arrow centred on (cx, cy), 'size' high (screen height units), pointing at 'angle' (radians, on the
 --- screen, counterclockwise from the right)
-function Draw.arrow(cx, cy, size, angle)
-    local id = getArrow()
+function Draw.arrow(cx, cy, size, angle, color)
+    -- (in a colour: the white arrow, tinted; else the green one as it is)
+    local id = color and getTintArrow() or getArrow()
     if not isReady(id) then
         return
     end
     local w = size / g_screenAspectRatio
-    setOverlayColor(id, 1, 1, 1, 1)
+    local c = color and linear(color) or {1, 1, 1, 1}
+    setOverlayColor(id, c[1], c[2], c[3], c[4])
     -- the texture points up; turned about its middle (in the width's units, as the game turns overlays)
     setOverlayRotation(id, angle - math.pi / 2, w / 2, size / 2)
     renderOverlay(id, cx - w / 2, cy - size / 2, w, size)
@@ -416,7 +427,7 @@ local function clipToBox(ax, ay, bx, by, box)
     return ax + dx * t0, ay + dy * t0, ax + dx * t1, ay + dy * t1
 end
 
-function Draw.drawPlot(plot, progressIx, vehicle, thickness)
+function Draw.drawPlot(plot, progressIx, vehicle, thickness, others)
     local outlineColor = {0.55, 0.75, 0.45, 0.6}
     local box = plot.box
     -- zoomed in, the map is bigger than its box: only what is inside it
@@ -470,6 +481,24 @@ function Draw.drawPlot(plot, progressIx, vehicle, thickness)
         if len > 0 then ux, uy = ux / len, uy / len end
         if inBox(sx, sy) then
             Draw.arrow(sx, sy, thickness * 20, math.atan2(uy, ux))
+        end
+    end
+    -- other vehicles (a combine's unloaders): arrows in their colour; off the map, at its edge
+    for _, o in ipairs(others or {}) do
+        local v = o.vehicle
+        if v.rootNode and not v.isDeleted then
+            local vx, _, vz = getWorldTranslation(v.rootNode)
+            local dx, _, dz = localDirectionToWorld(v.rootNode, 0, 0, 1)
+            local sx, sy = plot.toScreen(vx, vz)
+            local ax, ay = plot.toScreen(vx + dx, vz + dz)
+            local ux, uy = (ax - sx) * g_screenAspectRatio, ay - sy
+            local margin = thickness * 6
+            local inside = inBox(sx, sy)
+            sx = math.max(box.x + margin / g_screenAspectRatio, math.min(box.x + box.w - margin / g_screenAspectRatio, sx))
+            sy = math.max(box.y + margin, math.min(box.y + box.h - margin, sy))
+            -- (an arrow in its colour, the way it faces)
+            local c = o.color
+            Draw.arrow(sx, sy, thickness * 17, math.atan2(uy, ux), {c[1], c[2], c[3], inside and 1 or 0.7})
         end
     end
 end

@@ -13,14 +13,13 @@
         <text name="guidance_helper_noTrailer" text="Koppel een aanhanger of overlaadwagen om maaidorsers te lossen"/>
         <text name="guidance_helper_noBaleTool" text="Koppel een balenlader of balenwikkelaar om balen te verzamelen"/>
         <text name="guidance_helper_noSilo" text="Rijd naar een sleufsilo om hem aan te rijden"/>
-        <text name="guidance_helperAbout_unload" text="Wacht aan de veldrand, rijdt naar een maaidorser of hakselaar van dit veld die roept (om het gewas heen) en vangt de lading onder de pijp op met diens snelheid (naast de hakselaar, of erachter in staand gewas). Vol: over de wegen van het spel naar een station en terug, in een vrachtwagen aan de veldrand (overlaadwagen), op een hoop waar hij begon (kipper), of hij stopt voor jou."/>
+        <text name="guidance_helperAbout_unload" text="De overlaadwagen van AutoDrive, hier ingesteld: hij wacht bij de AutoDrive-bestemming van het veld van zijn combine, rijdt naar de combine als die roept, neemt de lading onder de pijp over en brengt die naar Lossen bij. Dit zijn de eigen instellingen van AutoDrive: hier of in het menu van AutoDrive gewijzigd, beide tonen hetzelfde."/>
         <text name="guidance_helperAbout_bales" text="Pakt elke baal op dit veld op (of wikkelt hem), de dichtstbijzijnde eerst. Een volle lader legt de stapel neer waar hij begon; aan het eind brengt hij de rest er ook heen."/>
         <text name="guidance_helperAbout_silo" text="Rijdt baan voor baan op en neer over de sleufsilo, voorwaarts erin en achteruit eruit. Wacht als de silo aangereden is, gaat door als er meer gestort wordt; stopt als hij gesloten is."/>
-        <text name="guidance_helperReady_unload" text="Start hem aan de veldrand"/>
+        <text name="guidance_helperReady_unload" text="Kies de combine en waar hij lost, dan Start"/>
         <text name="guidance_helperReady_bales" text="Start hem waar de stapel moet komen"/>
         <text name="guidance_helperReady_silo" text="Start hem bij de silo"/>
         <text name="guidance_set_unloadAt" text="Lossen bij"/>
-        <text name="guidance_unload_stop" text="Stop als vol"/>
         <text name="guidance_set_unloadFull" text="Vertrek als vol bij"/>
         <text name="guidance_set_refill" text="Bijvullen bij"/>
         <text name="guidance_refill_off" text="Uit: stopt als leeg"/>
@@ -45,8 +44,6 @@
         <text name="guidance_tool_move" text="Verplaatsen"/>
         <text name="guidance_toolHint_move" text="Sleep een punt van de route"/>
         <text name="guidance_phase_balesCantWrap" text="Klaar; overgebleven balen kan deze wikkelaar niet wikkelen"/>
-        <text name="guidance_unload_truck" text="Vrachtwagen aan de veldrand"/>
-        <text name="guidance_unload_heap" text="Hoop waar hij begon"/>
         <text name="guidance_phase_unloadToTruck" text="Rijdt naar de vrachtwagen"/>
         <text name="guidance_phase_unloadOverload" text="Lost in de vrachtwagen"/>
         <text name="guidance_phase_unloadToHeap" text="Rijdt naar de hoop"/>
@@ -80,7 +77,22 @@
         <text name="guidance_orchard_name" text="Boomgaard %d"/>
         <text name="guidance_warn_convoyNarrow" text="Te smal voor een konvooi van %d: ongeveer %d%% blijft onbewerkt. Probeer Volgende vrije rij of Stroken."/>
         <text name="guidance_info_WAITING_RAIN" text="Wacht tot de regen stopt (nu oogsten kost opbrengst)"/>
-        <text name="guidance_info_NO_UNLOADER" text="Vol, geen overlader: start een CourseCorrect-overlader op dit veld, of geef een AutoDrive-truck dezelfde eerste bestemming als deze oogstmachine"/>
+        <text name="guidance_info_NO_UNLOADER" text="Vol, geen overlader: kies deze combine bij de Overlader van een truck (tabblad Route) en start hem, of geef een AutoDrive-truck dezelfde eerste bestemming als deze oogstmachine"/>
+        <text name="guidance_set_refuelAt" text="Tanken bij"/>
+        <text name="guidance_set_repairAt" text="Repareren bij (slijtage)"/>
+        <text name="guidance_set_handOver" text="Daarna, op dit veld"/>
+        <text name="guidance_handOver_none" text="Niemand"/>
+        <text name="guidance_handOver_gone" text="(niet gevonden)"/>
+        <text name="guidance_info_SERVICE_FUEL" text="Gaat tanken (AutoDrive), gaat daarna verder"/>
+        <text name="guidance_info_SERVICE_REPAIR" text="Gaat naar reparatie (AutoDrive), gaat daarna verder"/>
+        <text name="guidance_info_HANDED_OVER" text="Klaar, het veld is overgedragen"/>
+        <text name="guidance_contracts_open" text="Contracten (%d)"/>
+        <text name="guidance_contracts_title" text="Contracten (%d)"/>
+        <text name="guidance_contracts_hint" text="Je lopende contracten. Route maken: een route op dat veld voor deze trekker. Ga: en erheen (AutoDrive)."/>
+        <text name="guidance_contracts_none" text="Geen lopende contracten."/>
+        <text name="guidance_contracts_hasCourse" text="route klaar"/>
+        <text name="guidance_contracts_make" text="Route maken"/>
+        <text name="guidance_contracts_made" text="Route gemaakt voor: %s"/>
         <text name="guidance_set_rainWait" text="Bij regen"/>
         <text name="guidance_rain_wait" text="Wachten"/>
         <text name="guidance_rain_go" text="Doorgaan"/>
@@ -136,10 +148,16 @@
         <text name="guidance_pipeSide_left" text="Links"/>
         <text name="guidance_pipeSide_right" text="Rechts"/>
         <text name="guidance_set_unloadCombine" text="Combine"/>
-        <text name="guidance_unloadCombine_any" text="Elke op zijn veld"/>
+        <text name="guidance_set_secondUnloader" text="Tweede overlaadwagen"/>
+        <text name="guidance_set_followDistance" text="Volgafstand"/>
+        <text name="guidance_pipeSide_rear" text="Erachter"/>
+        <text name="guidance_unloadCombine_none" text="(geen)"/>
+        <text name="guidance_unloadAD_pick" text="(kiezen)"/>
+        <text name="guidance_unloadAD_noTarget" text="Kies waar hij lost (een AutoDrive-bestemming)"/>
+        <text name="guidance_unloadAD_noCombine" text="Kies eerst de combine (zijn veld heeft een AutoDrive-bestemming nodig)"/>
+        <text name="guidance_phase_adUnload" text="AutoDrive rijdt hem als overlaadwagen"/>
+        <text name="guidance_status_adUnload" text="AutoDrive laadt over"/>
         <text name="guidance_unloadCombine_field" text="veld %s"/>
-        <text name="guidance_unloadCombine_gone" text="(niet gevonden)"/>
-        <text name="guidance_unloadGo" text="Naar %s op veld %s: AutoDrive brengt hem, de overlaadwagen start daar"/>
         <text name="guidance_jobTitle" text="CourseCorrect"/>
         <text name="guidance_action_start" text="CourseCorrect: start"/>
         <text name="guidance_action_stop" text="CourseCorrect: stop"/>
@@ -190,12 +208,16 @@
         <text name="guidance_lessSettings" text="Minder instellingen"/>
         <text name="guidance_btn_makeCourse" text="Route maken"/>
         <text name="guidance_btn_newCourse" text="Nieuwe route"/>
+        <text name="guidance_btn_clearCourse" text="Wissen"/>
+        <text name="guidance_course_cleared" text="Route gewist"/>
+        <text name="guidance_clear_ask" text="De route van deze trekker wissen? Opgeslagen routes blijven."/>
         <text name="guidance_btn_start" text="Start"/>
         <text name="guidance_btn_stop" text="Stop"/>
         <text name="guidance_status_paused" text="Gepauzeerd · %.0f%%"/>
         <text name="guidance_btn_pause" text="Pauze"/>
         <text name="guidance_btn_resume" text="Hervatten"/>
         <text name="guidance_set_startAt" text="Start bij"/>
+        <text name="guidance_set_startAfter" text="Daarna"/>
         <text name="guidance_start_continue" text="Doorgaan"/>
         <text name="guidance_start_nearest" text="Dichtstbij"/>
         <text name="guidance_start_first" text="Eerste"/>

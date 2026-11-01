@@ -311,10 +311,6 @@ function GuidanceJob:start(farmId)
             spec.settings.refillX, spec.settings.refillZ = self.refillX, self.refillZ
             if spec.plan then spec.plan.refillX, spec.plan.refillZ = self.refillX, self.refillZ end
         end
-        if spec and spec.settings and self.unloadX ~= nil then
-            spec.settings.unloadX, spec.settings.unloadZ = self.unloadX, self.unloadZ
-            spec.settings.unloadFull = math.floor((self.fullLevel or 0.97) * 100 + 0.5)
-        end
         vehicle:createAgent(self.helperIndex)
         vehicle:aiJobStarted(self, self.helperIndex, farmId)
     end

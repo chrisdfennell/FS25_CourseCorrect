@@ -47,7 +47,7 @@ Driver.GIVE_WAY_SLOW = 18 -- m further than that we start slowing down
 Driver.GIVE_WAY_OVERLAP = 0.5 -- m the work widths may overlap side by side (neighbouring passes) without a clash
 Driver.GIVE_WAY_SHOW = 3000 -- ms waiting before the status says so
 Driver.AD_WAIT = 20000 -- ms we wait for a standing AutoDrive vehicle in our way (it may wait for us), then go on up to it
-Driver.PIPE_OUT_FOR_UNLOADER = 60 -- m: our unloader coming this near, the pipe goes out (it sees its side)
+Driver.PIPE_OUT_FOR_UNLOADER = 60 -- m: the AutoDrive unloader sent to us this near, the pipe goes out (it sees its side)
 Driver.TOUCH_GAP = 1.5 -- m short of anything in our way we stop at the latest (an AutoDrive truck, its trailer)
 -- one that gives us the right of way but stands in our way: we never come nearer than this (middle to middle: both
 -- fronts and a bit), and it backs up to let us by (straight back, at most ROOM_BACK m, at ROOM_SPEED km/h)
@@ -58,6 +58,9 @@ Driver.ROOM_ANGLE = math.rad(30) -- backing up this much to the side, out of the
 Driver.ROOM_RETURN = 20000 -- ms after that the way back to our path isn't "lost"
 Driver.CUSP_DISTANCE = 0.5 -- m from a change of direction counts as there
 Driver.UNLOAD_RESUME_LEVEL = 0.9 -- a waiting combine goes on below this, once nothing is under the pipe
+Driver.TANK_LEARN = 30 -- m harvested before the litres per metre count
+Driver.TANK_FULL = 0.98 -- of the tank: as good as full for the forecast
+Driver.EARLY_CALL_RESET = 0.1 -- of the tank: emptied this far, the call level is the player's again
 Driver.PIPE_CLOSE_DELAY = 3000
 Driver.HOLD_STALL = 15000 -- ms AutoDrive may hold us with nothing coming out of the tank before we go on regardless
 Driver.TOW_COMPENSATION = true -- towed implements: the tractor swings wide in bends so the implement stays on the line
@@ -105,6 +108,8 @@ function Driver.new(vehicle, course, startIx, startPoint)
     self.harvester = Driver.findHarvester(vehicle)
     if self.harvester and vehicle.isServer ~= false then
         Driver.setCallUnloaderLevel(vehicle, self.harvester, course.plan.callUnloaderAt or 80)
+        -- (its AutoDrive unloaders come along to this field)
+        Guidance.try(GuidanceAutoDrive.followCombine, vehicle)
     end
     -- standing crop on the field, to keep out of it on the way to the course and on connections
     local ok, probe = Guidance.try(GuidanceFruitProbe.new, course.outline or {})
@@ -190,7 +195,18 @@ function Driver:buildPath(startIx, startPoint)
     local dist = math.sqrt((target.x - x) ^ 2 + (target.z - z) ^ 2)
     local headingDiff = math.abs(GuidanceGeo.normAngle(h - h0))
     table.insert(path, {x = x, z = z, t = "C", work = false})
-    if dist > 2 or headingDiff > math.rad(20) then
+    -- the start straight behind us on our line (going back for crop left there): straight back up the lane, then on,
+    -- not round in a loop through the crop
+    local alongBack = (target.x - x) * math.cos(h0) + (target.z - z) * math.sin(h0)
+    local sideBack = math.abs(-(target.x - x) * math.sin(h0) + (target.z - z) * math.cos(h0))
+    local runInBack = math.max(self.info.runOut, 3)
+    local backUp = self.course.plan.allowReverse and alongBack < -1 and sideBack < 2 and headingDiff < math.rad(20)
+        and -alongBack < GuidanceCourse.UNCUT_MAX_BACK + 10
+    if backUp then
+        table.insert(path, {x = target.x - math.cos(h0) * runInBack, z = target.z - math.sin(h0) * runInBack, t = "C",
+                            work = false, rev = true})
+        Guidance.debug("%s: backing straight up %.0f m to the start", Guidance.vehicleName(self.vehicle), -alongBack)
+    elseif dist > 2 or headingDiff > math.rad(20) then
         local runIn = math.max(self.info.runOut, 3)
         local approach = {x = target.x - math.cos(h0) * runIn, y = target.z - math.sin(h0) * runIn, h = h0}
         local from = {x = x, y = z, h = h}
@@ -707,6 +723,8 @@ function Driver:updateDriving(dt)
         self:raiseImplements()
         self.vehicle:guidanceSetInfoText("FINISHED", true)
         self.vehicle:stopCurrentAIJob(AIMessageSuccessFinishedJob.new())
+        -- the next tractor of the field's chain takes over
+        Guidance.try(GuidanceVehicle.handOver, self.vehicle)
         return 0
     end
 
@@ -734,6 +752,21 @@ function Driver:updateDriving(dt)
     end
     local front, back = self.info.frontOffset, self.info.backOffset
     local shouldWork = not reversing and follower:isInWork(front, back, lead, raiseLate)
+    -- (a harvester at the start of a row its tank can't take: it waits for the unloader here on the headland, not
+    -- full in the middle of the crop)
+    if shouldWork and not self.lowered and self:tankHoldAtRowStart() then
+        Guidance.info("%s: the next row won't fit in the tank, waiting for an unloader on the headland",
+            Guidance.vehicleName(self.vehicle))
+        self.vehicle:guidanceSetInfoText("NEEDS_UNLOADING", true)
+        self.unloadIdleTimer = 0
+        self.state = Driver.STATE_WAIT_UNLOAD
+        return 0
+    end
+    -- (a service trip due: at the end of the stretch, not in the middle of the crop)
+    if self.serviceDue and (not self.lowered or self.switchedOff) and not shouldWork then
+        self:startServiceTrip()
+        return 0
+    end
     if shouldWork and self.switchedOff then
         -- down all through the turn: just switch back on
         self:switchOnImplements()
@@ -820,6 +853,10 @@ function Driver.isObstacle(self, other)
         return false
     end
     if other.ad and other.ad.stateModule and other.ad.stateModule.isActive and other.ad.stateModule:isActive() then
+        -- (the unloader AutoDrive sent to us drives right beside us, it keeps clear itself)
+        local mode = GuidanceAutoDrive.unloadMode()
+        local m = mode and other.ad.modes and other.ad.modes[mode]
+        if m and self.harvester and m.combine == self.harvester then return "close" end
         local moving = other.getLastSpeed ~= nil and other:getLastSpeed() > 1
         if moving or (self.adIgnored and self.adIgnored[other]) then return "close" end
         return "wait"
@@ -922,12 +959,7 @@ function Driver:giveWay(dt, maxSpeed, x, z, h, reversing)
         for _, other in pairs(vehicles) do
             local spec = other ~= self.vehicle and other.spec_guidance or nil
             local od = spec and spec.driver
-            -- (a combine and its unloader alongside never wait for each other, nor while it pulls away from the one
-            -- that has just emptied it)
-            -- (our unloader still on its way to us, e.g. from standing on our line: not yet, it may be in front)
             local paired = other == ignore
-                or (od and ((od.combine == self.vehicle and od.state ~= "approach") or od.leftCombine == self.vehicle))
-                or (od and self.combine == other)
             local yields = od and waitsFor(od, self.vehicle)
             -- a helper without a course (unloader, bale collector...): in our way by its own size and what it pulls,
             -- not by a work width (a truck measured "10 m wide" stood in our way from beside our line)
@@ -1565,8 +1597,9 @@ function Driver.findHarvester(vehicle)
 end
 
 --- AutoDrive sends an unloader to a harvester this full (its own setting on the harvester, "preCallLevel": a step
---- of its list of levels). We set it from ours, to the nearest step.
-function Driver.setCallUnloaderLevel(vehicle, harvester, percent)
+--- of its list of levels). We set it from ours, to the nearest step (atOrBelow: the highest step not above it, so
+--- that a call now is a call)
+function Driver.setCallUnloaderLevel(vehicle, harvester, percent, atOrBelow)
     local ad = AutoDrive
     if ad == nil and FS25_AutoDrive ~= nil then ad = FS25_AutoDrive.AutoDrive end
     if ad == nil or ad.settings == nil or ad.settings.preCallLevel == nil or ad.setSettingState == nil then
@@ -1576,15 +1609,19 @@ function Driver.setCallUnloaderLevel(vehicle, harvester, percent)
     local best, bestD
     for i, v in ipairs(values) do
         local d = math.abs(v - percent / 100)
-        if bestD == nil or d < bestD then best, bestD = i, d end
+        if atOrBelow then
+            d = v <= percent / 100 + 1e-6 and percent / 100 - v or math.huge
+        end
+        if d < math.huge and (bestD == nil or d < bestD) then best, bestD = i, d end
     end
     if best == nil then
         return
     end
-    -- (the vehicle itself, and a harvester attached to it if that's another one)
+    -- (the vehicle itself, and a harvester attached to it if that's another one; sent to everybody, so AutoDrive's
+    -- menu shows it)
     for _, v in ipairs(harvester ~= vehicle and {vehicle, harvester} or {vehicle}) do
         if v.ad and v.ad.settings and v.ad.settings.preCallLevel then
-            Guidance.try(ad.setSettingState, "preCallLevel", best, v)
+            GuidanceAutoDrive.setSetting(v, "preCallLevel", best)
         end
     end
     Guidance.debug("%s: AutoDrive calls the unloader at %d%%", Guidance.vehicleName(vehicle), math.floor(values[best] * 100 + 0.5))
@@ -1602,9 +1639,6 @@ end
 --- Are there unloaders for this harvester (our own on its field, or AutoDrive's)? Then it waits for them when full,
 --- instead of stopping for AutoDrive to drive it away.
 function Driver:hasAutoDriveUnloaders()
-    if self.unloader or self:hasOwnUnloaders() then
-        return true
-    end
     local manager = ADHarvestManager
     if manager == nil and FS25_AutoDrive ~= nil then
         manager = FS25_AutoDrive.ADHarvestManager
@@ -1616,19 +1650,113 @@ function Driver:hasAutoDriveUnloaders()
     return ok and result == true
 end
 
---- One of our unloaders works on this field (waiting or busy)
-function Driver:hasOwnUnloaders()
-    local vehicles = g_currentMission and g_currentMission.vehicleSystem and g_currentMission.vehicleSystem.vehicles
-    local x, z = vehiclePose(self.vehicle)
+--- The work interval (of the follower's, {from, to} along the path) the front of the work area is in or comes to next
+function Driver:currentWorkInterval()
+    local front = self.follower.s + self.info.frontOffset
+    for _, w in ipairs(self.follower.workIntervals or {}) do
+        if w.to > front then return w end
+    end
+    return nil
+end
+
+--- The type of the course's stretch starting at s along the path ("R" a row, "H" a headland pass...)
+function Driver:stretchTypeAt(s)
+    for _, p in ipairs(self.follower.points) do
+        if p.d > s + 0.5 then return p.t end
+    end
+    return nil
+end
+
+--- A harvester's tank: litres in it, its capacity; and, while harvesting, how many litres one metre brings (learned
+--- as it goes; while unloading on the move nothing is learned)
+function Driver:updateTankRate()
+    local h = self.harvester
+    if h == nil or Driver.isChopper(h) then return nil end
+    local ix = h.spec_combine.fillUnitIndex
+    local level, capacity = h:getFillUnitFillLevel(ix), h:getFillUnitCapacity(ix)
+    local s = self.follower.s
+    local working = self.lowered and not self.switchedOff and self.state == Driver.STATE_DRIVING
+        and not self.follower:isReversing()
+    local last = self.tankLast
+    if working and last and level >= last.level and s > last.s + 0.5 then
+        local rate = (level - last.level) / (s - last.s)
+        self.tankRate = self.tankRate and (0.7 * self.tankRate + 0.3 * rate) or rate
+        self.tankMeasured = (self.tankMeasured or 0) + s - last.s
+    end
+    self.tankLast = working and {level = level, s = s} or nil
+    return level, capacity
+end
+
+--- Litres per metre, once learned (nil before)
+function Driver:tankRateKnown()
+    if (self.tankMeasured or 0) < Driver.TANK_LEARN or (self.tankRate or 0) <= 0 then return nil end
+    return self.tankRate
+end
+
+--- At the start of a row: does the row need more than the tank has room for, with unloaders about but none on its
+--- way to us? (Then waiting here on the headland beats standing full in the crop; one on its way empties it on the
+--- move. A row longer than a whole tank: no use waiting.)
+function Driver:tankHoldAtRowStart()
+    local rate = self.harvester and self:tankRateKnown()
+    local w = rate and self:currentWorkInterval()
+    if w == nil or self:stretchTypeAt(w.from) ~= "R" then return false end
+    local ix = self.harvester.spec_combine.fillUnitIndex
+    local level, capacity = self.harvester:getFillUnitFillLevel(ix), self.harvester:getFillUnitCapacity(ix)
+    local need = rate * (w.to - w.from)
+    if capacity <= 0 or need > capacity * Driver.TANK_FULL or level + need <= capacity * Driver.TANK_FULL then
+        return false
+    end
+    return self:unloadersAbout(0) and self:sentUnloader(0) == nil
+end
+
+--- While harvesting: full before this stretch ends? Then AutoDrive is asked for its unloader now (its call level on
+--- the harvester set to where the tank is), not only at our call level; back to the player's once emptied or one
+--- is sent
+function Driver:updateEarlyCall(level, capacity)
+    local rate = self:tankRateKnown()
+    if self.calledEarly then
+        if level < capacity * Driver.EARLY_CALL_RESET or self:sentUnloader(0) ~= nil then
+            self.calledEarly = nil
+            Driver.setCallUnloaderLevel(self.vehicle, self.harvester, self.course.plan.callUnloaderAt or 80)
+        end
+        return
+    end
+    local w = rate and self.lowered and self:currentWorkInterval()
+    if w == nil or capacity <= 0 then return end
+    local left = w.to - (self.follower.s + self.info.frontOffset)
+    if level + rate * left <= capacity * Driver.TANK_FULL then return end
+    if level >= capacity * (self.course.plan.callUnloaderAt or 80) / 100 then return end
+    if not self:unloadersAbout(0) or self:sentUnloader(0) ~= nil then return end
+    self.calledEarly = true
+    Driver.setCallUnloaderLevel(self.vehicle, self.harvester, math.floor(100 * level / capacity), true)
+    Guidance.info("%s: full in %.0f m, before the end of this stretch (%.0f m): unloader called now, at %d%%",
+        Guidance.vehicleName(self.vehicle), (capacity * Driver.TANK_FULL - level) / rate, left,
+        math.floor(100 * level / capacity))
+end
+
+--- A forage harvester (or a buffer combine): it holds no grain, its spout goes straight into a trailer alongside
+function Driver.isChopper(harvester)
+    local spec = harvester and harvester.spec_combine
+    if spec == nil then return false end
+    if spec.isBufferCombine then return true end
+    local c = harvester.getFillUnitCapacity and harvester:getFillUnitCapacity(spec.fillUnitIndex)
+    return c ~= nil and c > 1e7
+end
+
+--- The AutoDrive unloader sent to this harvester (driving its "unload combine" mode for it), or nil
+function Driver.autoDriveUnloaderOf(harvester)
+    local mode = GuidanceAutoDrive.unloadMode()
+    local vehicles = mode and harvester and g_currentMission and g_currentMission.vehicleSystem
+        and g_currentMission.vehicleSystem.vehicles
     for _, v in pairs(vehicles or {}) do
-        local d = v ~= self.vehicle and v.spec_guidance and v.spec_guidance.driver
-        if d and GuidanceUnloadDriver and getmetatable(d) and getmetatable(d).__index == GuidanceUnloadDriver
-                and not d.done and (d.field == nil or d:isOnField(x, z)
-                    or (d.job and d.job.unloadCombine == GuidanceVehicle.vehicleKey(self.vehicle))) then
-            return true
+        local m = v.ad and v.ad.modes and v.ad.modes[mode]
+        if m and (m.combine == harvester or (m.combine and m.combine.getRootVehicle
+                and m.combine:getRootVehicle() == harvester:getRootVehicle()))
+                and v.ad.stateModule and v.ad.stateModule:isActive() then
+            return v
         end
     end
-    return false
+    return nil
 end
 
 local function pipeState(harvester)
@@ -1657,7 +1785,7 @@ function Driver:updatePipe(dt)
     local spec = harvester.spec_pipe
     local somethingUnder = spec and (spec.numObjectsInTriggers or 0) > 0
     -- a forage harvester: the spout always out; nothing under it (and not turning): it holds
-    if GuidanceUnloadDriver and GuidanceUnloadDriver.isChopper(harvester) then
+    if Driver.isChopper(harvester) then
         setPipe(harvester, true)
         if spec then spec.automaticDischarge = true end
         local ok, node = Guidance.try(function() return harvester:getDischargeNodeByIndex(harvester:getPipeDischargeNodeIndex()) end)
@@ -1671,15 +1799,16 @@ function Driver:updatePipe(dt)
         end
         return
     end
-    -- our unloader alongside: out with it, and the combine fills the trailer under it by itself
-    local unloaderHere = self.unloader ~= nil and self.unloader.state == "follow"
-    -- (on its way and near: out already, so it sees which side the pipe is on before it lines up)
+    -- the AutoDrive unloader sent to us on its way and near: out already, so it sees which side the pipe is on before
+    -- it lines up; alongside, the combine fills the trailer under it by itself
     local unloaderComing = false
-    if self.unloader ~= nil and self.unloader.state == "approach" and self.unloader.vehicle.rootNode then
-        local ux, _, uz = getWorldTranslation(self.unloader.vehicle.rootNode)
+    local unloader = self:sentUnloader(dt)
+    if unloader ~= nil and unloader.rootNode then
+        local ux, _, uz = getWorldTranslation(unloader.rootNode)
         local cx, _, cz = getWorldTranslation(self.vehicle.rootNode)
         unloaderComing = (ux - cx) ^ 2 + (uz - cz) ^ 2 < Driver.PIPE_OUT_FOR_UNLOADER ^ 2
     end
+    local unloaderHere = unloaderComing and somethingUnder
     if unloaderHere and spec and spec.automaticDischarge == false then spec.automaticDischarge = true end
     -- at the call level, with unloaders about: out (not in turns), so an unloader on the move (AutoDrive's active
     -- unloading) lines up under it and the tank is emptied as we go
@@ -1698,7 +1827,17 @@ function Driver:updatePipe(dt)
     end
 end
 
---- Are there unloaders for us (ours on the field, AutoDrive's)? Looked at every few seconds.
+--- The AutoDrive unloader sent to us (looked for once a second), or nil
+function Driver:sentUnloader(dt)
+    self.sentTimer = (self.sentTimer or math.huge) + (dt or 0)
+    if self.sentTimer > 1000 then
+        self.sentTimer = 0
+        self.sentKnown = Driver.autoDriveUnloaderOf(self.harvester)
+    end
+    return self.sentKnown
+end
+
+--- Are there AutoDrive unloaders for us? Looked at every few seconds.
 function Driver:unloadersAbout(dt)
     self.unloadersTimer = (self.unloadersTimer or math.huge) + (dt or 0)
     if self.unloadersTimer > 3000 then
@@ -1953,6 +2092,68 @@ local function fillPercentage(object, fillUnitIndex)
     return object:getFillUnitFillLevel(fillUnitIndex) / capacity
 end
 
+Driver.SERVICE_RETRY = 600000 -- ms before a trip that didn't help (no station, still low) is tried again
+
+--- The lowest fuel (of the tank, 0..1) and the highest wear (damage 0..1) of the vehicle and what it pulls
+function Driver.fuelAndWear(vehicle)
+    local fuel, wear
+    for _, v in pairs(allVehicles(vehicle)) do
+        if v.spec_motorized and v.spec_motorized.propellantFillUnitIndices then
+            for _, ix in pairs(v.spec_motorized.propellantFillUnitIndices) do
+                local f = fillPercentage(v, ix)
+                if f and (fuel == nil or f < fuel) then fuel = f end
+            end
+        end
+        if v.getDamageAmount then
+            local ok, d = Guidance.try(v.getDamageAmount, v)
+            if ok and d and (wear == nil or d > wear) then wear = d end
+        end
+    end
+    return fuel, wear
+end
+
+--- Fuel under the plan's Refuel at, or worn to its Repair at, with AutoDrive there to take it to the fuel station or
+--- the workshop and bring it back (it starts us again where we stopped): "fuel", "repair" or nil. Not again soon
+--- after a trip that didn't help.
+function Driver:serviceNeeded()
+    local plan = self.course.plan
+    local refuelAt, repairAt = plan.refuelAt or 0, plan.repairAt or 0
+    if (refuelAt <= 0 and repairAt <= 0) or not GuidanceAutoDrive.canService(self.vehicle) then return nil end
+    local fuel, wear = Driver.fuelAndWear(self.vehicle)
+    local missionInfo = g_currentMission and g_currentMission.missionInfo
+    local tried = self.vehicle.spec_guidance and self.vehicle.spec_guidance.serviceTried or {}
+    local function recent(kind) return tried[kind] and (g_time or 0) - tried[kind] < Driver.SERVICE_RETRY end
+    if refuelAt > 0 and fuel and fuel < refuelAt / 100 and not (missionInfo and missionInfo.helperBuyFuel)
+            and not recent("fuel") then
+        return "fuel"
+    end
+    if repairAt > 0 and wear and wear >= repairAt / 100 and not recent("repair") then
+        return "repair"
+    end
+    return nil
+end
+
+--- Off for fuel / a repair: the job stops the way AutoDrive knows from Courseplay (out of fuel, broken), AutoDrive
+--- takes it there and starts us again where we stopped
+function Driver:startServiceTrip()
+    local kind = self.serviceDue
+    self.serviceDue = nil
+    if kind == nil then return end
+    local spec = self.vehicle.spec_guidance
+    if spec then
+        spec.serviceTried = spec.serviceTried or {}
+        spec.serviceTried[kind] = g_time or 0
+    end
+    GuidanceAutoDrive.prepareService(self.vehicle, kind)
+    Guidance.info("%s: %s: AutoDrive takes it to the %s, then it carries on here", Guidance.vehicleName(self.vehicle),
+        kind == "fuel" and "fuel low" or "worn", kind == "fuel" and "fuel station" or "workshop")
+    if kind == "fuel" then
+        self:stop(AIMessageErrorOutOfFuel.new(), "SERVICE_FUEL")
+    else
+        self:stop(AIMessageErrorVehicleBroken.new(), "SERVICE_REPAIR")
+    end
+end
+
 function Driver:updateFillLevels(dt)
     self.fillCheckTimer = self.fillCheckTimer + dt
     if self.fillCheckTimer < Driver.FILL_CHECK_INTERVAL or self.state == Driver.STATE_DONE then
@@ -2012,6 +2213,15 @@ function Driver:updateFillLevels(dt)
         end
     end
     self.vehicle:guidanceSetInfoText("FUEL_IS_LOW", fuelLow)
+    -- a harvester: how fast its tank fills, and whether it calls its unloader earlier than its call level
+    local tankLevel, tankCapacity = self:updateTankRate()
+    if tankLevel and not isFull and self.state == Driver.STATE_DRIVING then
+        self:updateEarlyCall(tankLevel, tankCapacity)
+    end
+    -- fuel low or worn: a trip with AutoDrive, at the end of this stretch (see startServiceTrip)
+    if self.serviceDue == nil then
+        self.serviceDue = self:serviceNeeded()
+    end
     if isFull and self.state ~= Driver.STATE_WAIT_UNLOAD then
         if self.harvester and self:hasAutoDriveUnloaders() then
             -- AutoDrive's unloaders come to a combine that stands with its pipe out
@@ -2022,8 +2232,8 @@ function Driver:updateFillLevels(dt)
             self.state = Driver.STATE_WAIT_UNLOAD
         elseif self.harvester then
             -- a harvester with nobody to unload it: stopped, and the player told why (what would make one come)
-            Guidance.info("%s: full and no unloader for it (no CourseCorrect unloader on the field, no AutoDrive truck "
-                .. "with the same first target as this harvester): stopped", Guidance.vehicleName(self.vehicle))
+            Guidance.info("%s: full and no unloader for it (no AutoDrive truck with the same first target as this "
+                .. "harvester): stopped", Guidance.vehicleName(self.vehicle))
             self:stop(AIMessageGuidanceIsFull.new(), "NO_UNLOADER")
         else
             self:stop(AIMessageGuidanceIsFull.new(), "NEEDS_UNLOADING")

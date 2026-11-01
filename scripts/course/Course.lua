@@ -35,6 +35,8 @@ function GuidancePlan.new()
     -- in turns on the field: leave the implements down, switched off (saves raising and lowering)
     self.keepLowered = false
     self.startMode = GuidancePlan.START_CONTINUE
+    -- Start at First: where later starts of the same course begin (once it got going): continue, nearest, first
+    self.startAfter = GuidancePlan.START_FIRST
     -- the innermost this many headland passes have round corners, the outer ones sharp (-1: all round)
     self.roundedPasses = 1
     -- automatic headlands are at least this wide (m)
@@ -84,20 +86,12 @@ function GuidancePlan.new()
     self.landsPipe = 0
     -- refill trips: the loading station (its place; 0, 0: none) a seeder / sprayer drives to when empty
     self.refillX, self.refillZ = 0, 0
-    -- the unloader: the unloading station it takes a full trailer to (0, 0: stops when full), how full it goes (%)
-    self.unloadX, self.unloadZ, self.unloadFull = 0, 0, 97
-    -- 0: the station at unloadX, unloadZ (none: stop when full), 1: a truck at the field edge, 2: a heap
-    self.unloadMode = 0
-    -- the unloader on the field: round standing crop (false: straight through it)
-    self.avoidCrop = true
-    -- the unloader's place under the pipe moved: out from the combine (+, m) and forward (+, m)
-    self.unloadSide, self.unloadAlong = 0, 0
-    -- the side its place under the pipe is on: 0 where the pipe is measured, 1 left, 2 right
-    self.unloadPipeSide = 0
-    -- the one combine the unloader serves (its key), wherever it works; "": any on the field it starts on
-    self.unloadCombine = ""
     -- vineyards: 0 automatic (on the rows with a grape harvester / pre-pruner, else between), 1 on, 2 between
     self.vineMode = 0
+    -- trips with AutoDrive: fuel under this (%), worn to this (%; 0: never), then on where it stopped
+    self.refuelAt, self.repairAt = 15, 80
+    -- the tractor (its key) that takes over this field once this course is done: "" nobody
+    self.handOver = ""
     -- a harvester stops while harvesting would lose yield in the rain (the game's rule), on again after
     self.rainWait = true
     -- empty: refill from a supply at the field edge (pallets, big bags, a tanker) before a trip to a station
@@ -189,6 +183,7 @@ function GuidancePlan:writeStream(streamId)
     streamWriteBool(streamId, self.squareCorners)
     streamWriteBool(streamId, self.keepLowered)
     streamWriteUInt8(streamId, self.startMode or 1)
+    streamWriteUInt8(streamId, self.startAfter or GuidancePlan.START_FIRST)
     streamWriteInt8(streamId, self.roundedPasses)
     streamWriteFloat32(streamId, self.towLength)
     streamWriteFloat32(streamId, self.minHeadlandWidth)
@@ -220,16 +215,10 @@ function GuidancePlan:writeStream(streamId)
     streamWriteString(streamId, self.moves or "")
     streamWriteFloat32(streamId, self.refillX or 0)
     streamWriteFloat32(streamId, self.refillZ or 0)
-    streamWriteFloat32(streamId, self.unloadX or 0)
-    streamWriteFloat32(streamId, self.unloadZ or 0)
-    streamWriteUInt8(streamId, self.unloadFull or 97)
-    streamWriteUInt8(streamId, self.unloadMode or 0)
-    streamWriteBool(streamId, self.avoidCrop ~= false)
-    streamWriteFloat32(streamId, self.unloadSide or 0)
-    streamWriteFloat32(streamId, self.unloadAlong or 0)
-    streamWriteUInt8(streamId, self.unloadPipeSide or 0)
-    streamWriteString(streamId, self.unloadCombine or "")
     streamWriteUInt8(streamId, self.vineMode or 0)
+    streamWriteUInt8(streamId, self.refuelAt or 0)
+    streamWriteUInt8(streamId, self.repairAt or 0)
+    streamWriteString(streamId, self.handOver or "")
     streamWriteBool(streamId, self.rainWait ~= false)
     streamWriteBool(streamId, self.refillEdge == true)
     streamWriteUInt8(streamId, self.edgeObstacles or 0)
@@ -259,6 +248,7 @@ function GuidancePlan.readStream(streamId)
     self.squareCorners = streamReadBool(streamId)
     self.keepLowered = streamReadBool(streamId)
     self.startMode = streamReadUInt8(streamId)
+    self.startAfter = streamReadUInt8(streamId)
     self.roundedPasses = streamReadInt8(streamId)
     self.towLength = streamReadFloat32(streamId)
     self.minHeadlandWidth = streamReadFloat32(streamId)
@@ -290,16 +280,10 @@ function GuidancePlan.readStream(streamId)
     self.moves = streamReadString(streamId)
     self.refillX = streamReadFloat32(streamId)
     self.refillZ = streamReadFloat32(streamId)
-    self.unloadX = streamReadFloat32(streamId)
-    self.unloadZ = streamReadFloat32(streamId)
-    self.unloadFull = streamReadUInt8(streamId)
-    self.unloadMode = streamReadUInt8(streamId)
-    self.avoidCrop = streamReadBool(streamId)
-    self.unloadSide = streamReadFloat32(streamId)
-    self.unloadAlong = streamReadFloat32(streamId)
-    self.unloadPipeSide = streamReadUInt8(streamId)
-    self.unloadCombine = streamReadString(streamId)
     self.vineMode = streamReadUInt8(streamId)
+    self.refuelAt = streamReadUInt8(streamId)
+    self.repairAt = streamReadUInt8(streamId)
+    self.handOver = streamReadString(streamId)
     self.rainWait = streamReadBool(streamId)
     self.refillEdge = streamReadBool(streamId)
     self.edgeObstacles = streamReadUInt8(streamId)
@@ -413,7 +397,7 @@ GuidancePlan.XML_FIELDS = {
     {"rowAngle", "FLOAT"}, {"clockwise", "BOOL"}, {"headlandsFirst", "BOOL"}, {"pattern", "INT"},
     {"overlap", "FLOAT"}, {"startX", "FLOAT"}, {"startZ", "FLOAT"}, {"autoWidth", "BOOL"}, {"autoRadius", "BOOL"},
     {"allowReverse", "BOOL"}, {"squareCorners", "BOOL"}, {"keepLowered", "BOOL"},
-    {"startMode", "INT"}, {"roundedPasses", "INT"}, {"towLength", "FLOAT"},
+    {"startMode", "INT"}, {"startAfter", "INT"}, {"roundedPasses", "INT"}, {"towLength", "FLOAT"},
     {"minHeadlandWidth", "FLOAT"}, {"headlandRev", "INT"}, {"prefsApplied", "BOOL"}, {"lowerLate", "FLOAT"}, {"raiseLate", "FLOAT"},
     {"teamMode", "INT"}, {"teamSize", "INT"}, {"teamIndex", "INT"},
     {"callUnloaderAt", "INT"}, {"toolOffsetX", "FLOAT"}, {"autoResume", "BOOL"},
@@ -421,8 +405,8 @@ GuidancePlan.XML_FIELDS = {
     {"reverseSpeed", "FLOAT"}, {"lights", "INT"}, {"rowsPerLand", "INT"}, {"rowShape", "INT"}, {"tramlines", "BOOL"},
     {"rowPhase", "FLOAT"}, {"rowSpacing", "FLOAT"}, {"skipRows", "STRING"}, {"skipZones", "STRING"},
     {"landsSide", "INT"}, {"landsPipe", "INT"}, {"toolSig", "STRING"}, {"moves", "STRING"},
-    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"unloadX", "FLOAT"}, {"unloadZ", "FLOAT"}, {"unloadFull", "INT"},
-    {"unloadMode", "INT"}, {"avoidCrop", "BOOL"}, {"unloadSide", "FLOAT"}, {"unloadAlong", "FLOAT"}, {"unloadPipeSide", "INT"}, {"unloadCombine", "STRING"}, {"vineMode", "INT"}, {"vineTool", "BOOL"}, {"rainWait", "BOOL"}, {"refillEdge", "BOOL"},
+    {"refillX", "FLOAT"}, {"refillZ", "FLOAT"}, {"vineMode", "INT"}, {"refuelAt", "INT"}, {"repairAt", "INT"},
+    {"handOver", "STRING"}, {"vineTool", "BOOL"}, {"rainWait", "BOOL"}, {"refillEdge", "BOOL"},
     {"edgeObstacles", "INT"}, {"adMarker", "STRING"}, {"keepRunning", "BOOL"}, {"takeOver", "BOOL"},
 }
 
@@ -894,6 +878,45 @@ function GuidanceCourse:getNearest(x, z, h, accept)
         end
     end
     return candidates[1].ix, candidates[1].point
+end
+
+GuidanceCourse.UNCUT_BACK = 6 -- m before the first standing crop behind a start it begins instead
+GuidanceCourse.UNCUT_MAX_BACK = 60 -- m at most it goes back for crop behind it (backing straight up its own lane)
+
+--- A start part-way along a worked stretch (point on the way to waypoint ix; nil: at waypoint ix) with standing crop
+--- (a GuidanceFruitProbe) behind it on that stretch, at least enough m within maxBack m: moved back to a little
+--- before the first of it, so that piece isn't left standing (started again with Start at: Nearest where it stood
+--- after its way to the pass, it left the crop between the pass's start and there). Crop further back stays: going
+--- far back meant turning round through the crop (1.0.7.1, 1.0.8.0: off into the cane). Looked for on the stretch's
+--- line itself, so crop standing beside the lane doesn't count. ix, point as for getNearest
+function GuidanceCourse:uncutBehind(probe, ix, point, enough, maxBack)
+    local wps = self.waypoints
+    local a, b = wps[ix - 1], wps[ix]
+    if probe == nil or a == nil or b == nil or not b.work or b.rev then return ix, point end
+    local at = point or b
+    local len = math.sqrt((at.x - a.x) ^ 2 + (at.z - a.z) ^ 2)
+    if len < 1 then return ix, point end
+    local dx, dz = (at.x - a.x) / len, (at.z - a.z) / len
+    local function cropAt(d) return d >= 0 and probe:hasFruit(a.x + dx * d, a.z + dz * d, 1) end
+    -- only a piece left standing right behind it (it came onto the pass there): crop 2 to 6 m behind, then back as
+    -- far as that crop goes (a gap of one sample allowed), at most maxBack. Scattered bits further back are no
+    -- reason to back up (1.0.8.3: it backed up 60 m for them).
+    local near = (cropAt(len - 2) and 1 or 0) + (cropAt(len - 4) and 1 or 0) + (cropAt(len - 6) and 1 or 0)
+    if near < 2 then return ix, point end
+    local limit = math.max(0, len - (maxBack or GuidanceCourse.UNCUT_MAX_BACK))
+    local first, gap = len - 2, 0
+    for d = len - 4, limit, -2 do
+        if cropAt(d) then
+            first, gap = d, 0
+        else
+            gap = gap + 1
+            if gap > 1 then break end
+        end
+    end
+    if len - first < (enough or 4) then return ix, point end
+    local back = first - GuidanceCourse.UNCUT_BACK
+    if back <= 5 then return ix - 1, nil end
+    return ix, {x = a.x + dx * back, z = a.z + dz * back}
 end
 
 --- Metres of standing crop (a GuidanceFruitProbe) on the worked stretches of the course within dist m on from a
