@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write     # start the Discord release post
 
 jobs:
   release:
@@ -34,3 +35,9 @@ jobs:
           sha=$(sha256sum dist/FS25_CourseCorrect.zip | cut -d' ' -f1)
           gh release create "$GITHUB_REF_NAME" dist/FS25_CourseCorrect.zip $pre --title "CourseCorrect ${GITHUB_REF_NAME#v}" \
             --generate-notes --notes "Put FS25_CourseCorrect.zip into your mods folder as it is (don't rename it). On a server, the server and every player need the very same zip. SHA-256: \`$sha\`"
+
+      - name: Announce on Discord
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run discord-release.yml -f tag="$GITHUB_REF_NAME"
